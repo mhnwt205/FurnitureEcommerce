@@ -1,0 +1,288 @@
+import prisma from '../prismaClient.js';
+import { z } from 'zod';
+
+const orderItemSchema = z.object({
+  productId: z.number(),
+  quantity: z.number().min(1)
+});
+
+const createOrderSchema = z.object({
+  fullName: z.string().min(1),
+  phone: z.string().min(1),
+  address: z.string().min(1),
+  note: z.string().optional(),
+  paymentMethod: z.string().min(1),
+  items: z.array(orderItemSchema).min(1)
+});
+
+export const createOrder = async (req, res) => {
+  try {
+    const validatedData = createOrderSchema.parse(req.body);
+    const userId = req.user.id;
+    
+    let totalAmount = 0;
+    const orderItemsData = [];
+
+    // Process items and calculate total
+    for (const item of validatedData.items) {
+      const product = await prisma.product.findUnique({ where: { id: item.productId } });
+      if (!product) {
+        return res.status(404).json({ message: `Product with ID ${item.productId} not found` });
+      }
+
+      const subtotal = product.price * item.quantity;
+      totalAmount += subtotal;
+
+      orderItemsData.push({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        subtotal
+      });
+    }
+
+    const orderCode = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const newOrder = await prisma.order.create({
+      data: {
+        orderCode,
+        userId,
+        fullName: validatedData.fullName,
+        phone: validatedData.phone,
+        address: validatedData.address,
+        note: validatedData.note,
+        paymentMethod: validatedData.paymentMethod,
+        totalAmount,
+        status: 'pending',
+        orderItems: {
+          create: orderItemsData
+        },
+        statusHistory: {
+          create: [
+            {
+              toStatus: 'pending',
+              note: 'Đơn hàng được tạo',
+              changedById: userId,
+              changedByName: req.user.fullName || req.user.email || 'Khách hàng'
+            }
+          ]
+        }
+      },
+      include: {
+        orderItems: true
+      }
+    });
+
+    res.status(201).json({ message: 'Order created successfully', order: newOrder });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Validation failed', errors: error.errors });
+    }
+    console.error('Create order error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getMyOrders = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      include: {
+        orderItems: {
+          include: {
+            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error('Get my orders error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getAdminOrders = async (req, res) => {
+  try {
+    const { page, limit, search, status, dateFrom, dateTo, customerId } = req.query;
+
+    const whereClause = {};
+
+    if (search) {
+      whereClause.OR = [
+        { orderCode: { contains: search } },
+        { fullName: { contains: search } },
+        { phone: { contains: search } },
+        { user: { email: { contains: search } } }
+      ];
+    }
+
+    if (status && status !== 'all') {
+      whereClause.status = status;
+    }
+
+    if (customerId) {
+      whereClause.userId = parseInt(customerId);
+    }
+
+    if (dateFrom || dateTo) {
+      whereClause.createdAt = {};
+      if (dateFrom) whereClause.createdAt.gte = new Date(dateFrom);
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = to;
+      }
+    }
+
+    const pageNum = parseInt(page) || 1;
+    // Default limit 10 if not provided
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [total, orders] = await prisma.$transaction([
+      prisma.order.count({ where: whereClause }),
+      prisma.order.findMany({
+        where: whereClause,
+        include: {
+          orderItems: true,
+          user: { select: { email: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: skip,
+        take: limitNum
+      })
+    ]);
+
+    res.status(200).json({
+      data: orders,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Get admin orders error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getMyOrderById = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const id = parseInt(req.params.id);
+    const order = await prisma.order.findUnique({
+      where: { id, userId },
+      include: {
+        orderItems: {
+          include: {
+            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } }
+          }
+        },
+        statusHistory: { orderBy: { createdAt: 'desc' } }
+      }
+    });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.status(200).json(order);
+  } catch (error) {
+    console.error('Get my order detail error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getAdminOrderById = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        orderItems: {
+          include: {
+            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } }
+          }
+        },
+        statusHistory: { orderBy: { createdAt: 'desc' } },
+        user: { select: { email: true, fullName: true, phone: true } }
+      }
+    });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.status(200).json(order);
+  } catch (error) {
+    console.error('Get admin order detail error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status, note, cancelReason } = req.body;
+    const userId = req.user.id;
+    const userName = req.user.fullName || req.user.email || 'Admin/Staff';
+
+    if (isNaN(id) || !status) {
+      return res.status(400).json({ message: 'Invalid ID or status' });
+    }
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const currentStatus = order.status;
+    if (currentStatus === status) {
+      return res.status(400).json({ message: 'Status is already ' + status });
+    }
+
+    // Rules
+    const allowedFlows = {
+      pending: ['confirmed', 'cancelled'],
+      confirmed: ['preparing', 'cancelled'],
+      preparing: ['shipping', 'cancelled'],
+      shipping: ['delivered'],
+      delivered: ['completed']
+    };
+
+    if (currentStatus === 'completed' || currentStatus === 'cancelled') {
+      return res.status(400).json({ message: 'Không thể cập nhật đơn hàng đã Hoàn thành hoặc Đã hủy' });
+    }
+
+    if (!allowedFlows[currentStatus] || !allowedFlows[currentStatus].includes(status)) {
+      return res.status(400).json({ message: `Chuyển trạng thái không hợp lệ: ${currentStatus} -> ${status}` });
+    }
+
+    if (status === 'cancelled' && (!cancelReason || cancelReason.trim() === '')) {
+      return res.status(400).json({ message: 'Bắt buộc nhập lý do hủy đơn hàng' });
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { 
+        status,
+        statusHistory: {
+          create: {
+            fromStatus: currentStatus,
+            toStatus: status,
+            note: note || '',
+            cancelReason: status === 'cancelled' ? cancelReason : null,
+            changedById: userId,
+            changedByName: userName
+          }
+        }
+      },
+      include: {
+        statusHistory: { orderBy: { createdAt: 'desc' } }
+      }
+    });
+
+    res.status(200).json({ message: 'Order status updated', order: updatedOrder });
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

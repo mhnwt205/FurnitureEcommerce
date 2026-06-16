@@ -1,0 +1,22 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[User] ALTER COLUMN [passwordHash] VARCHAR(255) NULL;
+ALTER TABLE [dbo].[User] ADD [avatarUrl] VARCHAR(max),
+[googleId] VARCHAR(255),
+[provider] VARCHAR(50) CONSTRAINT [User_provider_df] DEFAULT 'credentials';
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

@@ -1,0 +1,209 @@
+import React, { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { orderService } from '../../services/api/orderService';
+import { getStaticFileUrl } from '../../utils/imageUtils';
+
+export default function OrderDetail() {
+  const { id } = useParams();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [id]);
+
+  const fetchOrder = async () => {
+    try {
+      const data = await orderService.getMyOrderById(id);
+      setOrder(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'pending': return 'Chờ xác nhận';
+      case 'confirmed': return 'Đã xác nhận';
+      case 'preparing': return 'Đang chuẩn bị';
+      case 'shipping': return 'Đang giao';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled': return 'Đã hủy';
+      default: return status;
+    }
+  };
+
+  if (loading) return <div className="p-10 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div><p className="text-on-surface-variant">Đang tải...</p></div>;
+  if (!order) return (
+    <div className="bg-surface-beige p-10 rounded-lg text-center flex flex-col items-center">
+      <span className="material-symbols-outlined text-4xl text-outline-variant mb-4">search_off</span>
+      <h4 className="font-label-lg text-label-lg text-primary mb-2">Không tìm thấy đơn hàng</h4>
+      <p className="font-body-sm text-body-sm text-on-surface-variant mb-6">Đơn hàng không tồn tại hoặc bạn không có quyền truy cập.</p>
+      <Link to="/profile?tab=orders" className="inline-block px-8 py-3 bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary/90 transition-colors rounded">Quay lại danh sách</Link>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="border-b border-outline-variant/50 pb-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display-lg text-3xl text-primary mb-2 flex items-center gap-3">
+            Chi tiết đơn hàng #{order.orderCode}
+            <span className="text-sm px-3 py-1 bg-surface-beige rounded-full uppercase tracking-wider font-bold text-accent-gold">{getStatusText(order.status)}</span>
+          </h1>
+          <p className="font-body-md text-on-surface-variant">Ngày đặt: {new Date(order.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})}</p>
+        </div>
+        <Link to="/profile?tab=orders" className="inline-flex items-center gap-2 px-6 py-2.5 bg-surface-ivory border border-outline-variant/30 rounded-lg text-primary hover:bg-surface-beige transition-colors font-label-md">
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          Quay lại
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 items-start">
+        {/* CỘT TRÁI */}
+        <div className="space-y-8">
+          
+          {/* Lịch sử trạng thái (Timeline) */}
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-outline-variant/20 shadow-sm">
+            <h3 className="font-label-lg text-primary uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-surface-beige pb-4">
+              <span className="material-symbols-outlined text-xl">history</span> Lịch sử trạng thái
+            </h3>
+            <div className="relative pl-6 border-l-2 border-outline-variant/40 space-y-6 ml-2">
+               {order.statusHistory?.map((history, idx) => (
+                  <div key={history.id} className="relative">
+                     <div className="absolute -left-[33px] top-1.5 w-4 h-4 rounded-full border-2 border-white bg-accent-gold shadow-sm"></div>
+                     <div>
+                        <div className="flex flex-wrap items-baseline gap-2 mb-1">
+                          <p className="font-label-md text-primary font-bold uppercase tracking-wider">{getStatusText(history.toStatus)}</p>
+                          <time className="text-xs text-on-surface-variant font-medium">• {new Date(history.createdAt).toLocaleString('vi-VN', {hour: '2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric'})}</time>
+                        </div>
+                        {history.cancelReason && (
+                          <div className="mt-2 text-xs text-error bg-error-container/20 border border-error-container/30 p-2.5 rounded font-medium">
+                            <span className="font-bold">Lý do hủy:</span> {history.cancelReason}
+                          </div>
+                        )}
+                     </div>
+                  </div>
+               ))}
+            </div>
+          </div>
+
+          {/* Sản phẩm đã đặt */}
+          <div className="bg-white rounded-2xl border border-outline-variant/20 shadow-sm overflow-hidden">
+            <div className="p-6 md:p-8 border-b border-surface-beige">
+              <h3 className="font-label-lg text-primary uppercase tracking-widest flex items-center gap-2">
+                <span className="material-symbols-outlined text-xl">inventory_2</span> Sản phẩm đã đặt
+              </h3>
+            </div>
+            <div className="p-0">
+              <div className="hidden md:grid grid-cols-12 gap-4 p-4 bg-surface-ivory border-b border-surface-beige text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
+                <div className="col-span-6">Sản phẩm</div>
+                <div className="col-span-3 text-center">Đơn giá x Số lượng</div>
+                <div className="col-span-3 text-right">Thành tiền</div>
+              </div>
+              <div className="divide-y divide-surface-beige">
+                {order.orderItems?.map(item => {
+                  const rawImage = item?.product?.images?.find(img => img.isPrimary)?.imageUrl 
+                                   || item?.product?.images?.[0]?.imageUrl 
+                                   || item?.product?.imageUrl;
+                  const imageUrl = getStaticFileUrl(rawImage) || 'https://placehold.co/80x80?text=SP';
+                  return (
+                    <div key={item.id} className="p-4 md:p-6 flex flex-col md:grid md:grid-cols-12 gap-4 items-center hover:bg-surface-bright transition-colors">
+                      <div className="col-span-6 flex items-center gap-4 w-full">
+                        <div className="w-20 h-20 bg-white rounded-lg flex-shrink-0 border border-outline-variant/20 overflow-hidden shadow-sm">
+                          <img 
+                            src={imageUrl} 
+                            alt={item.productName} 
+                            className="w-full h-full object-cover" 
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'https://placehold.co/80x80?text=SP';
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <p className="font-label-lg text-[15px] text-primary">{item.productName}</p>
+                          <p className="text-xs text-on-surface-variant mt-1 md:hidden">
+                            {Number(item.price).toLocaleString('vi-VN')} đ x {item.quantity}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="col-span-3 w-full md:w-auto hidden md:block text-center">
+                        <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap min-w-max font-medium text-primary bg-surface-ivory px-3 py-1.5 rounded-lg border border-surface-beige">
+                          {Number(item.price).toLocaleString('vi-VN')} đ <span className="text-on-surface-variant">x</span> {item.quantity}
+                        </span>
+                      </div>
+                      <div className="col-span-3 w-full md:w-auto flex justify-between md:block text-right border-t border-outline-variant/20 md:border-t-0 pt-3 md:pt-0">
+                        <span className="md:hidden text-xs text-on-surface-variant uppercase tracking-wider font-bold">Thành tiền:</span>
+                        <span className="font-bold text-[15px] text-accent-terracotta">{Number(item.subtotal).toLocaleString('vi-VN')} đ</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CỘT PHẢI */}
+        <div className="space-y-8">
+          
+          {/* Thông tin giao hàng */}
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-outline-variant/20 shadow-sm">
+            <h3 className="font-label-lg text-primary uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-surface-beige pb-4">
+              <span className="material-symbols-outlined text-xl">local_shipping</span> Giao hàng
+            </h3>
+            <div className="space-y-5 font-body-sm">
+              <div>
+                <p className="text-on-surface-variant text-[11px] mb-1 uppercase font-bold tracking-wider">Người nhận</p>
+                <p className="font-label-lg text-[15px] text-primary">{order.fullName}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant text-[11px] mb-1 uppercase font-bold tracking-wider">Điện thoại</p>
+                <p className="text-primary font-medium">{order.phone}</p>
+              </div>
+              <div>
+                <p className="text-on-surface-variant text-[11px] mb-1 uppercase font-bold tracking-wider">Địa chỉ</p>
+                <p className="text-primary leading-relaxed font-medium">{order.address}</p>
+              </div>
+              {order.note && (
+                <div>
+                  <p className="text-on-surface-variant text-[11px] mb-2 uppercase font-bold tracking-wider">Ghi chú của bạn</p>
+                  <p className="italic bg-surface-ivory p-3 rounded-lg border border-surface-beige text-primary break-words">{order.note}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Thông tin thanh toán */}
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-outline-variant/20 shadow-sm bg-gradient-to-b from-white to-surface-ivory">
+            <h3 className="font-label-lg text-primary uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-surface-beige pb-4">
+              <span className="material-symbols-outlined text-xl">payments</span> Thanh toán
+            </h3>
+            <div className="space-y-4 font-body-sm mb-6 border-b border-outline-variant/30 pb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-on-surface-variant font-medium">Phương thức:</span>
+                <span className="font-bold text-primary uppercase tracking-wider text-[10px] bg-surface-beige px-3 py-1.5 rounded-full border border-surface-container">{order.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-on-surface-variant font-medium">Tạm tính:</span>
+                <span className="font-semibold text-primary">{Number(order.totalAmount).toLocaleString('vi-VN')} đ</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-on-surface-variant font-medium">Phí giao hàng:</span>
+                <span className="font-semibold text-primary">Miễn phí</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-end">
+              <span className="font-label-lg text-primary uppercase tracking-wider">Tổng cộng</span>
+              <span className="font-headline-sm text-accent-terracotta text-2xl">{Number(order.totalAmount).toLocaleString('vi-VN')} đ</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </>
+  );
+}

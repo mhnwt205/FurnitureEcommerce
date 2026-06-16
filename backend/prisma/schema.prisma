@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       Int       @id @default(autoincrement())
+  fullName                 String    @db.NVarChar(255)
+  email                    String    @unique @db.VarChar(255)
+  passwordHash             String?   @db.VarChar(255)
+  phone                    String?   @db.VarChar(20)
+  address                  String?   @db.NVarChar(Max)
+  role                     String    @default("customer") @db.VarChar(50) // customer, staff, admin
+  emailVerified            Boolean   @default(false)
+  emailVerificationToken   String?   @db.VarChar(255)
+  emailVerificationExpires DateTime?
+  passwordResetToken       String?   @db.VarChar(255)
+  passwordResetExpires     DateTime?
+  googleId                 String?   @db.VarChar(255)
+  avatarUrl                String?   @db.VarChar(Max)
+  provider                 String?   @default("credentials") @db.VarChar(50)
+  position                 String?   @db.NVarChar(100)
+  isActive                 Boolean   @default(true)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  
+  orders               Order[]
+  userPermissions      UserPermission[]
+  wishlists            Wishlist[]
+  addresses            CustomerAddress[]
+  passwordResetTokens  PasswordResetToken[]
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  key         String           @unique @db.VarChar(100)
+  name        String           @db.NVarChar(255)
+  group       String           @db.VarChar(50)
+  description String?          @db.NVarChar(Max)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  users       UserPermission[]
+}
+
+model UserPermission {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  permissionId Int
+  
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, permissionId])
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.NVarChar(255)
+  slug        String    @unique @db.VarChar(255)
+  description String?   @db.NVarChar(Max)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  categoryId  Int
+  name        String   @db.NVarChar(255)
+  slug        String   @unique @db.VarChar(255)
+  description String?  @db.NVarChar(Max)
+  price       Float
+  imageUrl    String?  @db.VarChar(Max)
+  stock       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    Category @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  images      ProductImage[]
+  wishlists   Wishlist[]
+
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model ProductImage {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  imageUrl    String   @db.VarChar(Max)
+  altText     String?  @db.NVarChar(255)
+  sortOrder   Int      @default(0)
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id            Int      @id @default(autoincrement())
+  orderCode     String   @unique @db.VarChar(50)
+  userId        Int
+  fullName      String   @db.NVarChar(255)
+  phone         String   @db.VarChar(20)
+  address       String   @db.NVarChar(Max)
+  note          String?  @db.NVarChar(Max)
+  paymentMethod String   @db.VarChar(50)
+  totalAmount   Float
+  status        String   @default("pending") @db.VarChar(50) // pending, confirmed, shipping, completed, cancelled
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+  orderItems    OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  productName String   @db.NVarChar(255)
+  price       Float
+  quantity    Int
+  subtotal    Float
+
+  order       Order    @relation(fields: [orderId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+model OrderStatusHistory {
+  id           Int      @id @default(autoincrement())
+  orderId      Int
+  fromStatus   String?  @db.VarChar(50)
+  toStatus     String   @db.VarChar(50)
+  note         String?  @db.NVarChar(Max)
+  cancelReason String?  @db.NVarChar(Max)
+  changedById  Int?
+  changedByName String? @db.NVarChar(255)
+  createdAt    DateTime @default(now())
+
+  order        Order    @relation(fields: [orderId], references: [id])
+}
+
+model Wishlist {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model CustomerAddress {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  fullName    String   @db.NVarChar(255)
+  phone       String   @db.VarChar(20)
+  province    String   @db.NVarChar(100)
+  district    String   @db.NVarChar(100)
+  ward        String   @db.NVarChar(100)
+  addressLine String   @db.NVarChar(Max)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  tokenHash   String   @db.VarChar(255)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+}
