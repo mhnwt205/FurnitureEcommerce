@@ -4,6 +4,7 @@ import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { useCart } from '../hooks/useCart';
 import { orderService } from '../services/api/orderService';
+import { paymentService } from '../services/api/paymentService';
 
 
 import { getProductMainImage } from '../utils/imageUtils';
@@ -75,9 +76,27 @@ export default function Checkout() {
         }))
       };
 
-      const result = await orderService.createOrder(orderPayload);
-      clearCart();
-      navigate('/order-success', { state: { order: result.order } });
+      if (paymentMethod === 'VNPAY') {
+        const resultOrder = await orderService.createOrder(orderPayload);
+        if (!resultOrder || !resultOrder.order || !resultOrder.order.id) {
+          setError('Lỗi tạo đơn hàng');
+          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Lỗi tạo đơn hàng' } }));
+          return;
+        }
+        
+        const resultVnpay = await paymentService.createVnpayUrl({ orderId: resultOrder.order.id });
+        if (resultVnpay.success && resultVnpay.paymentUrl) {
+          clearCart();
+          window.location.href = resultVnpay.paymentUrl;
+        } else {
+          setError('Không thể tạo URL thanh toán VNPay');
+          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Không thể tạo URL thanh toán VNPay' } }));
+        }
+      } else {
+        const result = await orderService.createOrder(orderPayload);
+        clearCart();
+        navigate('/order-success', { state: { order: result.order } });
+      }
     } catch (err) {
       setError(err.message || 'Có lỗi xảy ra khi đặt hàng');
     } finally {
@@ -191,11 +210,11 @@ export default function Checkout() {
                   <h2 className="font-headline-md text-headline-md mb-8 text-primary">Phương thức thanh toán</h2>
                   <div className="space-y-4">
                     <label className="flex items-center p-6 border border-outline-variant rounded-lg cursor-pointer hover:border-primary transition-all group has-[:checked]:bg-surface-beige has-[:checked]:border-primary">
-                      <input name="payment" type="radio" value="BANK_TRANSFER" checked={paymentMethod === 'BANK_TRANSFER'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden peer" />
+                      <input name="payment" type="radio" value="VNPAY" checked={paymentMethod === 'VNPAY'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden peer" />
                       <span className="material-symbols-outlined text-primary mr-4" data-icon="account_balance">account_balance</span>
                       <div className="flex-1">
-                        <span className="block font-label-lg text-label-lg">Chuyển khoản ngân hàng</span>
-                        <span className="text-body-sm text-on-surface-variant">Thanh toán qua app ngân hàng hoặc ATM</span>
+                        <span className="block font-label-lg text-label-lg">Thanh toán VNPay</span>
+                        <span className="text-body-sm text-on-surface-variant">Thanh toán an toàn qua cổng VNPay</span>
                       </div>
                       <div className="w-5 h-5 border-2 border-outline-variant rounded-full peer-checked:border-primary peer-checked:bg-primary flex items-center justify-center">
                         <div className="w-2 h-2 bg-white rounded-full"></div>

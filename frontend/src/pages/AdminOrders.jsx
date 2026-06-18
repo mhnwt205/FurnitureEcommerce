@@ -105,6 +105,16 @@ export default function AdminOrders() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
+  const getPaymentStatusBadge = (status) => {
+    switch (status) {
+      case 'paid': return { text: 'Đã thanh toán', color: 'bg-green-100 text-green-800 border-green-200' };
+      case 'unpaid': return { text: 'Chưa thanh toán', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+      case 'failed': return { text: 'Thanh toán lỗi', color: 'bg-red-100 text-red-800 border-red-200' };
+      case 'refunded': return { text: 'Đã hoàn tiền', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+      default: return { text: status, color: 'bg-gray-100 text-gray-800 border-gray-200' };
+    }
+  };
+
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800 border-yellow-200 text-yellow-600',
     confirmed: 'bg-blue-100 text-blue-800 border-blue-200 text-blue-600',
@@ -246,6 +256,7 @@ export default function AdminOrders() {
                   <th className="p-5 font-semibold text-on-surface-variant">Mã đơn / Ngày</th>
                   <th className="p-5 font-semibold text-on-surface-variant">Khách hàng</th>
                   <th className="p-5 font-semibold text-on-surface-variant">Tổng tiền</th>
+                  <th className="p-5 font-semibold text-on-surface-variant text-center">Payment Status</th>
                   <th className="p-5 font-semibold text-on-surface-variant text-center">Trạng thái</th>
                   <th className="p-5 font-semibold text-on-surface-variant text-right">Thao tác</th>
                 </tr>
@@ -271,6 +282,11 @@ export default function AdminOrders() {
                       <p className="font-headline-sm text-[16px] text-accent-terracotta">{formatPrice(order.totalAmount)}</p>
                       <span className="inline-block mt-1 bg-surface-container/50 border border-outline-variant/30 text-on-surface-variant text-[10px] px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider">
                         {order.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="p-5 align-top text-center">
+                      <span className={`inline-block border text-[10px] px-2 py-1 rounded-sm font-bold uppercase tracking-wider ${getPaymentStatusBadge(order.paymentStatus).color}`}>
+                        {getPaymentStatusBadge(order.paymentStatus).text}
                       </span>
                     </td>
                     <td className="p-5 align-top text-center">
@@ -549,7 +565,12 @@ export default function AdminOrders() {
                     <div className="space-y-4 font-body-sm mb-6 border-b border-outline-variant/30 pb-6">
                       <div className="flex justify-between items-center">
                         <span className="text-on-surface-variant font-medium">Phương thức:</span>
-                        <span className="font-bold text-primary uppercase tracking-wider text-[10px] bg-surface-beige px-3 py-1.5 rounded-full">{selectedOrder.paymentMethod}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-primary uppercase tracking-wider text-[10px] bg-surface-beige px-3 py-1.5 rounded-full">{selectedOrder.paymentMethod}</span>
+                          <span className={`text-[10px] uppercase font-bold px-2 py-1 border rounded-sm tracking-wider ${getPaymentStatusBadge(selectedOrder.paymentStatus).color}`}>
+                            {getPaymentStatusBadge(selectedOrder.paymentStatus).text}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-on-surface-variant font-medium">Tạm tính:</span>

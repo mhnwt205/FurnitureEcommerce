@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { orderService } from '../services/api/orderService';
+import { paymentService } from '../services/api/paymentService';
 
 export default function MyOrders() {
   const navigate = useNavigate();
@@ -13,6 +14,23 @@ export default function MyOrders() {
   // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(null);
+
+  const handlePayAgain = async (orderId) => {
+    try {
+      setPaymentLoading(orderId);
+      const result = await paymentService.createVnpayUrl({ orderId });
+      if (result && result.success && result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+      } else {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Không thể tạo URL thanh toán. Vui lòng thử lại sau.' } }));
+      }
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.message || 'Lỗi kết nối đến cổng thanh toán.' } }));
+    } finally {
+      setPaymentLoading(null);
+    }
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -57,6 +75,16 @@ export default function MyOrders() {
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+  const getPaymentStatusBadge = (status) => {
+    switch (status) {
+      case 'paid': return { text: 'Đã thanh toán', color: 'bg-green-100 text-green-800 border-green-200' };
+      case 'unpaid': return { text: 'Chưa thanh toán', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+      case 'failed': return { text: 'Thanh toán lỗi', color: 'bg-red-100 text-red-800 border-red-200' };
+      case 'refunded': return { text: 'Đã hoàn tiền', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+      default: return { text: status, color: 'bg-gray-100 text-gray-800 border-gray-200' };
+    }
   };
 
   const getStatusLabel = (status) => {
@@ -126,16 +154,30 @@ export default function MyOrders() {
                           <p className="font-label-md text-accent-terracotta">{formatPrice(order.totalAmount)}</p>
                         </td>
                         <td className="p-4 align-middle">
-                          <span className="uppercase text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-1 rounded">
-                            {order.paymentMethod}
-                          </span>
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="uppercase text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-1 rounded">
+                              {order.paymentMethod}
+                            </span>
+                            <span className={`text-[10px] uppercase font-bold px-2 py-1 border rounded-sm tracking-wider ${getPaymentStatusBadge(order.paymentStatus).color}`}>
+                              {getPaymentStatusBadge(order.paymentStatus).text}
+                            </span>
+                          </div>
                         </td>
                         <td className="p-4 align-middle">
                           <span className={`text-[10px] uppercase font-bold px-2 py-1 border rounded-sm tracking-wider ${status.color}`}>
                             {status.text}
                           </span>
                         </td>
-                        <td className="p-4 align-middle text-right">
+                        <td className="p-4 align-middle text-right flex items-center justify-end gap-2">
+                          {order.paymentMethod === 'VNPAY' && order.paymentStatus === 'unpaid' && (
+                            <button
+                              onClick={() => handlePayAgain(order.id)}
+                              disabled={paymentLoading === order.id}
+                              className="text-white bg-primary hover:opacity-90 font-label-sm border border-primary px-4 py-2 rounded transition-opacity disabled:opacity-70"
+                            >
+                              {paymentLoading === order.id ? 'Đang tải...' : 'Thanh toán'}
+                            </button>
+                          )}
                           <button 
                             onClick={() => handleOpenDetail(order)}
                             className="text-primary hover:text-accent-terracotta font-label-sm border border-outline-variant px-4 py-2 rounded hover:bg-surface-beige transition-colors"
@@ -286,7 +328,12 @@ export default function MyOrders() {
                     <div className="space-y-3 font-body-sm mb-4 border-b border-outline-variant/50 pb-4">
                       <div className="flex justify-between items-center">
                         <span className="text-on-surface-variant">Phương thức:</span>
-                        <span className="font-medium text-primary uppercase text-xs bg-surface-container px-2 py-1 rounded">{selectedOrder.paymentMethod}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-primary uppercase text-[10px] bg-surface-container px-2 py-1 rounded">{selectedOrder.paymentMethod}</span>
+                          <span className={`text-[10px] uppercase font-bold px-2 py-1 border rounded-sm tracking-wider ${getPaymentStatusBadge(selectedOrder.paymentStatus).color}`}>
+                            {getPaymentStatusBadge(selectedOrder.paymentStatus).text}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-on-surface-variant">Tạm tính:</span>
@@ -301,6 +348,15 @@ export default function MyOrders() {
                       <span className="font-label-md text-primary uppercase tracking-wider">Tổng cộng</span>
                       <span className="font-headline-sm text-accent-terracotta text-xl font-bold">{formatPrice(selectedOrder.totalAmount)}</span>
                     </div>
+                    {selectedOrder.paymentMethod === 'VNPAY' && selectedOrder.paymentStatus === 'unpaid' && (
+                      <button
+                        onClick={() => handlePayAgain(selectedOrder.id)}
+                        disabled={paymentLoading === selectedOrder.id}
+                        className="w-full mt-4 bg-primary text-white py-3 rounded font-label-md tracking-wider uppercase hover:opacity-90 transition-opacity shadow-sm disabled:opacity-70"
+                      >
+                        {paymentLoading === selectedOrder.id ? 'Đang xử lý...' : 'Tiếp tục thanh toán'}
+                      </button>
+                    )}
                   </div>
 
                 </div>

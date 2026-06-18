@@ -14,6 +14,7 @@ import permissionRoutes from './routes/permission.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import addressRoutes from './routes/address.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

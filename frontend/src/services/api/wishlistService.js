@@ -2,12 +2,14 @@ import apiClient from './apiClient';
 
 export const wishlistService = {
   getWishlist: async () => {
+    if (!localStorage.getItem('token')) return [];
     const data = await apiClient('/wishlist', {
       method: 'GET',
     });
     return data;
   },
   getWishlistIds: async () => {
+    if (!localStorage.getItem('token')) return [];
     const data = await apiClient('/wishlist/ids', {
       method: 'GET',
     });
