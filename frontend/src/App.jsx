@@ -4,6 +4,7 @@ import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
+import PaymentResult from './pages/PaymentResult';
 import AdminOrders from './pages/AdminOrders';
 import AdminProducts from './pages/AdminProducts';
 import AdminCategories from './pages/AdminCategories';
@@ -42,6 +43,7 @@ function AppContent() {
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-success" element={<OrderSuccess />} />
+        <Route path="/payment-result" element={<PaymentResult />} />
         <Route path="/my-orders" element={<MyOrders />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/admin/dashboard" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="dashboard.view"><AdminDashboard /></AdminRoute>} />

@@ -1,5 +1,6 @@
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
+import cloudinary from '../config/cloudinary.js';
 
 const createProductSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -30,6 +31,15 @@ const updateProductSchema = z.object({
 
 const generateSlug = (name) => {
   return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') + '-' + Date.now();
+};
+
+const extractPublicId = (url) => {
+  if (!url || !url.includes('cloudinary.com')) return null;
+  const parts = url.split('/upload/');
+  if (parts.length < 2) return null;
+  const afterUpload = parts[1];
+  const withoutVersion = afterUpload.replace(/^v\d+\//, '');
+  return withoutVersion.split('.').slice(0, -1).join('.');
 };
 
 export const getProducts = async (req, res) => {
@@ -261,6 +271,24 @@ export const updateProduct = async (req, res) => {
     });
 
     if (imagesToDelete && imagesToDelete.length > 0) {
+      const imagesToRemove = await prisma.productImage.findMany({
+        where: {
+          id: { in: imagesToDelete },
+          productId: id
+        }
+      });
+
+      for (const img of imagesToRemove) {
+        const publicId = extractPublicId(img.imageUrl);
+        if (publicId && publicId.startsWith('FurnitureEcommerce/products')) {
+          try {
+            await cloudinary.uploader.destroy(publicId);
+          } catch (err) {
+            console.error(`Failed to delete cloudinary image: ${publicId}`, err);
+          }
+        }
+      }
+
       await prisma.productImage.deleteMany({
         where: {
           id: { in: imagesToDelete },
@@ -360,6 +388,20 @@ export const deleteProduct = async (req, res) => {
         data: { isActive: false }
       });
       return res.status(200).json({ message: 'Product has order items, soft deleted (set isActive = false)' });
+    }
+
+    // Fetch all images for this product before deleting
+    const images = await prisma.productImage.findMany({ where: { productId: id } });
+
+    for (const img of images) {
+      const publicId = extractPublicId(img.imageUrl);
+      if (publicId && publicId.startsWith('FurnitureEcommerce/products')) {
+        try {
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error(`Failed to delete cloudinary image: ${publicId}`, err);
+        }
+      }
     }
 
     // Hard delete
