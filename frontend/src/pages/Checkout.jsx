@@ -86,7 +86,6 @@ export default function Checkout() {
         
         const resultVnpay = await paymentService.createVnpayUrl({ orderId: resultOrder.order.id });
         if (resultVnpay.success && resultVnpay.paymentUrl) {
-          clearCart();
           window.location.href = resultVnpay.paymentUrl;
         } else {
           setError('Không thể tạo URL thanh toán VNPay');
