@@ -6,5 +6,10 @@ export const paymentService = {
       method: 'POST',
       body: JSON.stringify(data)
     });
+  },
+  verifyPaymentResult: async (queryString) => {
+    return await apiClient(`/payment/vnpay/verify-result${queryString}`, {
+      method: 'GET'
+    });
   }
 };

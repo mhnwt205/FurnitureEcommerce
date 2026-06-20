@@ -70,7 +70,7 @@ export const vnpayIPN = async (req, res) => {
       const txnRef = vnp_Params['vnp_TxnRef'];
       const responseCode = vnp_Params['vnp_ResponseCode'];
       const transactionNo = vnp_Params['vnp_TransactionNo'];
-      const amount = vnp_Params['vnp_Amount'] / 100; // VNPay amount is multiplied by 100
+      const amount = Number(vnp_Params['vnp_Amount']) / 100; // VNPay amount is multiplied by 100
 
       // Find order by TxnRef
       const order = await prisma.order.findFirst({
@@ -81,7 +81,7 @@ export const vnpayIPN = async (req, res) => {
         return res.status(200).json({ RspCode: '01', Message: 'Order not found' });
       }
 
-      if (order.totalAmount !== amount) {
+      if (Math.round(order.totalAmount) !== Math.round(amount)) {
         return res.status(200).json({ RspCode: '04', Message: 'Invalid amount' });
       }
 
@@ -132,5 +132,78 @@ export const vnpayIPN = async (req, res) => {
   } catch (error) {
     console.error('VNPay IPN error:', error);
     res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
+  }
+};
+
+export const verifyPaymentResult = async (req, res) => {
+  try {
+    let vnp_Params = req.query;
+    
+    const isValidSignature = verifyVNPaySignature({ ...vnp_Params });
+    if (!isValidSignature) {
+      return res.status(200).json({ success: false, status: 'invalid_signature', message: 'Invalid VNPay signature' });
+    }
+
+    const txnRef = vnp_Params['vnp_TxnRef'];
+    const responseCode = vnp_Params['vnp_ResponseCode'];
+    const transactionNo = vnp_Params['vnp_TransactionNo'];
+    const amount = Number(vnp_Params['vnp_Amount']) / 100;
+
+    const order = await prisma.order.findFirst({
+      where: { vnpayTxnRef: txnRef }
+    });
+
+    if (!order) {
+      return res.status(200).json({ success: false, status: 'order_not_found', message: 'Order not found' });
+    }
+
+    if (Math.round(order.totalAmount) !== Math.round(amount)) {
+      return res.status(200).json({ success: false, status: 'invalid_amount', message: 'Invalid amount' });
+    }
+
+    if (order.paymentStatus === 'paid') {
+      return res.status(200).json({ success: true, status: 'paid', orderId: order.id, message: 'Payment successful' });
+    }
+
+    if (responseCode === '00') {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: 'paid',
+          paidAt: new Date(),
+          vnpayTransactionNo: transactionNo,
+          statusHistory: {
+            create: {
+              fromStatus: order.status,
+              toStatus: order.status,
+              note: `Thanh toán VNPay thành công. Mã GD: ${transactionNo}`,
+              changedByName: 'VNPay System (Verify)'
+            }
+          }
+        }
+      });
+      return res.status(200).json({ success: true, status: 'paid', orderId: order.id, message: 'Payment successful' });
+    } else {
+      if (order.paymentStatus !== 'failed') {
+         await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            paymentStatus: 'failed',
+            statusHistory: {
+              create: {
+                fromStatus: order.status,
+                toStatus: order.status,
+                note: `Thanh toán VNPay thất bại. Mã lỗi: ${responseCode}`,
+                changedByName: 'VNPay System (Verify)'
+              }
+            }
+          }
+        });
+      }
+      return res.status(200).json({ success: false, status: 'failed', orderId: order.id, message: 'Payment failed or cancelled' });
+    }
+  } catch (error) {
+    console.error('Verify payment result error:', error);
+    res.status(500).json({ success: false, status: 'error', message: 'Internal server error' });
   }
 };
