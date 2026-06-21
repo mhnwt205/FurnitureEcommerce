@@ -33,6 +33,35 @@ const generateSlug = (name) => {
   return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') + '-' + Date.now();
 };
 
+
+const attachReviewSummaries = async (products) => {
+  const productList = Array.isArray(products) ? products : [products];
+  const ids = productList.map(product => product.id).filter(Boolean);
+  if (ids.length === 0) return products;
+
+  const summaries = await prisma.review.groupBy({
+    by: ['productId'],
+    where: {
+      productId: { in: ids },
+      isApproved: true
+    },
+    _avg: { rating: true },
+    _count: { id: true }
+  });
+
+  const summaryMap = new Map(summaries.map(item => [item.productId, {
+    averageRating: Number((item._avg.rating || 0).toFixed(1)),
+    reviewCount: item._count.id
+  }]));
+
+  const withSummaries = productList.map(product => ({
+    ...product,
+    averageRating: summaryMap.get(product.id)?.averageRating || 0,
+    reviewCount: summaryMap.get(product.id)?.reviewCount || 0
+  }));
+
+  return Array.isArray(products) ? withSummaries : withSummaries[0];
+};
 const extractPublicId = (url) => {
   if (!url || !url.includes('cloudinary.com')) return null;
   const parts = url.split('/upload/');
@@ -107,7 +136,7 @@ export const getProducts = async (req, res) => {
       });
 
       return res.status(200).json({
-        data: products,
+        data: await attachReviewSummaries(products),
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -182,7 +211,7 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.status(200).json(product);
+    res.status(200).json(await attachReviewSummaries(product));
   } catch (error) {
     console.error('Get product by ID error:', error);
     res.status(500).json({ message: 'Internal server error' });

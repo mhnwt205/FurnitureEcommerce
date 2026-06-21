@@ -25,6 +25,9 @@ async function main() {
     
     { key: 'customer.view', name: 'Xem khách hàng', group: 'Customers', description: 'Cho phép xem danh sách khách hàng' },
     { key: 'customer.update', name: 'Cập nhật khách hàng', group: 'Customers', description: 'Cho phép khóa/mở khóa khách hàng' },
+
+    { key: 'review.view', name: 'Xem đánh giá', group: 'Reviews', description: 'Cho phép xem danh sách đánh giá sản phẩm' },
+    { key: 'review.update', name: 'Duyệt đánh giá', group: 'Reviews', description: 'Cho phép ẩn/hiện đánh giá sản phẩm' },
     
     { key: 'admin_account.view', name: 'Xem tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép xem danh sách tài khoản quản trị' },
     { key: 'admin_account.create', name: 'Thêm tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép tạo mới tài khoản staff/admin' },

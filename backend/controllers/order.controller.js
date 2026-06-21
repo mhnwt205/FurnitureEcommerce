@@ -92,7 +92,8 @@ export const getMyOrders = async (req, res) => {
       include: {
         orderItems: {
           include: {
-            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } }
+            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } },
+            reviews: { where: { userId }, select: { id: true, rating: true, createdAt: true } }
           }
         }
       },
@@ -181,7 +182,8 @@ export const getMyOrderById = async (req, res) => {
       include: {
         orderItems: {
           include: {
-            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } }
+            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } },
+            reviews: { where: { userId }, select: { id: true, rating: true, createdAt: true } }
           }
         },
         statusHistory: { orderBy: { createdAt: 'desc' } }
@@ -203,7 +205,8 @@ export const getAdminOrderById = async (req, res) => {
       include: {
         orderItems: {
           include: {
-            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } }
+            product: { select: { imageUrl: true, images: { select: { imageUrl: true, isPrimary: true } } } },
+            reviews: { select: { id: true, rating: true, createdAt: true } }
           }
         },
         statusHistory: { orderBy: { createdAt: 'desc' } },
