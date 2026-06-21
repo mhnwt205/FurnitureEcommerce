@@ -8,6 +8,8 @@ import { getStaticFileUrl } from '../utils/imageUtils';
 import ScrollReveal from '../components/common/ScrollReveal';
 import WishlistButton from '../components/common/WishlistButton';
 import { wishlistService } from '../services/api/wishlistService';
+import { reviewService } from '../services/api/reviewService';
+import { uploadService } from '../services/api/uploadService';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -21,6 +23,8 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [wishlistIds, setWishlistIds] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ averageRating: 0, reviewCount: 0, distribution: {} });
 
   useEffect(() => {
     const fetchWishlistIds = async () => {
@@ -73,6 +77,22 @@ export default function ProductDetail() {
   }, [id]);
 
   useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const data = await reviewService.getProductReviews(id);
+        setReviews(data.reviews || []);
+        setReviewSummary(data.summary || { averageRating: 0, reviewCount: 0, distribution: {} });
+      } catch (err) {
+        console.error('Lỗi tải đánh giá:', err);
+      }
+    };
+
+    if (id) {
+      fetchReviews();
+    }
+  }, [id]);
+
+  useEffect(() => {
     const fetchRelated = async () => {
       try {
         let params = { limit: 8 };
@@ -104,6 +124,16 @@ export default function ProductDetail() {
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+
+  const renderStars = (rating, className = 'text-accent-gold') => {
+    const rounded = Math.round(Number(rating) || 0);
+    return Array.from({ length: 5 }, (_, index) => (
+      <span key={index} className={`material-symbols-outlined text-[20px] ${className}`}>
+        {index < rounded ? 'star' : 'star_outline'}
+      </span>
+    ));
   };
 
   const adjustQty = (delta) => {
@@ -182,6 +212,12 @@ export default function ProductDetail() {
               <div>
                 <span className="text-label-sm uppercase tracking-widest text-accent-gold mb-2 block">{product.category?.name || 'SẢN PHẨM'}</span>
                 <h1 className="font-display-lg text-display-lg text-primary leading-tight">{product.name}</h1>
+                <div className="flex flex-wrap items-center gap-3 mt-3">
+                  <div className="flex items-center gap-1">{renderStars(reviewSummary.averageRating || product.averageRating || 0)}</div>
+                  <span className="text-body-sm text-on-surface-variant">
+                    {(reviewSummary.averageRating || product.averageRating || 0).toFixed(1)} / 5 ({reviewSummary.reviewCount || product.reviewCount || 0} đánh giá)
+                  </span>
+                </div>
                 <div className="flex items-baseline gap-4 mt-4">
                   <span className="font-display-lg text-display-lg text-accent-terracotta">{formatPrice(product.price)}</span>
                 </div>
@@ -233,6 +269,33 @@ export default function ProductDetail() {
           </div>
 
           {/**/}
+          <ScrollReveal className="mt-12 border-t border-outline-variant pt-10">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
+              <div>
+                <h2 className="font-display-lg text-headline-lg text-primary">Đánh giá của khách hàng</h2>
+                <div className="flex flex-wrap items-center gap-3 mt-3">
+                  <div className="flex items-center gap-1">{renderStars(reviewSummary.averageRating)}</div>
+                  <span className="font-label-lg text-primary">{reviewSummary.averageRating.toFixed(1)} / 5</span>
+                  <span className="text-body-sm text-on-surface-variant">{reviewSummary.reviewCount} đánh giá</span>
+                </div>
+              </div>
+            </div>
+
+            {reviews.length === 0 ? (
+              <div className="text-center py-12 bg-surface-ivory rounded-xl border border-outline-variant"><span className="material-symbols-outlined text-4xl text-outline-variant mb-2">rate_review</span><p className="text-on-surface-variant">Chưa có đánh giá nào cho sản phẩm này.</p></div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <div key={review.id} className="border border-outline-variant rounded-xl p-5 bg-white">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3"><div><p className="font-label-lg text-primary">{review.user?.fullName || 'Khách hàng'}</p><div className="flex items-center gap-1 mt-1">{renderStars(review.rating)}</div></div><span className="text-body-sm text-on-surface-variant">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span></div>
+                    {review.comment && <p className="text-body-md text-on-surface-variant leading-relaxed mt-4 whitespace-pre-line">{review.comment}</p>}
+                    {review.images?.length > 0 && <div className="flex flex-wrap gap-3 mt-4">{review.images.map((imageUrl, index) => (<a key={index} href={getStaticFileUrl(imageUrl)} target="_blank" rel="noreferrer" className="w-20 h-20 rounded-lg overflow-hidden border border-outline-variant bg-surface-beige"><img src={getStaticFileUrl(imageUrl)} alt={`Đánh giá ${index + 1}`} className="w-full h-full object-cover" /></a>))}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollReveal>
+
           <ScrollReveal className="bg-[#F8F4EC] border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm mt-12">
             <div className="border-b border-neutral-200 pb-4 mb-2">
               <div className="flex items-center gap-3 text-primary">

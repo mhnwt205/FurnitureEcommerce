@@ -11,6 +11,7 @@ import AdminCategories from './pages/AdminCategories';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminCustomers from './pages/AdminCustomers';
 import AdminAccounts from './pages/AdminAccounts';
+import AdminReviews from './pages/AdminReviews';
 import MyOrders from './pages/MyOrders';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -51,6 +52,7 @@ function AppContent() {
         <Route path="/admin/products" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="product.view"><AdminProducts /></AdminRoute>} />
         <Route path="/admin/categories" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="category.view"><AdminCategories /></AdminRoute>} />
         <Route path="/admin/customers" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="customer.view"><AdminCustomers /></AdminRoute>} />
+        <Route path="/admin/reviews" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="review.view"><AdminReviews /></AdminRoute>} />
         <Route path="/admin/accounts" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="admin_account.view"><AdminAccounts /></AdminRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
