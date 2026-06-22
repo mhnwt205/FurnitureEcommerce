@@ -43,6 +43,14 @@ export default function AdminProducts() {
     price: 0,
     imageUrl: '',
     stock: 0,
+    color: '',
+    material: '',
+    dimensions: '',
+    widthCm: '',
+    heightCm: '',
+    depthCm: '',
+    roomType: '',
+    style: '',
     isActive: true
   };
   const [formData, setFormData] = useState(initialFormState);
@@ -153,6 +161,14 @@ export default function AdminProducts() {
       price: product.price || 0,
       imageUrl: product.imageUrl || '',
       stock: product.stock || 0,
+      color: product.color || '',
+      material: product.material || '',
+      dimensions: product.dimensions || '',
+      widthCm: product.widthCm ?? '',
+      heightCm: product.heightCm ?? '',
+      depthCm: product.depthCm ?? '',
+      roomType: product.roomType || '',
+      style: product.style || '',
       isActive: product.isActive !== false
     });
     setImageFiles([]);
@@ -581,6 +597,114 @@ export default function AdminProducts() {
                     onChange={handleFormChange}
                     className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
                   />
+                </div>
+              </div>
+
+              <div className="border border-outline-variant rounded-lg p-4 bg-surface-container-lowest space-y-4">
+                <div>
+                  <h3 className="font-label-lg text-primary">{'Th\u00f4ng s\u1ed1 s\u1ea3n ph\u1ea9m'}</h3>
+                  <p className="text-body-sm text-on-surface-variant mt-1">{'C\u00e1c tr\u01b0\u1eddng n\u00e0y kh\u00f4ng b\u1eaft bu\u1ed9c, d\u00f9ng \u0111\u1ec3 l\u1ecdc v\u00e0 t\u01b0 v\u1ea5n s\u1ea3n ph\u1ea9m ch\u00ednh x\u00e1c h\u01a1n.'}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'M\u00e0u s\u1eafc'}</label>
+                    <input
+                      type="text"
+                      name="color"
+                      value={formData.color}
+                      onChange={handleFormChange}
+                      placeholder={'V\u00ed d\u1ee5: x\u00e1m, tr\u1eafng, n\u00e2u g\u1ed7'}
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'Ch\u1ea5t li\u1ec7u'}</label>
+                    <input
+                      type="text"
+                      name="material"
+                      value={formData.material}
+                      onChange={handleFormChange}
+                      placeholder={'V\u00ed d\u1ee5: g\u1ed7 c\u00f4ng nghi\u1ec7p, v\u1ea3i, da PU'}
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-label-md text-on-surface mb-1">{'K\u00edch th\u01b0\u1edbc hi\u1ec3n th\u1ecb'}</label>
+                  <input
+                    type="text"
+                    name="dimensions"
+                    value={formData.dimensions}
+                    onChange={handleFormChange}
+                    placeholder={'V\u00ed d\u1ee5: 160 x 200 cm'}
+                    className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'Chi\u1ec1u r\u1ed9ng (cm)'}</label>
+                    <input
+                      type="number"
+                      name="widthCm"
+                      min="0"
+                      value={formData.widthCm}
+                      onChange={handleFormChange}
+                      placeholder="160"
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'Chi\u1ec1u cao (cm)'}</label>
+                    <input
+                      type="number"
+                      name="heightCm"
+                      min="0"
+                      value={formData.heightCm}
+                      onChange={handleFormChange}
+                      placeholder="90"
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'Chi\u1ec1u s\u00e2u (cm)'}</label>
+                    <input
+                      type="number"
+                      name="depthCm"
+                      min="0"
+                      value={formData.depthCm}
+                      onChange={handleFormChange}
+                      placeholder="200"
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'Ph\u00f2ng ph\u00f9 h\u1ee3p'}</label>
+                    <input
+                      type="text"
+                      name="roomType"
+                      value={formData.roomType}
+                      onChange={handleFormChange}
+                      placeholder={'V\u00ed d\u1ee5: ph\u00f2ng ng\u1ee7, ph\u00f2ng kh\u00e1ch'}
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-label-md text-on-surface mb-1">{'Phong c\u00e1ch'}</label>
+                    <input
+                      type="text"
+                      name="style"
+                      value={formData.style}
+                      onChange={handleFormChange}
+                      placeholder={'V\u00ed d\u1ee5: hi\u1ec7n \u0111\u1ea1i, t\u1ed1i gi\u1ea3n'}
+                      className="w-full border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
