@@ -135,6 +135,29 @@ export default function ProductDetail() {
       </span>
     ));
   };
+  const hasSpecValue = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+
+  const formatCm = (value) => {
+    if (!hasSpecValue(value)) return '';
+    const number = Number(value);
+    const displayValue = Number.isFinite(number) ? number.toLocaleString('vi-VN') : String(value).trim();
+    return `${displayValue} cm`;
+  };
+
+  const getProductSpecs = (item) => {
+    if (!item) return [];
+
+    return [
+      { label: 'Màu sắc', value: item.color },
+      { label: 'Chất liệu', value: item.material },
+      { label: 'Kích thước', value: item.dimensions },
+      { label: 'Chiều rộng', value: formatCm(item.widthCm) },
+      { label: 'Chiều cao', value: formatCm(item.heightCm) },
+      { label: 'Chiều sâu', value: formatCm(item.depthCm) },
+      { label: 'Phòng phù hợp', value: item.roomType },
+      { label: 'Phong cách', value: item.style }
+    ].filter((spec) => hasSpecValue(spec.value));
+  };
 
   const adjustQty = (delta) => {
     setQuantity(prev => {
@@ -173,6 +196,8 @@ export default function ProductDetail() {
       </div>
     );
   }
+
+  const productSpecs = getProductSpecs(product);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -254,6 +279,22 @@ export default function ProductDetail() {
                 </button>
               </div>
               {/**/}
+              {productSpecs.length > 0 && (
+                <div className="border-t border-outline-variant pt-4 mt-4">
+                  <h2 className="font-label-lg text-primary mb-3">Thông số kỹ thuật</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {productSpecs.map((spec) => (
+                      <div
+                        key={spec.label}
+                        className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2"
+                      >
+                        <p className="text-label-sm text-on-surface-variant">{spec.label}</p>
+                        <p className="text-body-sm font-semibold text-primary mt-1">{spec.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="border-t border-outline-variant pt-4 mt-4 space-y-2">
                 <details className="group" open>
                   <summary className="flex justify-between items-center py-3 cursor-pointer list-none">

@@ -77,6 +77,14 @@ model Product {
   price       Float
   imageUrl    String?        @db.VarChar(Max)
   stock       Int            @default(0)
+  color       String?        @db.NVarChar(100)
+  material    String?        @db.NVarChar(255)
+  widthCm     Float?
+  heightCm    Float?
+  depthCm     Float?
+  dimensions  String?        @db.NVarChar(255)
+  roomType    String?        @db.NVarChar(100)
+  style       String?        @db.NVarChar(100)
   isActive    Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -88,6 +96,10 @@ model Product {
 
   @@index([categoryId])
   @@index([isActive])
+  @@index([color])
+  @@index([material])
+  @@index([roomType])
+  @@index([style])
 }
 
 model ProductImage {

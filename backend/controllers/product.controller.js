@@ -2,11 +2,36 @@ import prisma from '../prismaClient.js';
 import { z } from 'zod';
 import cloudinary from '../config/cloudinary.js';
 
+const optionalTrimmedString = (maxLength) => z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
+  },
+  z.string().max(maxLength).nullable().optional()
+);
+
+const optionalNonNegativeNumber = z.preprocess(
+  (value) => {
+    if (value === '' || value === null || value === undefined) return value === undefined ? undefined : null;
+    if (typeof value === 'string') return Number(value);
+    return value;
+  },
+  z.number().min(0).nullable().optional()
+);
 const createProductSchema = z.object({
   name: z.string().min(1, "Name is required"),
   categoryId: z.number().int().positive("Category ID is required"),
   price: z.number().min(0, "Price must be >= 0"),
   stock: z.number().int().min(0, "Stock must be >= 0").default(0),
+  color: optionalTrimmedString(100),
+  material: optionalTrimmedString(255),
+  widthCm: optionalNonNegativeNumber,
+  heightCm: optionalNonNegativeNumber,
+  depthCm: optionalNonNegativeNumber,
+  dimensions: optionalTrimmedString(255),
+  roomType: optionalTrimmedString(100),
+  style: optionalTrimmedString(100),
   slug: z.string().optional(),
   description: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -20,6 +45,14 @@ const updateProductSchema = z.object({
   categoryId: z.number().int().positive().optional(),
   price: z.number().min(0).optional(),
   stock: z.number().int().min(0).optional(),
+  color: optionalTrimmedString(100),
+  material: optionalTrimmedString(255),
+  widthCm: optionalNonNegativeNumber,
+  heightCm: optionalNonNegativeNumber,
+  depthCm: optionalNonNegativeNumber,
+  dimensions: optionalTrimmedString(255),
+  roomType: optionalTrimmedString(100),
+  style: optionalTrimmedString(100),
   slug: z.string().optional(),
   description: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -73,7 +106,7 @@ const extractPublicId = (url) => {
 
 export const getProducts = async (req, res) => {
   try {
-    const { includeInactive, page, limit, category, search, minPrice, maxPrice, sort } = req.query;
+    const { includeInactive, page, limit, category, search, minPrice, maxPrice, sort, color, material, roomType, style } = req.query;
     const whereClause = includeInactive === 'true' ? {} : { isActive: true };
 
     if (category && category !== 'ALL') {
@@ -97,6 +130,22 @@ export const getProducts = async (req, res) => {
       whereClause.price = {};
       if (minPrice !== undefined && minPrice !== '') whereClause.price.gte = parseFloat(minPrice);
       if (maxPrice !== undefined && maxPrice !== '') whereClause.price.lte = parseFloat(maxPrice);
+    }
+
+    if (color && color.trim() !== '') {
+      whereClause.color = { contains: color.trim() };
+    }
+
+    if (material && material.trim() !== '') {
+      whereClause.material = { contains: material.trim() };
+    }
+
+    if (roomType && roomType.trim() !== '') {
+      whereClause.roomType = { contains: roomType.trim() };
+    }
+
+    if (style && style.trim() !== '') {
+      whereClause.style = { contains: style.trim() };
     }
 
     let orderBy = { id: 'desc' }; // default newest
