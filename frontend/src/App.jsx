@@ -29,6 +29,7 @@ import BlogDetail from './pages/BlogDetail';
 import CustomerProfile from './pages/profile/CustomerProfile';
 import CustomerOrderPage from './pages/profile/CustomerOrderPage';
 import FloatingButtons from './components/common/FloatingButtons';
+import AISalesAdvisor from './components/ai/AISalesAdvisor';
 import AdminRoute from './components/common/AdminRoute';
 import ScrollToTop from './components/common/ScrollToTop';
 
@@ -69,7 +70,12 @@ function AppContent() {
         <Route path="/profile" element={<CustomerProfile />} />
         <Route path="/profile/orders/:id" element={<CustomerOrderPage />} />
       </Routes>
-      {!isAdminRoute && <FloatingButtons />}
+      {!isAdminRoute && (
+        <>
+          <FloatingButtons />
+          <AISalesAdvisor />
+        </>
+      )}
     </>
   );
 }
