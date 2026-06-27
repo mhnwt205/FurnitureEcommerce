@@ -22,6 +22,7 @@ export default function AdminLayout({ children }) {
       { name: 'Quản lý Sản phẩm', path: '/admin/products', icon: 'inventory_2' },
       { name: 'Quản lý đánh giá', path: '/admin/reviews', icon: 'rate_review' },
       { name: 'Quản lý Danh mục', path: '/admin/categories', icon: 'category' },
+      { name: 'Quản lý yêu cầu tư vấn', path: '/admin/consultation-requests', icon: 'support_agent' },
       { name: 'Khách hàng', path: '/admin/customers', icon: 'group' },
       { name: 'Tài khoản quản trị', path: '/admin/accounts', icon: 'manage_accounts' }
     );
@@ -38,6 +39,9 @@ export default function AdminLayout({ children }) {
     }
     if (perms.includes('review.view')) {
       menuItems.push({ name: 'Quản lý đánh giá', path: '/admin/reviews', icon: 'rate_review' });
+    }
+    if (perms.includes('consultation.view')) {
+      menuItems.push({ name: 'Quản lý yêu cầu tư vấn', path: '/admin/consultation-requests', icon: 'support_agent' });
     }
     if (perms.includes('category.view')) {
       menuItems.push({ name: 'Quản lý Danh mục', path: '/admin/categories', icon: 'category' });

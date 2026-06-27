@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 
@@ -165,8 +166,7 @@ export default function StoreSystem() {
 <p className="font-body-md text-body-md text-on-surface-variant max-w-lg">Đội ngũ kiến trúc sư của chúng tôi sẵn sàng đến tận công trình để tư vấn giải pháp nội thất tối ưu cho không gian của bạn.</p>
 </div>
 <div className="flex flex-col sm:flex-row gap-4">
-<input className="flex-1 px-6 py-4 rounded-lg bg-surface border border-outline-variant focus:border-accent-gold outline-none" placeholder="Email của bạn" type="email" />
-<button className="bg-primary text-on-primary px-8 py-4 rounded-lg font-label-lg hover:bg-primary-container transition-all">Gửi yêu cầu</button>
+<Link to="/design-service#consultation" className="inline-flex items-center justify-center bg-primary text-on-primary px-8 py-4 rounded-lg font-label-lg hover:bg-primary-container transition-all">Gửi yêu cầu</Link>
 </div>
 </div>
 </section>

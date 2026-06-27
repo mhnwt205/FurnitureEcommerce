@@ -3,11 +3,15 @@ import { Link, useLocation } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import ScrollReveal from '../components/common/ScrollReveal';
+import { consultationRequestService } from '../services/api/consultationRequestService';
 
 export default function DesignServices() {
   const location = useLocation();
 
   const [offsetY, setOffsetY] = React.useState(0);
+  const [consultationSubmitting, setConsultationSubmitting] = React.useState(false);
+  const [consultationError, setConsultationError] = React.useState('');
+  const [consultationSuccess, setConsultationSuccess] = React.useState('');
 
   const consultationRef = useRef(null);
 
@@ -46,10 +50,62 @@ export default function DesignServices() {
     }
   };
 
-  const handleConsultationSubmit = (e) => {
+  const handleConsultationSubmit = async (e) => {
     e.preventDefault();
-    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: "Cảm ơn bạn. Chúng tôi sẽ liên hệ trong thời gian sớm nhất." } }));
-    e.target.reset();
+    setConsultationError('');
+    setConsultationSuccess('');
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const fullName = (formData.get('fullName') || '').toString().trim();
+    const phone = (formData.get('phone') || '').toString().trim();
+    const email = (formData.get('email') || '').toString().trim();
+    const message = (formData.get('message') || '').toString().trim();
+    const website = (formData.get('website') || '').toString().trim();
+
+    if (!fullName) {
+      setConsultationError('Vui lòng nhập họ và tên.');
+      return;
+    }
+    if (!phone) {
+      setConsultationError('Vui lòng nhập số điện thoại.');
+      return;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setConsultationError('Email không đúng định dạng.');
+      return;
+    }
+    if (!message) {
+      setConsultationError('Vui lòng mô tả nhu cầu tư vấn.');
+      return;
+    }
+
+    const payload = {
+      fullName,
+      phone,
+      email: email || undefined,
+      projectType: (formData.get('projectType') || '').toString().trim() || undefined,
+      budgetRange: (formData.get('budgetRange') || '').toString().trim() || undefined,
+      message,
+      source: 'design_service',
+      website: website || undefined
+    };
+
+    try {
+      setConsultationSubmitting(true);
+      const response = await consultationRequestService.createConsultationRequest(payload);
+      const requestCode = response?.request?.requestCode;
+      const successMessage = requestCode
+        ? `Cảm ơn bạn. Mã yêu cầu tư vấn của bạn là ${requestCode}.`
+        : 'Cảm ơn bạn. Chúng tôi sẽ liên hệ trong thời gian sớm nhất.';
+      setConsultationSuccess(successMessage);
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: successMessage } }));
+      form.reset();
+    } catch (error) {
+      setConsultationError(error.message || 'Không thể gửi yêu cầu tư vấn. Vui lòng thử lại sau.');
+    } finally {
+      setConsultationSubmitting(false);
+    }
   };
 
   return (
@@ -329,24 +385,25 @@ export default function DesignServices() {
               </div>
               <div className="lg:col-start-7 lg:col-span-6 bg-white p-12 shadow-xl rounded-xl">
                 <form onSubmit={handleConsultationSubmit} className="space-y-6">
+                  <input type="text" name="website" tabIndex="-1" autoComplete="off" className="hidden" aria-hidden="true" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block font-label-lg text-label-lg text-primary mb-2">Họ &amp; Tên *</label>
-                      <input required className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md" placeholder="Nguyễn Văn A" type="text"/>
+                      <input required className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md" name="fullName" placeholder="Nguyễn Văn A" type="text"/>
                     </div>
                     <div>
                       <label className="block font-label-lg text-label-lg text-primary mb-2">Số điện thoại *</label>
-                      <input required className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md" placeholder="090 000 0000" type="tel"/>
+                      <input required className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md" name="phone" placeholder="090 000 0000" type="tel"/>
                     </div>
                   </div>
                   <div>
                     <label className="block font-label-lg text-label-lg text-primary mb-2">Email</label>
-                    <input className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md" placeholder="example@email.com" type="email"/>
+                    <input className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md" name="email" placeholder="example@email.com" type="email"/>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block font-label-lg text-label-lg text-primary mb-2">Loại công trình</label>
-                      <select className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md appearance-none bg-no-repeat bg-right" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%23666\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundSize: '16px'}}>
+                      <select name="projectType" className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md appearance-none bg-no-repeat bg-right" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%23666\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundSize: '16px'}}>
                         <option>Căn hộ</option>
                         <option>Nhà phố</option>
                         <option>Biệt thự</option>
@@ -357,7 +414,7 @@ export default function DesignServices() {
                     </div>
                     <div>
                       <label className="block font-label-lg text-label-lg text-primary mb-2">Ngân sách dự kiến</label>
-                      <select className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md appearance-none bg-no-repeat bg-right" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%23666\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundSize: '16px'}}>
+                      <select name="budgetRange" className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md appearance-none bg-no-repeat bg-right" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%23666\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundSize: '16px'}}>
                         <option>Dưới 100 triệu</option>
                         <option>100 - 300 triệu</option>
                         <option>300 - 500 triệu</option>
@@ -368,9 +425,15 @@ export default function DesignServices() {
                   </div>
                   <div>
                     <label className="block font-label-lg text-label-lg text-primary mb-2">Nội dung yêu cầu</label>
-                    <textarea className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md resize-none" placeholder="Hãy mô tả ngắn gọn về yêu cầu thiết kế của bạn..." rows="4"></textarea>
+                    <textarea className="w-full bg-transparent border-0 border-b border-outline focus:border-accent-gold focus:ring-0 px-0 py-2 transition-all font-body-md resize-none" name="message" required placeholder="Hãy mô tả ngắn gọn về yêu cầu thiết kế của bạn..." rows="4"></textarea>
                   </div>
-                  <button className="w-full bg-accent-gold text-white py-5 font-label-lg text-label-lg uppercase tracking-widest hover:bg-yellow-600 transition-all rounded-lg shadow-sm hover:shadow-md" type="submit">GỬI YÊU CẦU TƯ VẤN</button>
+                  {consultationError && (
+                    <p className="rounded-lg border border-error/20 bg-error-container/20 px-4 py-3 text-sm font-medium text-error">{consultationError}</p>
+                  )}
+                  {consultationSuccess && (
+                    <p className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">{consultationSuccess}</p>
+                  )}
+                  <button className="w-full bg-accent-gold text-white py-5 font-label-lg text-label-lg uppercase tracking-widest hover:bg-yellow-600 transition-all rounded-lg shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70" type="submit" disabled={consultationSubmitting}>{consultationSubmitting ? 'ĐANG GỬI...' : 'GỬI YÊU CẦU TƯ VẤN'}</button>
                 </form>
               </div>
             </div>

@@ -33,6 +33,8 @@ model User {
   reviews                  Review[]
   userPermissions          UserPermission[]
   wishlists                Wishlist[]
+  consultationRequests     ConsultationRequest[] @relation("CustomerConsultationRequests")
+  assignedConsultations    ConsultationRequest[] @relation("AssignedConsultationRequests")
 }
 
 model Permission {
@@ -215,6 +217,35 @@ model CustomerAddress {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model ConsultationRequest {
+  id               Int      @id @default(autoincrement())
+  requestCode      String   @unique @db.VarChar(50)
+  customerId       Int?
+  assignedStaffId  Int?
+  fullName         String   @db.NVarChar(255)
+  phone            String   @db.VarChar(20)
+  email            String?  @db.VarChar(255)
+  projectType      String?  @db.NVarChar(100)
+  roomType         String?  @db.NVarChar(100)
+  budgetRange      String?  @db.NVarChar(100)
+  preferredContact String?  @db.NVarChar(100)
+  message          String?  @db.NVarChar(Max)
+  source           String?  @db.VarChar(100)
+  status           String   @default("new") @db.VarChar(50)
+  internalNote     String?  @db.NVarChar(Max)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  assignedStaff    User?    @relation("AssignedConsultationRequests", fields: [assignedStaffId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer         User?    @relation("CustomerConsultationRequests", fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([phone])
+  @@index([email])
+  @@index([customerId])
+  @@index([assignedStaffId])
 }
 
 model PasswordResetToken {

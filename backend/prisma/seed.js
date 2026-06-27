@@ -29,6 +29,8 @@ async function main() {
     { key: 'review.view', name: 'Xem đánh giá', group: 'Reviews', description: 'Cho phép xem danh sách đánh giá sản phẩm' },
     { key: 'review.update', name: 'Duyệt đánh giá', group: 'Reviews', description: 'Cho phép ẩn/hiện đánh giá sản phẩm' },
     
+    { key: 'consultation.view', name: 'Xem yêu cầu tư vấn', group: 'Consultations', description: 'Cho phép xem danh sách và chi tiết yêu cầu tư vấn' },
+    { key: 'consultation.update', name: 'Cập nhật yêu cầu tư vấn', group: 'Consultations', description: 'Cho phép phân công, ghi chú và cập nhật trạng thái yêu cầu tư vấn' },
     { key: 'admin_account.view', name: 'Xem tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép xem danh sách tài khoản quản trị' },
     { key: 'admin_account.create', name: 'Thêm tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép tạo mới tài khoản staff/admin' },
     { key: 'admin_account.update', name: 'Sửa tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép sửa thông tin, đổi role tài khoản quản trị' },
