@@ -26,6 +26,7 @@ export default function AdminRoute({ children, allowedRoles = ['admin'], require
         if (userPerms.includes('product.view')) return <Navigate to="/admin/products" replace />;
         if (userPerms.includes('category.view')) return <Navigate to="/admin/categories" replace />;
         if (userPerms.includes('customer.view')) return <Navigate to="/admin/customers" replace />;
+        if (userPerms.includes('consultation.view')) return <Navigate to="/admin/consultation-requests" replace />;
         if (userPerms.includes('admin_account.view')) return <Navigate to="/admin/accounts" replace />;
         
         // No permissions
