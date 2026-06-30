@@ -74,21 +74,31 @@ export default function AdminConsultationRequests() {
   const [assigneesLoading, setAssigneesLoading] = useState(true);
   const [assigneesError, setAssigneesError] = useState('');
 
-  const canUpdateConsultation = (() => {
+  const currentUser = (() => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      if (user?.role === 'admin') return true;
-      const permissions = user?.userPermissions?.map(item => item.permission.key) || [];
-      return permissions.includes('consultation.update');
+      return JSON.parse(localStorage.getItem('user') || 'null');
     } catch (error) {
-      return false;
+      return null;
     }
   })();
-
+  const tokenRole = (() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return '';
+      const payload = JSON.parse(atob(token.split('.')[1] || ''));
+      return payload?.role || '';
+    } catch (error) {
+      return '';
+    }
+  })();
+  const permissions = currentUser?.userPermissions?.map(item => item.permission?.key || item.key).filter(Boolean) || [];
+  const isAdminUser = String(currentUser?.role || tokenRole).toLowerCase() === 'admin';
+  const canAssignConsultation = isAdminUser;
+  const canUpdateConsultation = isAdminUser || permissions.includes('consultation.update');
   const normalizedAssigneeId = selectedConsultation?.assignedStaffId ? String(selectedConsultation.assignedStaffId) : '';
   const normalizedNote = selectedConsultation?.internalNote || '';
   const isStatusDirty = Boolean(selectedConsultation) && statusDraft !== selectedConsultation.status;
-  const isAssigneeDirty = Boolean(selectedConsultation) && assigneeDraft !== normalizedAssigneeId;
+  const isAssigneeDirty = canAssignConsultation && Boolean(selectedConsultation) && assigneeDraft !== normalizedAssigneeId;
   const isNoteDirty = Boolean(selectedConsultation) && noteDraft !== normalizedNote;
   const hasUnsavedChanges = isStatusDirty || isAssigneeDirty || isNoteDirty;
   useEffect(() => {
@@ -96,8 +106,14 @@ export default function AdminConsultationRequests() {
   }, [page, limit, status, dateFrom, dateTo]);
 
   useEffect(() => {
-    fetchAssignees();
-  }, []);
+    if (canAssignConsultation) {
+      fetchAssignees();
+    } else {
+      setAssignees([]);
+      setAssigneesError('');
+      setAssigneesLoading(false);
+    }
+  }, [canAssignConsultation]);
 
   const fetchConsultations = async () => {
     try {
@@ -123,6 +139,8 @@ export default function AdminConsultationRequests() {
 
 
   const fetchAssignees = async () => {
+    if (!canAssignConsultation) return;
+
     try {
       setAssigneesLoading(true);
       setAssigneesError('');
@@ -291,6 +309,13 @@ export default function AdminConsultationRequests() {
           </div>
         )}
 
+        {!isAdminUser && (
+          <div className="bg-surface-ivory text-on-surface-variant border border-outline-variant/40 rounded-xl px-4 py-3 font-body-sm flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px]">lock</span>
+            Bạn chỉ nhìn thấy các yêu cầu được phân công cho mình.
+          </div>
+        )}
+
         {loading ? (
           <SkeletonRows />
         ) : error ? (
@@ -325,7 +350,7 @@ export default function AdminConsultationRequests() {
                 </thead>
                 <tbody className="divide-y divide-surface-beige">
                   {consultations.map(item => (
-                    <tr key={item.id} className="hover:bg-surface-beige/30 transition-colors align-top">
+                    <tr key={item.id} onClick={() => openDetail(item)} className="hover:bg-surface-beige/30 transition-colors align-top cursor-pointer">
                       <td className="p-5 font-label-lg text-primary whitespace-nowrap">{item.requestCode}</td>
                       <td className="p-5 text-on-surface-variant min-w-[150px]">{formatDateTime(item.createdAt)}</td>
                       <td className="p-5 min-w-[220px]">
@@ -345,7 +370,7 @@ export default function AdminConsultationRequests() {
                         {item.assignedStaff?.email && <p className="text-xs text-on-surface-variant mt-1">{item.assignedStaff.email}</p>}
                       </td>
                       <td className="p-5 text-right">
-                        <button onClick={() => openDetail(item)} className="text-primary hover:text-accent-terracotta hover:bg-surface-beige font-label-md tracking-wider uppercase border border-outline-variant/50 px-4 py-2 rounded-lg transition-colors">
+                        <button onClick={(event) => { event.stopPropagation(); openDetail(item); }} className="text-primary hover:text-accent-terracotta hover:bg-surface-beige font-label-md tracking-wider uppercase border border-outline-variant/50 px-4 py-2 rounded-lg transition-colors">
                           Xem
                         </button>
                       </td>
@@ -434,26 +459,33 @@ export default function AdminConsultationRequests() {
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-bold text-on-surface-variant mb-2 block">Phụ trách</label>
-                  <select
-                    value={assigneeDraft}
-                    onChange={(e) => { setAssigneeDraft(e.target.value); setModalMessage({ type: '', text: '' }); }}
-                    disabled={!canUpdateConsultation || assigneesLoading || savingChanges || Boolean(assigneesError) || assignees.length === 0}
-                    className="w-full border border-outline-variant/50 rounded-xl px-4 py-3 outline-none focus:border-accent-gold bg-white text-primary font-body-sm disabled:bg-surface-beige/40 disabled:text-on-surface-variant"
-                  >
-                    <option value="">
-                      {assigneesLoading ? 'Đang tải nhân viên...' : assignees.length === 0 ? 'Chưa có nhân viên phù hợp' : 'Chưa gán'}
-                    </option>
-                    {assignees.map(staff => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.fullName || staff.email} - {staff.email} ({staff.role})
-                      </option>
-                    ))}
-                  </select>
-                  {!canUpdateConsultation && <p className="text-xs text-on-surface-variant mt-2">Bạn cần quyền cập nhật yêu cầu tư vấn để phân công.</p>}
-                  {assigneesError && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-error">
-                      <span>Không tải được danh sách nhân viên</span>
-                      <button type="button" onClick={fetchAssignees} className="font-bold underline">Thử lại</button>
+                  {canAssignConsultation ? (
+                    <>
+                      <select
+                        value={assigneeDraft}
+                        onChange={(e) => { setAssigneeDraft(e.target.value); setModalMessage({ type: '', text: '' }); }}
+                        disabled={assigneesLoading || savingChanges || Boolean(assigneesError) || assignees.length === 0}
+                        className="w-full border border-outline-variant/50 rounded-xl px-4 py-3 outline-none focus:border-accent-gold bg-white text-primary font-body-sm disabled:bg-surface-beige/40 disabled:text-on-surface-variant"
+                      >
+                        <option value="">
+                          {assigneesLoading ? 'Đang tải nhân viên...' : assignees.length === 0 ? 'Chưa có nhân viên phù hợp' : 'Chưa gán'}
+                        </option>
+                        {assignees.map(staff => (
+                          <option key={staff.id} value={staff.id}>
+                            {staff.fullName || staff.email} - {staff.email} ({staff.role})
+                          </option>
+                        ))}
+                      </select>
+                      {assigneesError && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-error">
+                          <span>Không tải được danh sách nhân viên</span>
+                          <button type="button" onClick={fetchAssignees} className="font-bold underline">Thử lại</button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full border border-outline-variant/30 rounded-xl px-4 py-3 bg-surface-beige/40 text-primary font-body-sm">
+                      {selectedConsultation.assignedStaff?.fullName || selectedConsultation.assignedStaff?.email || 'Chưa gán'}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
+import { createNotification } from '../services/notification.service.js';
 import {
   sendConsultationAdminNotificationEmail,
   sendConsultationConfirmationEmail
@@ -44,7 +45,8 @@ const adminQuerySchema = z.object({
   status: z.enum(['all', ...ALLOWED_STATUSES]).optional().default('all'),
   search: z.string().trim().optional().default(''),
   dateFrom: optionalTrimmedString(30),
-  dateTo: optionalTrimmedString(30)
+  dateTo: optionalTrimmedString(30),
+  assignedStaffId: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional())
 });
 
 const statusUpdateSchema = z.object({
@@ -151,6 +153,30 @@ const includeBasicRelations = {
   assignedStaff: { select: { id: true, fullName: true, email: true, role: true } }
 };
 
+const canAccessAdminConsultation = (user, request) => {
+  if (user?.role === 'admin') return true;
+  return user?.role === 'staff' && request?.assignedStaffId === user.id;
+};
+
+const requireAssignedConsultationAccess = async (req, res, id) => {
+  const request = await prisma.consultationRequest.findUnique({
+    where: { id },
+    select: { id: true, assignedStaffId: true }
+  });
+
+  if (!request) {
+    res.status(404).json({ message: 'Consultation request not found' });
+    return null;
+  }
+
+  if (!canAccessAdminConsultation(req.user, request)) {
+    res.status(403).json({ message: 'Forbidden: Consultation request is not assigned to you' });
+    return null;
+  }
+
+  return request;
+};
+
 export const getConsultationAssignees = async (req, res) => {
   try {
     const assignees = await prisma.user.findMany({
@@ -236,7 +262,7 @@ export const getMyConsultationRequests = async (req, res) => {
 
 export const getAdminConsultationRequests = async (req, res) => {
   try {
-    const { page, limit, status, search, dateFrom, dateTo } = adminQuerySchema.parse(req.query);
+    const { page, limit, status, search, dateFrom, dateTo, assignedStaffId } = adminQuerySchema.parse(req.query);
     const where = {};
 
     if (status !== 'all') where.status = status;
@@ -264,6 +290,12 @@ export const getAdminConsultationRequests = async (req, res) => {
         to.setHours(23, 59, 59, 999);
         where.createdAt.lte = to;
       }
+    }
+
+    if (req.user.role === 'staff') {
+      where.assignedStaffId = req.user.id;
+    } else if (assignedStaffId) {
+      where.assignedStaffId = assignedStaffId;
     }
 
     const skip = (page - 1) * limit;
@@ -302,6 +334,10 @@ export const getAdminConsultationRequestById = async (req, res) => {
     });
 
     if (!request) return res.status(404).json({ message: 'Consultation request not found' });
+    if (!canAccessAdminConsultation(req.user, request)) {
+      return res.status(403).json({ message: 'Forbidden: Consultation request is not assigned to you' });
+    }
+
     res.status(200).json({ request });
   } catch (error) {
     console.error('Get admin consultation request detail error:', error);
@@ -315,6 +351,9 @@ export const updateConsultationRequestStatus = async (req, res) => {
     if (!id) return res.status(400).json({ message: 'Invalid consultation request ID' });
 
     const { status } = statusUpdateSchema.parse(req.body);
+    const accessibleRequest = await requireAssignedConsultationAccess(req, res, id);
+    if (!accessibleRequest) return;
+
     const request = await prisma.consultationRequest.update({
       where: { id },
       data: { status },
@@ -339,6 +378,10 @@ export const assignConsultationRequest = async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ message: 'Invalid consultation request ID' });
 
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden: Only admin can assign consultation requests' });
+    }
+
     const { assignedStaffId } = assignSchema.parse(req.body);
 
     if (assignedStaffId) {
@@ -352,11 +395,45 @@ export const assignConsultationRequest = async (req, res) => {
       }
     }
 
+    const existingRequest = await prisma.consultationRequest.findUnique({
+      where: { id },
+      select: { id: true, assignedStaffId: true }
+    });
+
+    if (!existingRequest) {
+      return res.status(404).json({ message: 'Consultation request not found' });
+    }
+
+    const previousAssignedStaffId = existingRequest.assignedStaffId;
     const request = await prisma.consultationRequest.update({
       where: { id },
       data: { assignedStaffId },
       include: includeBasicRelations
     });
+
+    const shouldNotifyAssignee = Boolean(assignedStaffId)
+      && assignedStaffId !== previousAssignedStaffId
+      && assignedStaffId !== req.user.id;
+
+    if (shouldNotifyAssignee) {
+      createNotification({
+        recipientId: assignedStaffId,
+        actorId: req.user.id,
+        type: 'consultation_assigned',
+        module: 'consultation',
+        entityType: 'consultation',
+        entityId: request.id,
+        title: 'Bạn được phân công yêu cầu tư vấn',
+        message: `Yêu cầu ${request.requestCode} đã được giao cho bạn xử lý.`,
+        metadata: {
+          requestCode: request.requestCode,
+          status: request.status,
+          source: 'consultation_assignment'
+        }
+      }).catch((error) => {
+        console.warn(`Consultation assignment notification failed for ${request.requestCode}: ${error.message}`);
+      });
+    }
 
     res.status(200).json({ message: 'Consultation request assigned', request });
   } catch (error) {
@@ -377,6 +454,9 @@ export const updateConsultationRequestNote = async (req, res) => {
     if (!id) return res.status(400).json({ message: 'Invalid consultation request ID' });
 
     const { internalNote } = noteSchema.parse(req.body);
+    const accessibleRequest = await requireAssignedConsultationAccess(req, res, id);
+    if (!accessibleRequest) return;
+
     const request = await prisma.consultationRequest.update({
       where: { id },
       data: { internalNote },

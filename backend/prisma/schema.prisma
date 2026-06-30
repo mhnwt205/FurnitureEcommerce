@@ -35,6 +35,8 @@ model User {
   wishlists                Wishlist[]
   consultationRequests     ConsultationRequest[] @relation("CustomerConsultationRequests")
   assignedConsultations    ConsultationRequest[] @relation("AssignedConsultationRequests")
+  notifications            Notification[]      @relation("UserNotifications")
+  actorNotifications       Notification[]      @relation("ActorNotifications")
 }
 
 model Permission {
@@ -248,6 +250,27 @@ model ConsultationRequest {
   @@index([assignedStaffId])
 }
 
+model Notification {
+  id           Int      @id @default(autoincrement())
+  recipientId  Int
+  actorId      Int?
+  type         String   @db.VarChar(100)
+  module       String   @db.VarChar(100)
+  entityType   String?  @db.VarChar(100)
+  entityId     Int?
+  title        String   @db.NVarChar(255)
+  message      String   @db.NVarChar(Max)
+  metadataJson String?  @db.NVarChar(Max)
+  readAt       DateTime?
+  createdAt    DateTime @default(now())
+  actor        User?    @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recipient    User     @relation("UserNotifications", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+  @@index([module])
+  @@index([entityType, entityId])
+}
 model PasswordResetToken {
   id        Int       @id @default(autoincrement())
   userId    Int
