@@ -96,15 +96,7 @@ export const vnpayIPN = async (req, res) => {
           data: {
             paymentStatus: 'paid',
             paidAt: new Date(),
-            vnpayTransactionNo: transactionNo,
-            statusHistory: {
-              create: {
-                fromStatus: order.status,
-                toStatus: order.status,
-                note: `Thanh toán VNPay thành công. Mã GD: ${transactionNo}`,
-                changedByName: 'VNPay System'
-              }
-            }
+            vnpayTransactionNo: transactionNo
           }
         });
       } else {
@@ -112,15 +104,7 @@ export const vnpayIPN = async (req, res) => {
         await prisma.order.update({
           where: { id: order.id },
           data: {
-            paymentStatus: 'failed',
-            statusHistory: {
-              create: {
-                fromStatus: order.status,
-                toStatus: order.status,
-                note: `Thanh toán VNPay thất bại. Mã lỗi: ${responseCode}`,
-                changedByName: 'VNPay System'
-              }
-            }
+            paymentStatus: 'failed'
           }
         });
       }
@@ -171,15 +155,7 @@ export const verifyPaymentResult = async (req, res) => {
         data: {
           paymentStatus: 'paid',
           paidAt: new Date(),
-          vnpayTransactionNo: transactionNo,
-          statusHistory: {
-            create: {
-              fromStatus: order.status,
-              toStatus: order.status,
-              note: `Thanh toán VNPay thành công. Mã GD: ${transactionNo}`,
-              changedByName: 'VNPay System (Verify)'
-            }
-          }
+          vnpayTransactionNo: transactionNo
         }
       });
       return res.status(200).json({ success: true, status: 'paid', orderId: order.id, message: 'Payment successful' });
@@ -188,15 +164,7 @@ export const verifyPaymentResult = async (req, res) => {
          await prisma.order.update({
           where: { id: order.id },
           data: {
-            paymentStatus: 'failed',
-            statusHistory: {
-              create: {
-                fromStatus: order.status,
-                toStatus: order.status,
-                note: `Thanh toán VNPay thất bại. Mã lỗi: ${responseCode}`,
-                changedByName: 'VNPay System (Verify)'
-              }
-            }
+            paymentStatus: 'failed'
           }
         });
       }
