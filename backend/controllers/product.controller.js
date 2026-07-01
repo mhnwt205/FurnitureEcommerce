@@ -1,6 +1,7 @@
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
 import cloudinary from '../config/cloudinary.js';
+import { attachPricingToProduct, attachPricingToProducts, getPromotionAwareProductPage } from '../services/promotionPricing.service.js';
 
 const optionalTrimmedString = (maxLength) => z.preprocess(
   (value) => {
@@ -126,12 +127,6 @@ export const getProducts = async (req, res) => {
       ];
     }
 
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      whereClause.price = {};
-      if (minPrice !== undefined && minPrice !== '') whereClause.price.gte = parseFloat(minPrice);
-      if (maxPrice !== undefined && maxPrice !== '') whereClause.price.lte = parseFloat(maxPrice);
-    }
-
     if (color && color.trim() !== '') {
       whereClause.color = { contains: color.trim() };
     }
@@ -149,9 +144,7 @@ export const getProducts = async (req, res) => {
     }
 
     let orderBy = { id: 'desc' }; // default newest
-    if (sort === 'price_asc') orderBy = { price: 'asc' };
-    else if (sort === 'price_desc') orderBy = { price: 'desc' };
-    else if (sort === 'name_asc') orderBy = { name: 'asc' };
+    if (sort === 'name_asc') orderBy = { name: 'asc' };
     else if (sort === 'newest') orderBy = { createdAt: 'desc' };
     else if (sort === 'popular') orderBy = { stock: 'desc' }; // fallback since we don't have views/sales tracking yet
 
@@ -159,7 +152,72 @@ export const getProducts = async (req, res) => {
     const limitNum = parseInt(limit) || 0;
 
     let products;
+    const shouldUseFinalPriceQuery = Boolean(
+      (minPrice !== undefined && minPrice !== '') ||
+      (maxPrice !== undefined && maxPrice !== '') ||
+      sort === 'price_asc' ||
+      sort === 'price_desc'
+    );
 
+    if (shouldUseFinalPriceQuery) {
+      const { ids, total } = await getPromotionAwareProductPage({
+        filters: {
+          includeInactive: includeInactive === 'true',
+          category,
+          search,
+          color,
+          material,
+          roomType,
+          style
+        },
+        minPrice,
+        maxPrice,
+        sort,
+        page: pageNum,
+        limit: limitNum
+      });
+
+      if (ids.length === 0) {
+        return res.status(200).json({
+          data: [],
+          pagination: {
+            page: limitNum > 0 ? pageNum : 1,
+            limit: limitNum > 0 ? limitNum : 10,
+            total,
+            totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1
+          }
+        });
+      }
+
+      const orderIndex = new Map(ids.map((id, index) => [id, index]));
+      products = await prisma.product.findMany({
+        where: { id: { in: ids } },
+        include: {
+          category: true,
+          images: {
+            orderBy: [
+              { isPrimary: 'desc' },
+              { sortOrder: 'asc' },
+              { id: 'asc' }
+            ]
+          },
+          _count: {
+            select: { wishlists: true }
+          }
+        }
+      });
+      products.sort((a, b) => orderIndex.get(a.id) - orderIndex.get(b.id));
+
+      return res.status(200).json({
+        data: await attachPricingToProducts(await attachReviewSummaries(products)),
+        pagination: {
+          page: limitNum > 0 ? pageNum : 1,
+          limit: limitNum > 0 ? limitNum : products.length || 10,
+          total,
+          totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1
+        }
+      });
+    }
     if (limitNum > 0) {
       const total = await prisma.product.count({ where: whereClause });
       const skip = (pageNum - 1) * limitNum;
@@ -185,7 +243,7 @@ export const getProducts = async (req, res) => {
       });
 
       return res.status(200).json({
-        data: await attachReviewSummaries(products),
+        data: await attachPricingToProducts(await attachReviewSummaries(products)),
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -215,7 +273,7 @@ export const getProducts = async (req, res) => {
     
     // Always return { data, pagination } for consistency, if no limit just assume page 1 and total=length
     res.status(200).json({
-      data: products,
+      data: await attachPricingToProducts(await attachReviewSummaries(products)),
       pagination: {
         page: 1,
         limit: products.length || 10, // arbitrary if 0
@@ -260,7 +318,7 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.status(200).json(await attachReviewSummaries(product));
+    res.status(200).json(await attachPricingToProduct(await attachReviewSummaries(product)));
   } catch (error) {
     console.error('Get product by ID error:', error);
     res.status(500).json({ message: 'Internal server error' });

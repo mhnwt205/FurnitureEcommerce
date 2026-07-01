@@ -11,7 +11,7 @@ import { getProductMainImage } from '../utils/imageUtils';
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { cartItems, cartCount, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cartItems, cartCount, cartTotal, getCartItemUnitPrice, refreshCartPricing, updateQuantity, removeFromCart, clearCart } = useCart();
   
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
@@ -34,6 +34,19 @@ export default function Checkout() {
       navigate('/login');
       return;
     }
+
+    const refreshPricing = async () => {
+      try {
+        setRefreshingPricing(true);
+        setPricingWarning(null);
+        await refreshCartPricing();
+      } catch (error) {
+        setPricingWarning('Không thể cập nhật giá mới nhất. Giá cuối cùng sẽ được kiểm tra lại khi đặt hàng.');
+      } finally {
+        setRefreshingPricing(false);
+      }
+    };
+    refreshPricing();
 
     // Pre-fill user data
     const userStr = localStorage.getItem('user');
@@ -64,6 +77,16 @@ export default function Checkout() {
     setError(null);
 
     try {
+      try {
+        setRefreshingPricing(true);
+        setPricingWarning(null);
+        await refreshCartPricing();
+      } catch (refreshError) {
+        setPricingWarning('Không thể cập nhật giá mới nhất. Backend sẽ tính lại giá khi đặt hàng.');
+      } finally {
+        setRefreshingPricing(false);
+      }
+
       const orderPayload = {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -158,7 +181,7 @@ export default function Checkout() {
                       <div className="flex-1 ml-8">
                         <div className="flex justify-between">
                           <h3 className="font-label-lg text-label-lg text-primary">{item.name}</h3>
-                          <span className="font-label-lg text-label-lg">{formatPrice(item.price)}</span>
+                          <span className="font-label-lg text-label-lg">{formatPrice(getCartItemUnitPrice(item))}</span>
                         </div>
                         <p className="text-on-surface-variant font-body-sm text-body-sm mt-2">{item.category?.name || 'Sản phẩm'}</p>
                         <div className="mt-8 flex justify-between items-center">
@@ -261,6 +284,8 @@ export default function Checkout() {
                     </div>
                   </div>
                   
+                  {refreshingPricing && <div className="text-on-surface-variant text-body-sm mb-4">Đang cập nhật giá mới nhất...</div>}
+                  {pricingWarning && <div className="text-accent-terracotta text-body-sm mb-4">{pricingWarning}</div>}
                   {error && <div className="text-error text-body-sm mb-4">{error}</div>}
 
                   <button form="checkout-form" type="submit" disabled={loading} className="w-full bg-primary text-white py-4 rounded font-label-lg text-label-lg uppercase tracking-widest hover:bg-primary-container transition-colors shadow-lg active:scale-95 duration-150 disabled:opacity-70">

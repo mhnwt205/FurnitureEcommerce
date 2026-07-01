@@ -164,6 +164,8 @@ export default function AdminAccounts() {
     );
   }
 
+  const getPermissionGroupLabel = (group) => group === 'Promotions' ? 'Khuyến mãi' : group;
+
   // Group permissions for rendering
   const groupedPermissions = permissionsList.reduce((acc, perm) => {
     if (!acc[perm.group]) acc[perm.group] = [];
@@ -337,7 +339,7 @@ export default function AdminAccounts() {
                     <div className="space-y-4">
                       {Object.keys(groupedPermissions).map(group => (
                         <div key={group} className="bg-white p-5 rounded-2xl border border-surface-beige shadow-[0_4px_24px_rgba(93,64,55,0.02)]">
-                          <h4 className="font-label-lg text-primary mb-4 uppercase tracking-widest text-[11px] border-b border-surface-beige pb-3">{group}</h4>
+                          <h4 className="font-label-lg text-primary mb-4 uppercase tracking-widest text-[11px] border-b border-surface-beige pb-3">{getPermissionGroupLabel(group)}</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {groupedPermissions[group].map(perm => (
                               <label key={perm.key} className="flex items-start gap-3 cursor-pointer group">

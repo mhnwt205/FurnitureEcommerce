@@ -216,13 +216,13 @@ export default function OrderDetail() {
                         <div>
                           <p className="font-label-lg text-[15px] text-primary">{item.productName}</p>
                           <p className="text-xs text-on-surface-variant mt-1 md:hidden">
-                            {Number(item.price).toLocaleString('vi-VN')} đ x {item.quantity}
+                            {Number(item.finalPrice ?? item.price).toLocaleString('vi-VN')} đ x {item.quantity}
                           </p>
                         </div>
                       </div>
                       <div className="col-span-3 w-full md:w-auto hidden md:block text-center">
                         <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap min-w-max font-medium text-primary bg-surface-ivory px-3 py-1.5 rounded-lg border border-surface-beige">
-                          {Number(item.price).toLocaleString('vi-VN')} đ <span className="text-on-surface-variant">x</span> {item.quantity}
+                          {Number(item.finalPrice ?? item.price).toLocaleString('vi-VN')} đ <span className="text-on-surface-variant">x</span> {item.quantity}
                         </span>
                       </div>
                       <div className="col-span-2 w-full md:w-auto flex justify-between md:block text-right border-t border-outline-variant/20 md:border-t-0 pt-3 md:pt-0">

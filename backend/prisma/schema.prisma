@@ -37,6 +37,7 @@ model User {
   assignedConsultations    ConsultationRequest[] @relation("AssignedConsultationRequests")
   notifications            Notification[]      @relation("UserNotifications")
   actorNotifications       Notification[]      @relation("ActorNotifications")
+  createdPromotions        Promotion[]         @relation("PromotionCreatedBy")
 }
 
 model Permission {
@@ -70,6 +71,7 @@ model Category {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   products    Product[]
+  promotionCategories PromotionCategory[]
 }
 
 model Product {
@@ -97,6 +99,7 @@ model Product {
   images      ProductImage[]
   reviews     Review[]
   wishlists   Wishlist[]
+  promotionProducts PromotionProduct[]
 
   @@index([categoryId])
   @@index([isActive])
@@ -149,12 +152,17 @@ model OrderItem {
   orderId     Int
   productId   Int
   productName String  @db.NVarChar(255)
-  price       Float
-  quantity    Int
-  subtotal    Float
-  order       Order   @relation(fields: [orderId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
-  reviews     Review[]
+  price          Float
+  originalPrice  Float?
+  discountAmount Float?  @default(0)
+  finalPrice     Float?
+  promotionId    Int?
+  promotionName  String? @db.NVarChar(255)
+  quantity       Int
+  subtotal       Float
+  order         Order   @relation(fields: [orderId], references: [id])
+  product       Product  @relation(fields: [productId], references: [id])
+  reviews       Review[]
 }
 
 model Review {
@@ -271,6 +279,57 @@ model Notification {
   @@index([module])
   @@index([entityType, entityId])
 }
+
+model Promotion {
+  id                  Int                 @id @default(autoincrement())
+  name                String              @db.NVarChar(255)
+  description         String?             @db.NVarChar(Max)
+  discountType        String              @db.VarChar(50)
+  discountValue       Float
+  status              String              @default("draft") @db.VarChar(50)
+  priority            Int                 @default(0)
+  startAt             DateTime
+  endAt               DateTime
+  isActive            Boolean             @default(true)
+  createdById         Int?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  createdBy           User?               @relation("PromotionCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  promotionProducts   PromotionProduct[]
+  promotionCategories PromotionCategory[]
+
+  @@index([status])
+  @@index([isActive])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([priority])
+  @@index([createdById])
+}
+
+model PromotionProduct {
+  promotionId Int
+  productId   Int
+  createdAt   DateTime  @default(now())
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([promotionId, productId])
+  @@index([promotionId])
+  @@index([productId])
+}
+
+model PromotionCategory {
+  promotionId Int
+  categoryId  Int
+  createdAt   DateTime  @default(now())
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([promotionId, categoryId])
+  @@index([promotionId])
+  @@index([categoryId])
+}
+
 model PasswordResetToken {
   id        Int       @id @default(autoincrement())
   userId    Int

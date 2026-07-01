@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { wishlistService } from '../../services/api/wishlistService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
+import PriceDisplay from '../../components/common/PriceDisplay';
 
 export default function Wishlist() {
   const [wishlist, setWishlist] = useState([]);
@@ -15,7 +16,7 @@ export default function Wishlist() {
   const fetchWishlist = async () => {
     try {
       const data = await wishlistService.getWishlist();
-      setWishlist(data);
+      setWishlist(data || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -58,7 +59,6 @@ export default function Wishlist() {
               
               const productId = product.id;
               const name = product.name;
-              const price = Number(product.price || 0);
               const imageUrl = product.images && product.images.length > 0 
                 ? product.images.find(img => img.isPrimary)?.imageUrl || product.images[0].imageUrl
                 : product.imageUrl;
@@ -82,7 +82,7 @@ export default function Wishlist() {
                       {name}
                     </Link>
                     <div className="mt-auto flex items-center justify-between">
-                      <span className="font-body-md font-bold text-accent-terracotta">{price > 0 ? `${price.toLocaleString('vi-VN')} VNĐ` : 'Đang cập nhật'}</span>
+                      <PriceDisplay {...product} size="small" showBadge />
                     </div>
                   </div>
                 </div>

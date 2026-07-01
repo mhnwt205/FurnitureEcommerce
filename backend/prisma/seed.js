@@ -35,6 +35,11 @@ async function main() {
     { key: 'admin_account.create', name: 'Thêm tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép tạo mới tài khoản staff/admin' },
     { key: 'admin_account.update', name: 'Sửa tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép sửa thông tin, đổi role tài khoản quản trị' },
     { key: 'admin_account.delete', name: 'Xóa tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép xóa tài khoản quản trị' },
+
+    { key: 'promotion.view', name: 'Xem khuyến mãi', group: 'Promotions', description: 'Cho phép xem danh sách và chi tiết khuyến mãi' },
+    { key: 'promotion.create', name: 'Thêm khuyến mãi', group: 'Promotions', description: 'Cho phép tạo khuyến mãi mới' },
+    { key: 'promotion.update', name: 'Sửa khuyến mãi', group: 'Promotions', description: 'Cho phép cập nhật thông tin khuyến mãi' },
+    { key: 'promotion.delete', name: 'Xóa khuyến mãi', group: 'Promotions', description: 'Cho phép xóa hoặc vô hiệu hóa khuyến mãi' },
   ];
 
   for (const perm of defaultPermissions) {

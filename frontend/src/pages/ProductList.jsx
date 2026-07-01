@@ -8,6 +8,7 @@ import { useCart } from '../hooks/useCart';
 import { getStaticFileUrl } from '../utils/imageUtils';
 import ScrollReveal from '../components/common/ScrollReveal';
 import WishlistButton from '../components/common/WishlistButton';
+import PriceDisplay from '../components/common/PriceDisplay';
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
@@ -127,9 +128,6 @@ export default function ProductList() {
     updateFilters({ minPrice: minPriceInput, maxPrice: maxPriceInput });
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -260,6 +258,9 @@ export default function ProductList() {
             src={getStaticFileUrl(product.imageUrl || (product.images && product.images.length > 0 ? product.images[0] : null)) || 'https://placehold.co/400x500?text=No+Image'} 
             alt={product.name} 
           />
+          {product.hasPromotion && product.discountPercent > 0 && (
+            <span className="absolute top-4 left-4 z-10 rounded bg-accent-terracotta px-2 py-1 text-xs font-bold text-white">-{product.discountPercent}%</span>
+          )}
           <WishlistButton 
             productId={product.id} 
             initialIsActive={wishlistIds.includes(product.id)}
@@ -274,7 +275,7 @@ export default function ProductList() {
             {viewParam === 'list' && <p className="text-body-sm text-on-surface-variant mb-4 line-clamp-3">{product.description || 'Sản phẩm nội thất cao cấp mang đến không gian sang trọng và tinh tế.'}</p>}
           </div>
           <div className={`flex mt-auto ${viewParam === 'list' ? 'flex-row items-center justify-between pt-4' : 'flex-col gap-2'}`}>
-            <span className="text-primary font-bold text-headline-sm">{formatPrice(product.price)}</span>
+            <PriceDisplay {...product} size="normal" showBadge />
             <button onClick={(e) => { e.preventDefault(); addToCart(product); }} className={`border border-primary text-primary font-label-lg hover:bg-primary hover:text-white transition-all duration-300 ${viewParam === 'list' ? 'px-8 py-3' : 'w-full mt-4 py-3'}`}>
               THÊM VÀO GIỎ
             </button>

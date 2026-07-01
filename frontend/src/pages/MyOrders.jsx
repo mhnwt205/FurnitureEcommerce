@@ -277,7 +277,7 @@ export default function MyOrders() {
                             </div>
                             <div>
                               <p className="font-body-md text-primary font-medium">{item.productName}</p>
-                              <p className="font-body-sm text-on-surface-variant mt-0.5">Số lượng: {item.quantity} x {formatPrice(item.price)}</p>
+                              <p className="font-body-sm text-on-surface-variant mt-0.5">Số lượng: {item.quantity} x {formatPrice(item.finalPrice ?? item.price)}</p>
                             </div>
                           </div>
                           <div className="text-right">

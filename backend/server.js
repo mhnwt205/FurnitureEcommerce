@@ -19,6 +19,7 @@ import reviewRoutes from './routes/review.routes.js';
 import aiAdvisorRoutes from './routes/aiAdvisor.routes.js';
 import consultationRequestRoutes from './routes/consultationRequest.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import promotionRoutes from './routes/promotion.routes.js';
 
 dotenv.config();
 
@@ -65,6 +66,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/ai-advisor', aiAdvisorRoutes);
 app.use('/api/consultation-requests', consultationRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/promotions', promotionRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

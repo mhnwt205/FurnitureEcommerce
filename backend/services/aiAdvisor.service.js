@@ -1,4 +1,5 @@
 import prisma from '../prismaClient.js';
+import { attachPricingToProducts } from './promotionPricing.service.js';
 
 const MAX_RECOMMENDATIONS = 5;
 const CATALOG_LIMIT = 50;
@@ -261,19 +262,9 @@ const hasGeneralCatalogIntent = (message) => {
   return ['noi that', 'san pham', 'tu van', 'goi y', 'mua', 'can tim', 'can mua'].some(term => normalized.includes(term));
 };
 
-const buildPriceWhere = (budget) => {
-  const price = {};
-  if (budget.minPrice !== null) price.gte = budget.minPrice;
-  if (budget.maxPrice !== null) price.lte = budget.maxPrice;
-  return Object.keys(price).length > 0 ? price : null;
-};
-
 const buildProductWhere = ({ message, budget, categorySlug, attributes }) => {
   const keywords = extractKeywords(message);
   const where = { isActive: true };
-  const priceWhere = buildPriceWhere(budget);
-
-  if (priceWhere) where.price = priceWhere;
   if (categorySlug) where.category = { slug: categorySlug };
 
   if (!categorySlug && keywords.length > 0) {
@@ -405,9 +396,32 @@ const getAttributeScore = (product, attributes) => {
   return score;
 };
 
+const getEffectivePrice = (product) => Number(product.finalPrice ?? product.displayPrice ?? product.price ?? 0);
+
+const getOriginalPrice = (product) => Number(product.originalPrice ?? product.price ?? 0);
+
+const hasActivePromotion = (product) => Boolean(product.hasPromotion && getEffectivePrice(product) < getOriginalPrice(product));
+
+const formatVnd = (value) => `${Number(value || 0).toLocaleString('vi-VN')} đồng`;
+
+const getPricingSummary = (product) => {
+  const originalPrice = getOriginalPrice(product);
+  const finalPrice = getEffectivePrice(product);
+  const discountAmount = Number(product.discountAmount ?? Math.max(originalPrice - finalPrice, 0));
+  const discountPercent = Number(product.discountPercent ?? (originalPrice > 0 ? Math.round(discountAmount / originalPrice * 100) : 0));
+
+  if (!hasActivePromotion(product)) {
+    return `Giá hiện tại: ${formatVnd(finalPrice)}.`;
+  }
+
+  const promotionName = product.promotion?.name ? ` Chương trình: ${product.promotion.name}.` : '';
+  return `Giá gốc: ${formatVnd(originalPrice)}. Giá sau khuyến mãi: ${formatVnd(finalPrice)}. Tiết kiệm: ${formatVnd(discountAmount)}${discountPercent > 0 ? ` (-${discountPercent}%)` : ''}.${promotionName}`;
+};
+
 const budgetMatches = (product, budget) => {
-  if (budget.minPrice !== null && product.price < budget.minPrice) return false;
-  if (budget.maxPrice !== null && product.price > budget.maxPrice) return false;
+  const effectivePrice = getEffectivePrice(product);
+  if (budget.minPrice !== null && effectivePrice < budget.minPrice) return false;
+  if (budget.maxPrice !== null && effectivePrice > budget.maxPrice) return false;
   return true;
 };
 
@@ -427,7 +441,7 @@ const scoreProduct = ({ product, normalizedMessage, keywords, budget, categorySl
   score += getAttributeScore(product, attributes);
 
   if (normalizedMessage.includes('re') || normalizedMessage.includes('tiet kiem')) {
-    score += Math.max(0, 10 - product.price / 1000000);
+    score += Math.max(0, 10 - getEffectivePrice(product) / 1000000);
   }
 
   score += Math.min(product.reviewCount || 0, 10);
@@ -438,7 +452,14 @@ const serializeRecommendation = (product, reason = '') => ({
   id: product.id,
   name: product.name,
   slug: product.slug,
-  price: product.price,
+  price: getEffectivePrice(product),
+  originalPrice: getOriginalPrice(product),
+  finalPrice: getEffectivePrice(product),
+  displayPrice: product.displayPrice ?? getEffectivePrice(product),
+  discountAmount: Number(product.discountAmount ?? Math.max(getOriginalPrice(product) - getEffectivePrice(product), 0)),
+  discountPercent: Number(product.discountPercent ?? 0),
+  hasPromotion: hasActivePromotion(product),
+  promotion: product.promotion || null,
   imageUrl: getPrimaryImageUrl(product),
   stock: product.stock,
   category: product.category?.name || null,
@@ -478,7 +499,8 @@ const buildAttributeReasonParts = (product, attributes) => {
 const buildRuleBasedReason = ({ product, budget, categorySlug, attributes }) => {
   const parts = [];
   if (categorySlug && product.category?.slug === categorySlug) parts.push(`thuộc danh mục ${product.category.name}`);
-  if (budget.intent && budgetMatches(product, budget)) parts.push('đúng khoảng giá bạn yêu cầu');
+  if (budget.intent && budgetMatches(product, budget)) parts.push(hasActivePromotion(product) ? 'đúng khoảng giá bạn yêu cầu nhờ giá khuyến mãi hiện tại' : 'đúng khoảng giá bạn yêu cầu');
+  if (hasActivePromotion(product)) parts.push(`đang giảm còn ${formatVnd(getEffectivePrice(product))}`);
   parts.push(...buildAttributeReasonParts(product, attributes));
   if (product.stock > 0) parts.push(`còn ${product.stock} sản phẩm`);
   if ((product.averageRating || 0) > 0) parts.push(`được đánh giá ${product.averageRating}/5`);
@@ -527,7 +549,15 @@ const buildRuleBasedAnswer = ({ recommendations, budget, categorySlug, attribute
 const buildCatalogForPrompt = (recommendations) => recommendations.map(item => ({
   id: item.id,
   name: item.name,
-  price: item.price,
+  price: item.finalPrice ?? item.price,
+  originalPrice: item.originalPrice ?? item.price,
+  finalPrice: item.finalPrice ?? item.price,
+  displayPrice: item.displayPrice ?? item.finalPrice ?? item.price,
+  discountAmount: item.discountAmount ?? 0,
+  discountPercent: item.discountPercent ?? 0,
+  hasPromotion: item.hasPromotion || false,
+  promotion: item.promotion || null,
+  pricingSummary: getPricingSummary(item),
   stock: item.stock,
   category: item.category,
   averageRating: item.averageRating,
@@ -568,7 +598,9 @@ const buildGeminiPrompt = ({ message, recommendations }) => JSON.stringify({
     'Chỉ nói màu sắc, kích thước, chất liệu, phòng phù hợp hoặc phong cách nếu field tương ứng hoặc shortDescription có dữ liệu.',
     'Nếu thiếu dữ liệu thuộc tính, hãy nói rõ: Hiện thông tin này chưa được cập nhật đầy đủ.',
     'Nếu allowedProducts không có sản phẩm phù hợp, hãy nói rõ và không đề xuất sản phẩm.',
-    'Chỉ trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.'
+    'Chỉ trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.',
+    'Use finalPrice as the current selling price. If hasPromotion=true, mention the discounted finalPrice, originalPrice, discountAmount, discountPercent and promotion when useful.',
+    'Never treat originalPrice as the current selling price when finalPrice is lower.',
   ],
   customerMessage: message,
   allowedProducts: buildCatalogForPrompt(recommendations),
@@ -679,14 +711,14 @@ export const getAdvisorResponse = async ({ message, context = {} }) => {
     products = await fetchProducts({
       isActive: true,
       category: { slug: categorySlug },
-      ...(buildPriceWhere(budget) ? { price: buildPriceWhere(budget) } : {})
+
     });
   }
 
   if (products.length === 0 && budget.intent && !categorySlug) {
     products = await fetchProducts({
       isActive: true,
-      price: buildPriceWhere(budget)
+
     });
   }
 
@@ -694,12 +726,14 @@ export const getAdvisorResponse = async ({ message, context = {} }) => {
     products = await fetchProducts({
       isActive: true,
       ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-      ...(buildPriceWhere(budget) ? { price: buildPriceWhere(budget) } : {})
+
     });
   }
 
   const summaryMap = await getReviewSummaries(products.map(product => product.id));
-  const enrichedProducts = products.map(product => ({
+  const pricedProducts = await attachPricingToProducts(products);
+
+  const enrichedProducts = pricedProducts.map(product => ({
     ...product,
     averageRating: summaryMap.get(product.id)?.averageRating || 0,
     reviewCount: summaryMap.get(product.id)?.reviewCount || 0
@@ -713,7 +747,7 @@ export const getAdvisorResponse = async ({ message, context = {} }) => {
       score: scoreProduct({ product, normalizedMessage, keywords, budget, categorySlug, currentProduct, attributes }),
       attributeMatch: getAttributeMatch(product, attributes)
     }))
-    .sort((a, b) => b.score - a.score || b.product.stock - a.product.stock || a.product.price - b.product.price);
+    .sort((a, b) => b.score - a.score || b.product.stock - a.product.stock || getEffectivePrice(a.product) - getEffectivePrice(b.product));
 
   let noExactAttributeMatch = false;
   let rankedProducts = rankedWithScore;

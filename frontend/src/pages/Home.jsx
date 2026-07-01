@@ -7,6 +7,7 @@ import { getStaticFileUrl } from '../utils/imageUtils';
 import ScrollReveal from '../components/common/ScrollReveal';
 import WishlistButton from '../components/common/WishlistButton';
 import { wishlistService } from '../services/api/wishlistService';
+import PriceDisplay from '../components/common/PriceDisplay';
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -53,9 +54,6 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -178,7 +176,7 @@ export default function Home() {
           </button>
         </div>
         <h3 className="font-headline-md text-[20px] text-primary mb-2">{product.name}</h3>
-        <p className="font-body-md text-on-surface-variant text-muted">{formatPrice(product.price)}</p>
+        <PriceDisplay {...product} size="small" showBadge className="mt-1" />
       </Link>
       </ScrollReveal>
     ))}
