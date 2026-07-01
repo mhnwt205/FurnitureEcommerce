@@ -510,7 +510,7 @@ export default function AdminOrders() {
                             </div>
                             <div className="col-span-2 w-full md:w-auto flex justify-between md:block text-center">
                               <span className="md:hidden text-xs text-on-surface-variant uppercase tracking-wider font-bold">Đơn giá:</span>
-                              <span className="font-medium text-primary">{formatPrice(item.price)}</span>
+                              <span className="font-medium text-primary">{formatPrice(item.finalPrice ?? item.price)}</span>
                             </div>
                             <div className="col-span-2 w-full md:w-auto flex justify-between md:block text-center">
                               <span className="md:hidden text-xs text-on-surface-variant uppercase tracking-wider font-bold">Số lượng:</span>

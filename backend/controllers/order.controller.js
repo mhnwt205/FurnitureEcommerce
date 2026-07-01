@@ -1,5 +1,6 @@
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
+import { attachPricingToProducts } from '../services/promotionPricing.service.js';
 
 const orderItemSchema = z.object({
   productId: z.number(),
@@ -19,59 +20,111 @@ export const createOrder = async (req, res) => {
   try {
     const validatedData = createOrderSchema.parse(req.body);
     const userId = req.user.id;
-    
-    let totalAmount = 0;
-    const orderItemsData = [];
 
-    // Process items and calculate total
+    const productIds = [...new Set(validatedData.items.map((item) => item.productId))];
+    const quantityByProductId = new Map();
+
     for (const item of validatedData.items) {
-      const product = await prisma.product.findUnique({ where: { id: item.productId } });
+      quantityByProductId.set(
+        item.productId,
+        (quantityByProductId.get(item.productId) || 0) + item.quantity
+      );
+    }
+
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } }
+    });
+    const pricedProducts = await attachPricingToProducts(products);
+    const productMap = new Map(pricedProducts.map((product) => [product.id, product]));
+
+    for (const productId of productIds) {
+      const product = productMap.get(productId);
       if (!product) {
-        return res.status(404).json({ message: `Product with ID ${item.productId} not found` });
+        return res.status(404).json({ message: `Product with ID ${productId} not found` });
       }
 
-      const subtotal = product.price * item.quantity;
-      totalAmount += subtotal;
+      if (!product.isActive) {
+        return res.status(400).json({ message: `Product with ID ${productId} is not available` });
+      }
 
-      orderItemsData.push({
+      const requestedQuantity = quantityByProductId.get(productId) || 0;
+      if (product.stock < requestedQuantity) {
+        return res.status(400).json({ message: `Product with ID ${productId} does not have enough stock` });
+      }
+    }
+
+    let totalAmount = 0;
+    const orderItemsData = validatedData.items.map((item) => {
+      const product = productMap.get(item.productId);
+      const originalPrice = Number(product.price);
+      const finalPrice = Number(product.finalPrice ?? product.displayPrice ?? product.price);
+      const discountAmount = Number(product.discountAmount ?? Math.max(originalPrice - finalPrice, 0));
+      const subtotal = Number((finalPrice * item.quantity).toFixed(2));
+
+      totalAmount = Number((totalAmount + subtotal).toFixed(2));
+
+      return {
         productId: product.id,
         productName: product.name,
-        price: product.price,
+        price: finalPrice,
+        originalPrice,
+        discountAmount,
+        finalPrice,
+        promotionId: product.promotion?.id ?? null,
+        promotionName: product.promotion?.name ?? null,
         quantity: item.quantity,
         subtotal
-      });
-    }
+      };
+    });
 
     const orderCode = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    const newOrder = await prisma.order.create({
-      data: {
-        orderCode,
-        userId,
-        fullName: validatedData.fullName,
-        phone: validatedData.phone,
-        address: validatedData.address,
-        note: validatedData.note,
-        paymentMethod: validatedData.paymentMethod,
-        totalAmount,
-        status: 'pending',
-        orderItems: {
-          create: orderItemsData
-        },
-        statusHistory: {
-          create: [
-            {
-              toStatus: 'pending',
-              note: 'Đơn hàng được tạo',
-              changedById: userId,
-              changedByName: req.user.fullName || req.user.email || 'Khách hàng'
-            }
-          ]
+    const newOrder = await prisma.$transaction(async (tx) => {
+      for (const [productId, quantity] of quantityByProductId.entries()) {
+        const stockUpdate = await tx.product.updateMany({
+          where: {
+            id: productId,
+            stock: { gte: quantity }
+          },
+          data: {
+            stock: { decrement: quantity }
+          }
+        });
+
+        if (stockUpdate.count !== 1) {
+          throw new Error(`INSUFFICIENT_STOCK:${productId}`);
         }
-      },
-      include: {
-        orderItems: true
       }
+
+      return tx.order.create({
+        data: {
+          orderCode,
+          userId,
+          fullName: validatedData.fullName,
+          phone: validatedData.phone,
+          address: validatedData.address,
+          note: validatedData.note,
+          paymentMethod: validatedData.paymentMethod,
+          totalAmount,
+          status: 'pending',
+          orderItems: {
+            create: orderItemsData
+          },
+          statusHistory: {
+            create: [
+              {
+                toStatus: 'pending',
+                note: 'Đơn hàng được tạo',
+                changedById: userId,
+                changedByName: req.user.fullName || req.user.email || 'Khách hàng'
+              }
+            ]
+          }
+        },
+        include: {
+          orderItems: true
+        }
+      });
     });
 
     res.status(201).json({ message: 'Order created successfully', order: newOrder });
@@ -79,11 +132,16 @@ export const createOrder = async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: 'Validation failed', errors: error.errors });
     }
+
+    if (error.message?.startsWith('INSUFFICIENT_STOCK:')) {
+      const productId = error.message.split(':')[1];
+      return res.status(400).json({ message: `Product with ID ${productId} does not have enough stock` });
+    }
+
     console.error('Create order error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 export const getMyOrders = async (req, res) => {
   try {
     const userId = req.user.id;

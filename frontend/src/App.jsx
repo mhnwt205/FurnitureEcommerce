@@ -13,6 +13,7 @@ import AdminCustomers from './pages/AdminCustomers';
 import AdminAccounts from './pages/AdminAccounts';
 import AdminReviews from './pages/AdminReviews';
 import AdminConsultationRequests from './pages/AdminConsultationRequests';
+import AdminPromotions from './pages/AdminPromotions';
 import MyOrders from './pages/MyOrders';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -57,6 +58,7 @@ function AppContent() {
         <Route path="/admin/reviews" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="review.view"><AdminReviews /></AdminRoute>} />
         <Route path="/admin/consultation-requests" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="consultation.view"><AdminConsultationRequests /></AdminRoute>} />
         <Route path="/admin/accounts" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="admin_account.view"><AdminAccounts /></AdminRoute>} />
+        <Route path="/admin/promotions" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="promotion.view"><AdminPromotions /></AdminRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -2,14 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { aiAdvisorService } from '../../services/api/aiAdvisorService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
+import PriceDisplay from '../common/PriceDisplay';
 
 const INITIAL_MESSAGE = 'Xin chào! Mình có thể giúp bạn chọn nội thất theo nhu cầu, ngân sách hoặc không gian.';
 const MAX_MESSAGE_LENGTH = 1000;
 
-const formatPrice = (price) => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND'
-}).format(Number(price) || 0);
 
 const getCurrentProductId = (pathname) => {
   const match = pathname.match(/^\/products\/(\d+)/);
@@ -35,7 +32,13 @@ function RecommendationCard({ product }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm font-bold text-primary">{product.name}</p>
-          <p className="mt-1 text-sm font-bold text-accent-terracotta">{formatPrice(product.price)}</p>
+          <PriceDisplay
+            {...product}
+            size="small"
+            showBadge
+            showSavings
+            className="mt-1"
+          />
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-on-surface-variant">
             {product.category && <span>{product.category}</span>}
             <span>{product.stock > 0 ? `Còn ${product.stock}` : 'Tạm hết hàng'}</span>

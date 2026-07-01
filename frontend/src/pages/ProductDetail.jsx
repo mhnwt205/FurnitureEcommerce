@@ -10,6 +10,7 @@ import WishlistButton from '../components/common/WishlistButton';
 import { wishlistService } from '../services/api/wishlistService';
 import { reviewService } from '../services/api/reviewService';
 import { uploadService } from '../services/api/uploadService';
+import PriceDisplay from '../components/common/PriceDisplay';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -122,9 +123,6 @@ export default function ProductDetail() {
     }
   }, [product]);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
 
 
   const renderStars = (rating, className = 'text-accent-gold') => {
@@ -244,7 +242,7 @@ export default function ProductDetail() {
                   </span>
                 </div>
                 <div className="flex items-baseline gap-4 mt-4">
-                  <span className="font-display-lg text-display-lg text-accent-terracotta">{formatPrice(product.price)}</span>
+                  <PriceDisplay {...product} size="large" showBadge showSavings showPromotionName showCountdown />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-y-2 py-4 border-y border-outline-variant">
@@ -408,7 +406,7 @@ export default function ProductDetail() {
                           />
                         </div>
                         <h3 className="font-label-lg text-primary group-hover:text-accent-terracotta transition-colors line-clamp-1">{rp.name}</h3>
-                        <p className="text-accent-terracotta font-body-md font-bold mt-1">{formatPrice(rp.price)}</p>
+                        <PriceDisplay {...rp} size="small" showBadge className="mt-1" />
                       </Link>
                     </ScrollReveal>
                   );

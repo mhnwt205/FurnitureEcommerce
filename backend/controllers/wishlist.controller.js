@@ -1,4 +1,5 @@
 import prisma from '../prismaClient.js';
+import { attachPricingToProducts } from '../services/promotionPricing.service.js';
 
 export const getWishlist = async (req, res) => {
   try {
@@ -23,11 +24,14 @@ export const getWishlist = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
+    const pricedProducts = await attachPricingToProducts(wishlist.map(w => w.product));
+    const productById = new Map(pricedProducts.map(product => [product.id, product]));
+
     const formatted = wishlist.map(w => ({
       wishlistId: w.id,
       productId: w.productId,
       createdAt: w.createdAt,
-      product: w.product
+      product: productById.get(w.productId) || w.product
     }));
     
     res.status(200).json(formatted);

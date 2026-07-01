@@ -6,6 +6,7 @@ import { projectComponents, projectsData, selectProjectProducts } from '../data/
 import ScrollReveal from '../components/common/ScrollReveal';
 import { productService } from '../services/api/productService';
 import { getStaticFileUrl } from '../utils/imageUtils';
+import PriceDisplay from '../components/common/PriceDisplay';
 const UsedProducts = ({ products }) => {
   if (!products || products.length === 0) return null;
   return (
@@ -31,7 +32,7 @@ const UsedProducts = ({ products }) => {
                 </div>
                 <span className="font-label-sm text-xs text-outline mb-1 uppercase block">{p.category?.name || 'SẢN PHẨM'}</span>
                 <h4 className="font-headline-md text-headline-md text-primary mb-2 line-clamp-1">{p.name}</h4>
-                <p className="font-label-lg text-label-lg text-accent-gold mt-2">{p.price?.toLocaleString()} VND</p>
+                <PriceDisplay {...p} size="small" showBadge className="mt-2" />
               </Link>
             </ScrollReveal>
           ))}
