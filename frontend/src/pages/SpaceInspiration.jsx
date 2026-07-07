@@ -42,7 +42,7 @@ export default function SpaceInspiration() {
 <div className="perspective-card relative aspect-[16/9] bg-surface-beige overflow-hidden transition-all duration-1000 opacity-100 translate-y-0">
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="An expansive open-concept living space blending Scandinavian clean lines with rich Vietnamese mahogany textures. Natural morning light pours over a curated arrangement of minimalist furniture, including a long wooden dining table and low-slung armchairs. The color palette is composed of soft ivory, deep browns, and subtle terracota accents, creating a high-end editorial feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAggHu9FuojVcGnJd0RoqBHrs3ecE6ez0ZAe2EHf_YO5h_m-Kb_S6PeVQ-nZiKQqp3fLqC0pVoP_PxlKDtfZhLB9eN_voz1uFExwClwVxeWRw_dfchps3ELzHotCVjOFDaxqxz6FXcFixp5dT3nd450Mc9wpyFS90Fx2GWV6T99bVK7OtgUMBJ4FF7g0aiki2m6BiJUVad16Z6gZVddgp2feCkSfiGfO_a8EFaFyd3DG5VTJWOkXYVWTol-6Bdlri5Wcw5kn5fbrA" />
 <div className="absolute top-6 right-6">
-<button className="bg-surface-ivory/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-primary hover:text-on-primary transition-colors">
+<button className="bg-surface-ivory/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-primary hover:text-on-primary transition-colors" aria-label="Lưu cảm hứng">
 <span className="material-symbols-outlined">favorite</span>
 </button>
 </div>

@@ -3,14 +3,20 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/api/authService';
 import Header from '../../components/common/Header';
 import Footer from '../../components/common/Footer';
-
-// Import Tabs
 import PersonalInfo from './PersonalInfo';
 import OrderHistory from './OrderHistory';
 import OrderDetail from './OrderDetail';
 import Wishlist from './Wishlist';
 import AddressBook from './AddressBook';
 import ChangePassword from './ChangePassword';
+
+const navItems = [
+  { tab: 'info', icon: 'person', label: 'Thông tin cá nhân' },
+  { tab: 'orders', icon: 'receipt_long', label: 'Lịch sử đơn hàng' },
+  { tab: 'wishlist', icon: 'favorite', label: 'Sản phẩm yêu thích' },
+  { tab: 'addresses', icon: 'location_on', label: 'Sổ địa chỉ' },
+  { tab: 'password', icon: 'lock', label: 'Đổi mật khẩu', hideForGoogle: true }
+];
 
 export default function CustomerProfile() {
   const navigate = useNavigate();
@@ -35,7 +41,7 @@ export default function CustomerProfile() {
   if (!user) return null;
 
   const currentTab = searchParams.get('tab') || 'info';
-  const orderId = searchParams.get('id'); // Used if tab=order-detail
+  const orderId = searchParams.get('id');
 
   const setTab = (tab) => {
     setSearchParams({ tab });
@@ -43,103 +49,67 @@ export default function CustomerProfile() {
 
   const renderContent = () => {
     switch (currentTab) {
-      case 'info':
-        return <PersonalInfo />;
-      case 'orders':
-        return <OrderHistory />;
-      case 'order-detail':
-        return <OrderDetail orderId={orderId} />;
-      case 'wishlist':
-        return <Wishlist />;
-      case 'addresses':
-        return <AddressBook />;
-      case 'password':
-        return <ChangePassword />;
-      default:
-        return <PersonalInfo />;
+      case 'info': return <PersonalInfo />;
+      case 'orders': return <OrderHistory />;
+      case 'order-detail': return <OrderDetail orderId={orderId} />;
+      case 'wishlist': return <Wishlist />;
+      case 'addresses': return <AddressBook />;
+      case 'password': return <ChangePassword />;
+      default: return <PersonalInfo />;
     }
   };
 
   const navItemClass = (tabName) => {
     const isActive = currentTab === tabName || (tabName === 'orders' && currentTab === 'order-detail');
-    return `flex items-center gap-3 px-4 py-3 rounded-md font-label-lg text-label-lg transition-all duration-300 w-full text-left ${isActive ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'}`;
+    return `flex w-full items-center gap-3 rounded-[10px] px-4 py-3 text-left text-[14px] font-semibold transition-all duration-200 ${isActive ? 'bg-[#333333] text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[#555555] hover:bg-[#fafaf8] hover:text-[#333333]'}`;
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-surface-ivory">
-      <Header />
-      <main className="flex-grow pt-8 pb-section-gap px-margin-desktop max-w-container-max mx-auto w-full mt-4 md:mt-8">
-        <div className="flex flex-col md:flex-row gap-gutter">
-          
-          <aside className="w-full md:w-1/4 space-y-stack-md shrink-0">
-            <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-outline-variant/30">
-              <nav className="flex flex-col gap-2">
-                <button 
-                  onClick={() => setTab('info')}
-                  className={navItemClass('info')}
-                >
-                  <span className="material-symbols-outlined">person</span>
-                  Thông tin cá nhân
-                </button>
-                <button 
-                  onClick={() => setTab('orders')}
-                  className={navItemClass('orders')}
-                >
-                  <span className="material-symbols-outlined">receipt_long</span>
-                  Lịch sử đơn hàng
-                </button>
-                <button 
-                  onClick={() => setTab('wishlist')}
-                  className={navItemClass('wishlist')}
-                >
-                  <span className="material-symbols-outlined">favorite</span>
-                  Sản phẩm yêu thích
-                </button>
-                <button 
-                  onClick={() => setTab('addresses')}
-                  className={navItemClass('addresses')}
-                >
-                  <span className="material-symbols-outlined">location_on</span>
-                  Sổ địa chỉ
-                </button>
-                
-                {user.provider !== 'google' && (
-                  <button 
-                    onClick={() => setTab('password')}
-                    className={navItemClass('password')}
-                  >
-                    <span className="material-symbols-outlined">lock</span>
-                    Đổi mật khẩu
-                  </button>
-                )}
+  const visibleNavItems = navItems.filter(item => !(item.hideForGoogle && user.provider === 'google'));
 
-                <div className="h-[1px] bg-outline-variant my-2 opacity-30"></div>
-                
-                <button 
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 rounded-md text-accent-terracotta hover:bg-error-container/20 font-label-lg text-label-lg transition-all duration-200 text-left w-full"
-                >
-                  <span className="material-symbols-outlined">logout</span>
+  return (
+    <div className="flex min-h-screen flex-col bg-[#f7f7f5]">
+      <Header />
+      <main className="mx-auto w-full max-w-[1200px] flex-grow px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <div className="mb-6 flex flex-col gap-2 border-b border-[#e5e5e5] pb-6">
+          <p className="text-[13px] text-[#777777]">Tài khoản</p>
+          <h1 className="text-2xl font-bold leading-tight text-[#333333] md:text-[30px]">Không gian cá nhân</h1>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="space-y-4">
+            <div className="ui-card p-4 md:p-5">
+              <div className="mb-4 flex items-center gap-3 border-b border-[#eeeeee] pb-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-[#333333] text-sm font-bold uppercase text-white">
+                  {(user.fullName || user.email || 'U').charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#333333]">{user.fullName || user.email}</p>
+                  {user.email && <p className="truncate text-xs text-[#777777]">{user.email}</p>}
+                </div>
+              </div>
+              <nav className="flex flex-col gap-1.5">
+                {visibleNavItems.map(item => (
+                  <button key={item.tab} type="button" onClick={() => setTab(item.tab)} className={navItemClass(item.tab)}>
+                    <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+                <div className="my-2 h-px bg-[#eeeeee]" />
+                <button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 rounded-[10px] px-4 py-3 text-left text-[14px] font-semibold text-[#9f2f2d] transition-colors duration-200 hover:bg-[#fdebec]">
+                  <span className="material-symbols-outlined text-[20px]">logout</span>
                   Đăng xuất
                 </button>
               </nav>
             </div>
-
-            <div className="relative overflow-hidden bg-primary-container p-6 md:p-8 rounded-xl shadow-sm border border-outline-variant/30 text-on-primary-container hidden md:block">
-              <div className="relative z-10">
-                <p className="font-label-sm text-label-sm uppercase tracking-widest opacity-70 mb-1">Heritage Club</p>
-                <h4 className="font-headline-md text-headline-md mb-4 text-on-primary-container">Thành viên Tiêu chuẩn</h4>
-                <p className="font-body-sm text-body-sm mb-6 opacity-90">Mua sắm để tích điểm và nâng hạng thành viên.</p>
-                <button className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full font-label-lg text-label-lg hover:scale-105 transition-transform">Xem ưu đãi</button>
-              </div>
-              <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-accent-gold/20 rounded-full blur-3xl"></div>
+            <div className="hidden ui-card p-5 md:block">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#777777]">Heritage Club</p>
+              <h4 className="mt-2 text-base font-bold text-[#333333]">Thành viên tiêu chuẩn</h4>
+              <p className="mt-2 text-sm leading-6 text-[#777777]">Mua sắm để tích điểm và nhận ưu đãi phù hợp với tài khoản của bạn.</p>
+              <button type="button" className="ui-button-secondary mt-4 px-4 py-2 text-[13px]">Xem ưu đãi</button>
             </div>
           </aside>
-
-          <section className="flex-1 min-w-0 bg-white p-6 md:p-8 rounded-xl shadow-sm border border-outline-variant/30">
+          <section className="min-w-0 ui-card p-5 md:p-7 lg:p-8">
             {renderContent()}
           </section>
-
         </div>
       </main>
       <Footer />

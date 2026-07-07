@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
@@ -6,99 +6,78 @@ import ScrollReveal from '../components/common/ScrollReveal';
 import { projectsData } from '../data/projectDetailsData';
 
 export default function FeaturedProjects() {
-  const [offsetY, setOffsetY] = React.useState(0);
+  const heroProject = projectsData.find(project => project.slug === 'the-heritage-estate') || projectsData[0];
+  const gridProjects = projectsData.filter(project => project.slug !== heroProject?.slug);
 
-  useEffect(() => {
-    const handleScroll = () => setOffsetY(window.scrollY);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const heroProject = projectsData.find(p => p.slug === 'the-heritage-estate') || projectsData[0];
-  const gridProjects = projectsData.filter(p => p.slug !== heroProject.slug);
-
-  const getBentoLayout = (index) => {
+  const getLayout = (index) => {
     const layouts = [
-      { colSpan: 'md:col-span-8', aspect: 'aspect-[16/9]' },
-      { colSpan: 'md:col-span-4', aspect: 'aspect-[4/5]' },
-      { colSpan: 'md:col-span-4', aspect: 'aspect-[1/1]' },
-      { colSpan: 'md:col-span-8', aspect: 'aspect-[21/9]' }
+      'md:col-span-7',
+      'md:col-span-5',
+      'md:col-span-5',
+      'md:col-span-7'
     ];
     return layouts[index % layouts.length];
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface-bright text-on-surface font-body-md selection:bg-accent-gold/30">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-white text-[#333333]">
       <Header />
       <main className="flex-grow">
-        {/* Hero Section: Major Landmark Project */}
-        <section className="relative w-full h-[600px] md:h-[870px] overflow-hidden">
-          <img 
-            alt={heroProject.name} 
-            className="w-full h-full object-cover transition-transform duration-1000" 
-            src={heroProject.image}
-            style={{ transform: `translateY(${Math.min(offsetY * 0.05, 20)}px)` }}
-          />
-          <div className="absolute inset-0 bg-black/30 flex items-end">
-            <div className="max-w-[1280px] mx-auto w-full px-5 md:px-16 pb-12 md:pb-32">
-              <ScrollReveal className="max-w-2xl bg-[#fbf9f4]/90 backdrop-blur-md p-6 md:p-8 border-l-4 border-[#C5A059]">
-                <p className="font-label-lg text-[14px] font-semibold tracking-widest text-[#BF360C] mb-2 uppercase">Dự Án Tiêu Biểu</p>
-                <h1 className="font-display-lg text-3xl md:text-5xl font-bold text-[#442a22] mb-4">{heroProject.name}</h1>
-                <p className="font-body-lg text-base md:text-lg text-[#504441] mb-8 leading-relaxed">
-                  Một sự giao thoa hoàn hảo giữa kiến trúc và tinh thần đương đại, tạo nên không gian sống đậm chất nghệ thuật.
-                </p>
-                <Link to={`/featured-projects/${heroProject.slug}`} className="bg-[#442a22] text-white px-8 py-4 font-label-lg text-sm font-semibold hover:bg-[#5d4037] transition-all flex items-center gap-2 w-fit group">
-                  KHÁM PHÁ CHI TIẾT
-                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        {heroProject && (
+          <section className="relative overflow-hidden bg-[#f7f7f5]">
+            <img alt={heroProject.name} className="absolute inset-0 h-full w-full object-cover object-center opacity-100" src={heroProject.image} />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.46)_0%,rgba(0,0,0,0.22)_36%,rgba(0,0,0,0.06)_62%,rgba(0,0,0,0)_82%)]" />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(0deg,rgba(0,0,0,0.30)_0%,rgba(0,0,0,0)_75%)]" />
+            <div className="relative mx-auto flex min-h-[620px] max-w-[1200px] items-end px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+              <ScrollReveal className="max-w-2xl text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.28)]">
+                <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/85">Dự án tiêu biểu</p>
+                <h1 className="mt-4 text-4xl font-bold leading-tight md:text-6xl">{heroProject.name}</h1>
+                <p className="mt-5 max-w-xl text-base leading-7 text-white/90">Một không gian nội thất được cá nhân hóa, nơi chất liệu, ánh sáng và tỉ lệ cùng tạo nên cảm giác sống rõ ràng hơn.</p>
+                <Link to={`/featured-projects/${heroProject.slug}`} className="mt-8 inline-flex items-center justify-center rounded-[8px] bg-white px-6 py-3 text-sm font-bold text-[#333333] transition-colors hover:bg-[#f3f3f1]">
+                  Khám phá chi tiết
                 </Link>
               </ScrollReveal>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* Project Gallery Section */}
-        <section className="py-20 md:py-32 max-w-[1280px] mx-auto px-5 md:px-16">
-          <div className="mb-16">
-            <ScrollReveal className="max-w-xl">
-              <h2 className="font-headline-lg text-3xl font-semibold text-[#442a22] mb-4">Bộ Sưu Tập Dự Án</h2>
-              <p className="font-body-md text-base text-[#504441]">Khám phá các không gian nội thất được thiết kế cá nhân hóa, nơi mỗi chi tiết đều kể một câu chuyện về sự tinh tế và di sản.</p>
-            </ScrollReveal>
-          </div>
+        <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <ScrollReveal className="mb-10 max-w-2xl">
+            <h2 className="text-3xl font-bold text-[#333333] md:text-4xl">Bộ sưu tập dự án</h2>
+            <p className="mt-3 text-sm leading-6 text-[#777777]">Khám phá các không gian nội thất được thiết kế theo nhu cầu thật, với hình ảnh và thông tin từ dữ liệu dự án hiện có.</p>
+          </ScrollReveal>
 
-          {/* Bento-style Project Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {gridProjects.map((project, index) => {
-              const layout = getBentoLayout(index);
-              return (
-                <ScrollReveal key={project.slug} delay={(index + 1) * 100} className={`${layout.colSpan} group project-card overflow-hidden cursor-pointer block`}>
-                  <Link to={`/featured-projects/${project.slug}`} className="block w-full h-full">
-                    <div className={`relative overflow-hidden ${layout.aspect} bg-[#F2EEE5]`}>
-                      <img 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                        src={project.image} 
-                        alt={project.name}
-                      />
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <span className="bg-[#fbf9f4] text-[#442a22] px-6 py-3 font-label-lg text-sm font-semibold shadow-[0_10px_30px_rgba(93,64,55,0.08)]">XEM CHI TIẾT</span>
-                      </div>
+          {gridProjects.length === 0 ? (
+            <div className="ui-empty-state">
+              <span className="material-symbols-outlined mb-3 block text-4xl text-[#999999]">collections_bookmark</span>
+              <h3 className="text-base font-bold text-[#333333]">Chưa có dự án khác</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#777777]">Các dự án mới sẽ được hiển thị tại đây khi dữ liệu được cập nhật.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-12">
+              {gridProjects.map((project, index) => (
+                <ScrollReveal key={project.slug} delay={(index + 1) * 80} className={`${getLayout(index)} group`}>
+                  <Link to={`/featured-projects/${project.slug}`} className="block">
+                    <div className="aspect-[16/10] overflow-hidden rounded-[12px] bg-[#f3f3f1]">
+                      <img className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={project.image} alt={project.name} />
                     </div>
-                    <div className="mt-4">
-                      <span className="font-label-sm text-xs text-[#C5A059] uppercase tracking-tighter">{project.category}</span>
-                      <h3 className="font-headline-md text-2xl font-semibold text-[#442a22] mt-1">{project.name}</h3>
+                    <div className="px-1 pt-4">
+                      <p className="text-xs font-semibold text-[#777777]">{project.category}</p>
+                      <h3 className="mt-1 text-xl font-bold leading-6 text-[#333333] transition-colors group-hover:text-[#bfa37c]">{project.name}</h3>
                     </div>
                   </Link>
                 </ScrollReveal>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
 
-          {/* Call to Action */}
-          <ScrollReveal className="mt-32 bg-[#5d4037] p-8 md:p-16 text-center text-[#d4ada1]">
-            <h2 className="font-display-lg text-3xl md:text-5xl font-bold mb-6 text-white">Bắt Đầu Câu Chuyện Của Bạn</h2>
-            <p className="font-body-lg text-lg mb-10 opacity-90 max-w-2xl mx-auto text-[#f2f1ec]">Chúng tôi không chỉ bán nội thất, chúng tôi kiến tạo không gian sống mang đậm bản sắc cá nhân và giá trị di sản.</p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link to="/design-service#consultation" className="inline-block bg-[#fbf9f4] text-[#442a22] px-10 py-4 font-label-lg text-sm font-semibold hover:bg-white transition-all uppercase tracking-widest text-center">Liên Hệ Tư Vấn</Link>
-              <button className="border border-[#fbf9f4] text-[#fbf9f4] px-10 py-4 font-label-lg text-sm font-semibold hover:bg-[#fbf9f4]/10 transition-all uppercase tracking-widest">Tải Profile Công Ty</button>
+          <ScrollReveal className="mt-16 rounded-[12px] border border-[#e5e5e5] bg-[#f7f7f5] p-6 md:p-8">
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-[#333333]">Bắt đầu câu chuyện của bạn</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777777]">Trao đổi với đội ngũ thiết kế để chuyển nhu cầu không gian thành phương án nội thất rõ ràng.</p>
+              </div>
+              <Link to="/design-service#consultation" className="ui-button-primary inline-flex px-6 py-3 text-sm">Liên hệ tư vấn</Link>
             </div>
           </ScrollReveal>
         </section>
@@ -107,3 +86,5 @@ export default function FeaturedProjects() {
     </div>
   );
 }
+
+

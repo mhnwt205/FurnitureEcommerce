@@ -209,25 +209,25 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-surface-beige/50 flex font-body-md text-on-surface">
+    <div className="admin-shell min-h-screen flex font-body-md text-on-surface">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#F8F3EB] text-[#6B4A3A] flex flex-col fixed inset-y-0 left-0 z-20 border-r border-[#E7DDD2] shadow-sm">
-        <div className="h-20 border-b border-[#E7DDD2] flex items-center gap-3 px-8">
-          <span className="material-symbols-outlined text-3xl text-[#54352B]">chair</span>
+      <aside className="w-64 bg-white text-[#434343] flex flex-col fixed inset-y-0 left-0 z-20 border-r border-[#e5e5e5]">
+        <div className="h-16 border-b border-[#eeeeee] flex items-center gap-3 px-6">
+          <span className="material-symbols-outlined text-3xl text-[#333333]">chair</span>
           <div>
-            <span className="font-display-lg text-xl uppercase tracking-widest text-[#54352B] block leading-none">Admin</span>
-            <span className="text-[10px] uppercase tracking-widest text-[#8A7970] font-bold">Workspace</span>
+            <span className="text-lg font-bold uppercase tracking-[0.12em] text-[#333333] block leading-none">Admin</span>
+            <span className="text-[10px] uppercase tracking-[0.16em] text-[#777777] font-bold">Workspace</span>
           </div>
         </div>
-        <nav className="flex-1 overflow-y-auto py-8">
-          <ul className="space-y-3 px-5">
+        <nav className="flex-1 overflow-y-auto py-5">
+          <ul className="space-y-1.5 px-4">
             {menuItems.map(item => {
               const isActive = location.pathname.startsWith(item.path);
               return (
                 <li key={item.path}>
                   <Link 
                     to={item.path} 
-                    className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-label-lg tracking-wide ${isActive ? 'bg-[#4B2E25] text-white shadow-md font-bold' : 'text-[#7A6257] hover:bg-[#EFE6DC] hover:text-[#4B2E25]'}`}
+                    className={`flex items-center gap-3 px-3.5 py-3 rounded-[8px] transition-colors text-sm font-semibold ${isActive ? 'bg-[#333333] text-white font-bold' : 'text-[#555555] hover:bg-[#fafaf8] hover:text-[#333333]'}`}
                   >
                     <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
                     {item.name}
@@ -237,8 +237,8 @@ export default function AdminLayout({ children }) {
             })}
           </ul>
         </nav>
-        <div className="p-5 border-t border-[#E7DDD2]">
-          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-label-lg tracking-wide w-full justify-center border border-[#E7DDD2] text-[#7A6257] hover:bg-[#EFE6DC] hover:text-[#4B2E25]">
+        <div className="p-4 border-t border-[#eeeeee]">
+          <button onClick={handleLogout} className="flex items-center justify-center gap-2 rounded-[8px] border border-[#dddddd] px-4 py-2.5 text-sm font-semibold text-[#555555] transition-colors hover:border-[#bfa37c] hover:bg-[#fafaf8] hover:text-[#333333] w-full">
             <span className="material-symbols-outlined text-[20px]">logout</span>
             Đăng xuất
           </button>
@@ -248,17 +248,17 @@ export default function AdminLayout({ children }) {
       {/* Main Content */}
       <div className="flex-1 ml-64 flex flex-col min-h-screen">
         {/* Topbar */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-surface-beige flex items-center justify-between px-10 sticky top-0 z-30 shadow-sm">
-          <div className="relative w-[400px]">
+        <header className="h-16 bg-white border-b border-[#e5e5e5] flex items-center justify-between px-6 sticky top-0 z-30">
+          <div className="relative hidden w-[360px] max-w-[40vw] lg:block">
             <input 
               type="text" 
               placeholder="Tìm kiếm nhanh..." 
-              className="w-full bg-surface-beige/30 border border-outline-variant/30 rounded-full pl-12 pr-6 py-3 text-body-md outline-none focus:border-accent-gold focus:ring-1 focus:ring-accent-gold focus:bg-white transition-all shadow-sm"
+              className="w-full rounded-[8px] border border-[#dddddd] bg-white pl-11 pr-4 py-2.5 text-sm outline-none transition-colors focus:border-[#333333] focus:ring-2 focus:ring-[#bfa37c]/20"
             />
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant text-[22px]">search</span>
           </div>
           
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-5">
             <div className="relative" ref={notificationRef}>
               <button
                 type="button"
@@ -351,12 +351,12 @@ export default function AdminLayout({ children }) {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4 pl-8 border-l border-surface-beige cursor-pointer group">
+            <div className="flex items-center gap-3 pl-5 border-l border-[#eeeeee] cursor-pointer group">
               <div className="hidden md:block text-right">
-                <p className="font-label-lg text-primary text-[15px] group-hover:text-accent-terracotta transition-colors">{user?.fullName || user?.email || 'Admin'}</p>
-                <p className="text-[11px] font-bold tracking-widest text-on-surface-variant uppercase mt-0.5">{user?.role || 'Admin'}</p>
+                <p className="text-sm font-semibold text-[#333333] transition-colors group-hover:text-[#bfa37c]">{user?.fullName || user?.email || 'Admin'}</p>
+                <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#777777]">{user?.role || 'Admin'}</p>
               </div>
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent-terracotta text-white flex items-center justify-center font-display-sm text-xl shadow-md border-2 border-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-[#333333] text-base font-bold text-white">
                 {user?.fullName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'A'}
               </div>
             </div>
@@ -364,7 +364,7 @@ export default function AdminLayout({ children }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-10">
+        <main className="admin-content flex-1">
           {children}
         </main>
       </div>

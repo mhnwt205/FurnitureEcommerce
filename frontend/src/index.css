@@ -3,8 +3,187 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --ui-ink: #333333;
+    --ui-text: #434343;
+    --ui-muted: #777777;
+    --ui-soft: #fafaf8;
+    --ui-surface: #ffffff;
+    --ui-border: #e5e5e5;
+    --ui-border-soft: #eeeeee;
+    --ui-walnut: #4a3a31;
+    --ui-accent: #bfa37c;
+    --ui-sale: #f41919;
+    --ui-success: #2f7d32;
+    --ui-warning: #9a6a16;
+    --ui-error: #b94732;
+    --ui-info: #3966b8;
+    --ui-radius-card: 12px;
+    --ui-radius-control: 7px;
+    --ui-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.03);
+    --ui-shadow-popover: 0 18px 42px rgba(0, 0, 0, 0.10);
+    --ui-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  html {
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     @apply font-sans bg-background text-on-surface;
+  }
+
+  ::selection {
+    background: rgba(191, 163, 124, 0.24);
+    color: var(--ui-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(191, 163, 124, 0.8);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .ui-card {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-soft);
+  }
+
+  .ui-button-primary {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ui-radius-control);
+    border: 1px solid var(--ui-ink);
+    background: var(--ui-ink);
+    padding: 0.625rem 1rem;
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    transition: background-color 200ms var(--ui-ease), border-color 200ms var(--ui-ease), transform 200ms var(--ui-ease);
+  }
+
+  .ui-button-primary:hover {
+    border-color: #111111;
+    background: #111111;
+  }
+
+  .ui-button-primary:active {
+    transform: scale(0.99);
+  }
+
+  .ui-button-secondary {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ui-radius-control);
+    border: 1px solid #dddddd;
+    background: #fff;
+    padding: 0.625rem 1rem;
+    color: var(--ui-ink);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    transition: border-color 200ms var(--ui-ease), color 200ms var(--ui-ease), background-color 200ms var(--ui-ease), transform 200ms var(--ui-ease);
+  }
+
+  .ui-button-secondary:hover {
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
+    background: var(--ui-soft);
+  }
+
+  .ui-input,
+  .ui-select,
+  .ui-textarea {
+    border: 1px solid #dddddd;
+    border-radius: var(--ui-radius-control);
+    background: #fff;
+    color: var(--ui-ink);
+    font-size: 0.875rem;
+    transition: border-color 200ms var(--ui-ease), box-shadow 200ms var(--ui-ease), background-color 200ms var(--ui-ease);
+  }
+
+  .ui-input,
+  .ui-select {
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+  }
+
+  .ui-textarea {
+    min-height: 6rem;
+    padding: 0.75rem;
+  }
+
+  .ui-input:focus,
+  .ui-select:focus,
+  .ui-textarea:focus {
+    border-color: var(--ui-ink);
+    box-shadow: 0 0 0 3px rgba(191, 163, 124, 0.16);
+    outline: none;
+  }
+
+  .ui-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    border: 1px solid var(--ui-border);
+    background: #fff;
+    padding: 0.25rem 0.5rem;
+    color: var(--ui-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .ui-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: #f3f3f3;
+  }
+
+  .ui-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+    animation: ui-skeleton-shimmer 1.35s infinite;
+  }
+
+  .ui-empty-state {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card);
+    background: #fff;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: var(--ui-muted);
+    box-shadow: var(--ui-shadow-soft);
+  }
+
+  .ui-modal-overlay {
+    background: rgba(0, 0, 0, 0.38);
+  }
+
+  .ui-modal-panel {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-popover);
+  }
+
+  .ui-modal-header {
+    border-bottom: 1px solid var(--ui-border-soft);
+    padding: 18px 22px;
+  }
+
+  .ui-modal-footer {
+    border-top: 1px solid var(--ui-border-soft);
+    padding: 16px 22px;
   }
 }
 
@@ -19,5 +198,162 @@
   .reveal-visible {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes ui-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@layer components {
+  .admin-shell {
+    background: #f6f6f4;
+    color: var(--ui-ink);
+  }
+
+  .admin-content {
+    padding: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .admin-content {
+      padding: 2rem;
+    }
+  }
+
+  .admin-shell h1,
+  .admin-shell h2,
+  .admin-shell h3 {
+    color: var(--ui-ink);
+    letter-spacing: 0;
+  }
+
+  .admin-shell input:not([type="checkbox"]):not([type="radio"]),
+  .admin-shell select,
+  .admin-shell textarea {
+    border: 1px solid #dddddd !important;
+    border-radius: 7px !important;
+    background-color: #ffffff !important;
+    color: var(--ui-ink) !important;
+    box-shadow: none !important;
+    transition: border-color 200ms var(--ui-ease), box-shadow 200ms var(--ui-ease), background-color 200ms var(--ui-ease) !important;
+  }
+
+  .admin-shell input:not([type="checkbox"]):not([type="radio"]),
+  .admin-shell select {
+    min-height: 2.75rem;
+  }
+
+  .admin-shell textarea {
+    min-height: 6rem;
+  }
+
+  .admin-shell input:not([type="checkbox"]):not([type="radio"]):focus,
+  .admin-shell select:focus,
+  .admin-shell textarea:focus {
+    border-color: var(--ui-ink) !important;
+    box-shadow: 0 0 0 3px rgba(191, 163, 124, 0.16) !important;
+    outline: none !important;
+  }
+
+  .admin-shell table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #ffffff;
+    color: var(--ui-text);
+  }
+
+  .admin-shell thead {
+    background: #fafaf8 !important;
+  }
+
+  .admin-shell th {
+    border-bottom: 1px solid var(--ui-border) !important;
+    color: var(--ui-muted) !important;
+    font-size: 0.6875rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    line-height: 1.3;
+    padding: 0.875rem 1rem !important;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .admin-shell td {
+    border-bottom: 1px solid var(--ui-border-soft);
+    color: var(--ui-text);
+    font-size: 0.875rem;
+    padding: 1rem !important;
+    vertical-align: middle;
+  }
+
+  .admin-shell tbody tr {
+    transition: background-color 180ms var(--ui-ease);
+  }
+
+  .admin-shell tbody tr:hover {
+    background: #fafaf8 !important;
+  }
+
+  .admin-shell button,
+  .admin-shell a,
+  .admin-shell select {
+    transition-duration: 200ms;
+    transition-timing-function: var(--ui-ease);
+  }
+
+  .admin-shell button:active,
+  .admin-shell a:active {
+    transform: scale(0.99);
+  }
+
+  .admin-shell .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  }
+
+  .admin-shell .bg-white.rounded-2xl,
+  .admin-shell .bg-white.rounded-xl {
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--ui-shadow-soft) !important;
+  }
+
+  .admin-shell .shadow-2xl,
+  .admin-shell .shadow-lg,
+  .admin-shell .shadow-md,
+  .admin-shell .shadow-sm,
+  .admin-shell [class*="shadow-[0_4px_24px"] {
+    box-shadow: var(--ui-shadow-soft) !important;
+  }
+
+  .admin-shell .fixed.inset-0.bg-black\/60,
+  .admin-shell .fixed.inset-0.bg-black\/50,
+  .admin-shell .fixed.inset-0.bg-black\/40 {
+    background: rgba(0, 0, 0, 0.38) !important;
+    backdrop-filter: none !important;
+  }
+
+  .admin-shell [class*="rounded-full"] {
+    border-radius: 9999px;
+  }
+
+  .admin-shell button[class*="bg-primary"],
+  .admin-shell a[class*="bg-primary"] {
+    background-color: var(--ui-ink) !important;
+    border-color: var(--ui-ink) !important;
+    color: #ffffff !important;
+  }
+
+  .admin-shell button[class*="bg-primary"]:hover,
+  .admin-shell a[class*="bg-primary"]:hover {
+    background-color: #111111 !important;
+  }
+
+  .admin-shell button[class*="border"],
+  .admin-shell a[class*="border"] {
+    box-shadow: none !important;
   }
 }

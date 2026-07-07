@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
@@ -7,35 +7,41 @@ import ScrollReveal from '../components/common/ScrollReveal';
 import { productService } from '../services/api/productService';
 import { getStaticFileUrl } from '../utils/imageUtils';
 import PriceDisplay from '../components/common/PriceDisplay';
+const getProjectProductImage = (product) => {
+  const rawImage = product?.imageUrl || (Array.isArray(product?.images) && product.images.length > 0 ? (product.images.find(img => img?.isPrimary)?.imageUrl || product.images[0]?.imageUrl || product.images[0]) : '');
+  return rawImage ? getStaticFileUrl(rawImage) : '';
+};
+
 const UsedProducts = ({ products }) => {
   if (!products || products.length === 0) return null;
   return (
-    <section className="py-section-gap bg-surface-container-low">
-      <div className="px-margin-desktop max-w-container-max mx-auto">
-        <div className="flex justify-between items-end mb-16">
-          <div className="flex flex-col gap-stack-sm">
-            <span className="font-label-lg text-label-lg text-accent-terracotta uppercase tracking-widest">Sản phẩm sử dụng</span>
-            <h2 className="font-headline-lg text-headline-lg text-primary">Sản phẩm trong dự án</h2>
+    <section className="bg-[#f7f7f5] py-16 lg:py-20">
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+        <div className="mb-10 flex flex-col gap-4 border-b border-[#e5e5e5] pb-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#777777]">Sản phẩm sử dụng</p>
+            <h2 className="mt-2 text-3xl font-bold text-[#333333]">Sản phẩm trong dự án</h2>
           </div>
-          <Link to="/products" className="font-label-lg text-label-lg text-primary border-b border-primary hover:text-accent-terracotta hover:border-accent-terracotta transition-all pb-1">Xem tất cả sản phẩm</Link>
+          <Link to="/products" className="text-sm font-bold text-[#333333] underline-offset-4 transition-colors hover:text-[#bfa37c] hover:underline">Xem tất cả sản phẩm</Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
-          {products.slice(0, 4).map((p, i) => (
-            <ScrollReveal key={p.id} delay={i * 100} className="group cursor-pointer">
-              <Link to={`/products/${p.id}`} className="block">
-                <div className="aspect-[4/5] bg-surface-beige overflow-hidden rounded-lg mb-4">
-                  <img 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                    alt={p.name}
-                    src={getStaticFileUrl(p.imageUrl || (p.images && p.images.length > 0 ? p.images[0] : null)) || 'https://placehold.co/400x500?text=No+Image'}
-                  />
-                </div>
-                <span className="font-label-sm text-xs text-outline mb-1 uppercase block">{p.category?.name || 'SẢN PHẨM'}</span>
-                <h4 className="font-headline-md text-headline-md text-primary mb-2 line-clamp-1">{p.name}</h4>
-                <PriceDisplay {...p} size="small" showBadge className="mt-2" />
-              </Link>
-            </ScrollReveal>
-          ))}
+        <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-4 lg:gap-x-7">
+          {products.slice(0, 4).map((product, index) => {
+            const imageUrl = getProjectProductImage(product);
+            return (
+              <ScrollReveal key={product.id} delay={index * 80} className="group">
+                <Link to={`/products/${product.id}`} className="block">
+                  <div className="aspect-square overflow-hidden rounded-[12px] bg-[#f3f3f1]">
+                    {imageUrl ? <img className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" alt={product.name} src={imageUrl} /> : <div className="flex h-full w-full items-center justify-center text-[#999999]"><span className="material-symbols-outlined text-3xl">chair</span></div>}
+                  </div>
+                  <div className="px-3 pt-4">
+                    <p className="mb-1 text-xs text-[#777777]">{product.category?.name || 'Sản phẩm'}</p>
+                    <h4 className="line-clamp-2 text-sm font-semibold leading-5 text-[#333333] transition-colors group-hover:text-[#bfa37c]">{product.name}</h4>
+                    <div className="mt-2"><PriceDisplay {...product} size="small" showBadge /></div>
+                  </div>
+                </Link>
+              </ScrollReveal>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -45,20 +51,17 @@ const UsedProducts = ({ products }) => {
 const RelatedProjectsList = ({ projects }) => {
   if (!projects || projects.length === 0) return null;
   return (
-    <ScrollReveal as="section" className="py-section-gap px-margin-desktop max-w-container-max mx-auto">
-      <h2 className="font-headline-lg text-headline-lg text-primary mb-12">Dự án liên quan</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
-        {projects.map(p => (
-          <Link key={p.slug} to={`/featured-projects/${p.slug}`} className="group relative aspect-[16/9] overflow-hidden rounded-lg block">
-            <img 
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-              alt={p.name}
-              src={p.image}
-            />
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors duration-500"></div>
-            <div className="absolute bottom-8 left-8 text-white">
-              <p className="font-label-lg text-label-lg uppercase tracking-widest mb-2 opacity-80">{p.category}</p>
-              <h3 className="font-headline-md text-headline-md">{p.name}</h3>
+    <ScrollReveal as="section" className="mx-auto max-w-[1200px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+      <h2 className="mb-10 text-3xl font-bold text-[#333333]">Dự án liên quan</h2>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {projects.map(project => (
+          <Link key={project.slug} to={`/featured-projects/${project.slug}`} className="group block">
+            <div className="aspect-[16/9] overflow-hidden rounded-[12px] bg-[#f3f3f1]">
+              <img className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" alt={project.name} src={project.image} />
+            </div>
+            <div className="px-1 pt-4">
+              <p className="text-xs font-semibold text-[#777777]">{project.category}</p>
+              <h3 className="mt-1 text-xl font-bold text-[#333333] transition-colors group-hover:text-[#bfa37c]">{project.name}</h3>
             </div>
           </Link>
         ))}
@@ -66,7 +69,6 @@ const RelatedProjectsList = ({ projects }) => {
     </ScrollReveal>
   );
 };
-
 const TheHeritageEstate = ({ project }) => {
   const [offsetY, setOffsetY] = React.useState(0);
 
@@ -82,14 +84,15 @@ const TheHeritageEstate = ({ project }) => {
     <section className="relative h-[921px] overflow-hidden flex items-end pb-32">
       <div className="absolute inset-0 z-0">
         <img 
-          className="w-full h-full object-cover" 
+          className="w-full h-full object-cover opacity-100" 
           alt="The Heritage Estate" 
           src={project.image}
           style={{ transform: `translateY(${Math.min(offsetY * 0.05, 20)}px)` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.46)_0%,rgba(0,0,0,0.22)_36%,rgba(0,0,0,0.06)_62%,rgba(0,0,0,0)_82%)]"></div>
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(0deg,rgba(0,0,0,0.36)_0%,rgba(0,0,0,0)_78%)]"></div>
       </div>
-      <ScrollReveal className="relative z-10 w-full px-margin-desktop max-w-container-max mx-auto text-white">
+      <ScrollReveal className="relative z-10 w-full px-margin-desktop max-w-container-max mx-auto text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.28)]">
         <div className="flex flex-col gap-4">
           <span className="font-label-lg text-label-lg tracking-[0.2em] uppercase text-accent-gold">Nam An | 2024</span>
           <h1 className="font-display-lg text-display-lg md:text-[80px] leading-tight max-w-3xl">The Heritage Estate</h1>
@@ -189,8 +192,9 @@ const IndochineVillaSaiGon = ({ project }) => {
       {/* 1. Hero Section */}
       <section className="relative h-screen min-h-[700px] w-full overflow-hidden">
         <img alt="Indochine Villa Exterior" className="absolute inset-0 w-full h-full object-cover" src={project.image} style={{ transform: `translateY(${Math.min(offsetY * 0.05, 20)}px)` }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60"></div>
-        <ScrollReveal className="absolute inset-0 flex flex-col justify-end px-margin-desktop pb-section-gap max-w-container-max mx-auto text-white">
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.46)_0%,rgba(0,0,0,0.20)_36%,rgba(0,0,0,0.05)_62%,rgba(0,0,0,0)_82%)]"></div>
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(0deg,rgba(0,0,0,0.36)_0%,rgba(0,0,0,0)_78%)]"></div>
+        <ScrollReveal className="absolute inset-0 flex flex-col justify-end px-margin-desktop pb-section-gap max-w-container-max mx-auto text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.28)]">
           <p className="font-label-lg text-label-lg mb-4 tracking-[0.2em] uppercase opacity-90">Dinh thự riêng tư</p>
           <h1 className="font-display-lg text-display-lg mb-6 leading-tight max-w-3xl">Indochine Villa Sài Gòn</h1>
           <p className="font-headline-md text-headline-md font-light italic max-w-2xl opacity-80">
@@ -282,14 +286,14 @@ const IndochineVillaSaiGon = ({ project }) => {
 };
 
 const ProjectNotFound = () => (
-  <section className="flex flex-col items-center justify-center py-section-gap px-margin-desktop min-h-[60vh] text-center">
-    <h1 className="font-display-lg text-display-lg text-primary mb-6">Project Not Found</h1>
-    <p className="font-body-lg text-body-lg text-on-surface-variant max-w-lg mb-8">
+  <section className="ui-empty-state mx-auto my-16 max-w-lg">
+    <h1 className="mb-4 text-3xl font-bold text-[#333333]">Project Not Found</h1>
+    <p className="mb-8 max-w-lg text-sm leading-6 text-[#777777]">
       Rất tiếc, dự án bạn đang tìm kiếm không tồn tại hoặc đã được gỡ bỏ.
     </p>
     <Link 
       to="/featured-projects" 
-      className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded font-label-lg transition-colors"
+      className="ui-button-primary inline-flex px-5 py-2.5 text-sm"
     >
       Quay lại danh sách dự án
     </Link>
@@ -354,12 +358,12 @@ export default function ProjectDetail() {
   const isValidProject = slug === 'the-heritage-estate' || slug === 'indochine-villa-sai-gon' || !!projectComponents[slug];
 
   return (
-    <div className="bg-surface-bright text-on-surface selection:bg-accent-gold selection:text-white min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-white text-[#333333]">
       <style>{`
         .luxury-shadow { box-shadow: 0 10px 30px rgba(93, 64, 55, 0.08); }
       `}</style>
       <Header />
-      <main className="flex-grow pt-20">
+      <main className="flex-grow">
         {renderContent()}
         {isValidProject && (
           <>
@@ -372,3 +376,6 @@ export default function ProjectDetail() {
     </div>
   );
 }
+
+
+

@@ -45,6 +45,7 @@ export default function WishlistButton({ productId, initialIsActive = false, cla
       onClick={handleToggle} 
       className={`flex items-center justify-center transition-all duration-300 ${className || ''} ${isActive ? '!text-accent-terracotta !bg-white !opacity-100' : ''}`}
       disabled={loading}
+      aria-label={isActive ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
     >
       <span 
         className={`material-symbols-outlined ${iconClassName || ''}`} 

@@ -4,24 +4,24 @@ import { wishlistService } from '../../services/api/wishlistService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
 import PriceDisplay from '../../components/common/PriceDisplay';
 
+function ProductImage({ src, alt }) {
+  if (!src) return <div className="flex h-full w-full items-center justify-center bg-[#f3f3f1] text-[#999999]"><span className="material-symbols-outlined text-3xl">chair</span></div>;
+  return <img src={src} alt={alt} className="h-full w-full object-cover transition-transform duration-700 ease-commerce group-hover:scale-105" />;
+}
+
 export default function Wishlist() {
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchWishlist();
-  }, []);
+  useEffect(() => { fetchWishlist(); }, []);
 
   const fetchWishlist = async () => {
     try {
       const data = await wishlistService.getWishlist();
       setWishlist(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error(error); }
+    finally { setLoading(false); }
   };
 
   const handleRemove = async (productId) => {
@@ -34,58 +34,40 @@ export default function Wishlist() {
     }
   };
 
-  if (loading) return <div>Đang tải...</div>;
+  if (loading) {
+    return <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map(item => <div key={item}><div className="ui-skeleton aspect-square rounded-[12px]" /><div className="ui-skeleton mt-4 h-4 w-3/4 rounded" /><div className="ui-skeleton mt-3 h-4 w-1/2 rounded" /></div>)}</div>;
+  }
 
   return (
     <>
-      <div className="border-b border-surface-beige pb-6">
-        <h1 className="font-display-md text-2xl text-primary mb-2">Sản phẩm yêu thích</h1>
-        <p className="font-body-sm text-on-surface-variant">Những thiết kế bạn đã lưu lại để tham khảo hoặc mua sắm sau.</p>
+      <div className="border-b border-[#eeeeee] pb-6">
+        <h2 className="text-2xl font-bold text-[#333333]">Sản phẩm yêu thích</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777777]">Những thiết kế bạn đã lưu lại để tham khảo hoặc mua sắm sau.</p>
       </div>
-
       <div className="pt-6">
         {wishlist.length === 0 ? (
-          <div className="bg-surface-ivory border border-dashed border-surface-beige rounded-xl p-12 flex flex-col items-center justify-center text-center">
-            <span className="material-symbols-outlined text-5xl text-outline-variant mb-4">favorite</span>
-            <h4 className="font-label-lg text-primary mb-2">Bạn chưa có sản phẩm yêu thích nào.</h4>
-            <p className="font-body-sm text-on-surface-variant mb-6">Khám phá bộ sưu tập mới nhất để lưu lại những món đồ bạn ưng ý.</p>
-            <Link to="/products" className="px-6 py-2.5 bg-primary text-white rounded-full font-label-md uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-sm">Khám phá sản phẩm</Link>
-          </div>
+          <div className="ui-empty-state"><span className="material-symbols-outlined mb-3 block text-4xl text-[#999999]">favorite</span><h4 className="text-base font-bold text-[#333333]">Bạn chưa có sản phẩm yêu thích nào</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#777777]">Khám phá bộ sưu tập hiện có để lưu lại những món đồ bạn ưng ý.</p><Link to="/products" className="ui-button-primary mt-5 inline-flex px-5 py-2.5 text-sm">Khám phá sản phẩm</Link></div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {wishlist.map((item) => {
               const product = item.product;
               if (!product) return null;
-              
               const productId = product.id;
               const name = product.name;
-              const imageUrl = product.images && product.images.length > 0 
-                ? product.images.find(img => img.isPrimary)?.imageUrl || product.images[0].imageUrl
-                : product.imageUrl;
-
+              const imageUrl = product.images && product.images.length > 0 ? product.images.find(img => img.isPrimary)?.imageUrl || product.images[0].imageUrl : product.imageUrl;
+              const resolvedImage = imageUrl ? getStaticFileUrl(imageUrl) : '';
               return (
-                <div key={item.wishlistId} className="group flex flex-col bg-white rounded-xl overflow-hidden border border-surface-beige shadow-sm hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(93,64,55,0.08)] transition-all duration-300">
-                  <div className="relative aspect-[4/5] overflow-hidden bg-surface-ivory cursor-pointer" onClick={() => navigate(`/products/${productId}`)}>
-                    <img src={getStaticFileUrl(imageUrl) || 'https://placehold.co/400x500?text=No+Image'} alt={name} className="w-full h-full object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-700 ease-out" />
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleRemove(productId); }}
-                      className="absolute top-4 right-4 w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-accent-terracotta hover:bg-white shadow-sm transition-colors z-20 hover:scale-110"
-                    >
-                      <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-                    </button>
+                <article key={item.wishlistId} className="group min-w-0">
+                  <div className="relative aspect-square overflow-hidden rounded-[12px] bg-[#f6f6f4]" onClick={() => navigate(`/products/${productId}`)}>
+                    <ProductImage src={resolvedImage} alt={name} />
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleRemove(productId); }} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e5e5e5] bg-white/95 text-[#b94732] transition-colors hover:border-[#b94732]" aria-label="Xóa khỏi yêu thích"><span className="material-symbols-outlined text-[19px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span></button>
                   </div>
-                  <div className="p-5 flex flex-col flex-grow">
-                    {product.category && (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">{product.category.name}</span>
-                    )}
-                    <Link to={`/products/${productId}`} className="font-label-lg text-primary group-hover:text-accent-terracotta transition-colors line-clamp-2 mb-3">
-                      {name}
-                    </Link>
-                    <div className="mt-auto flex items-center justify-between">
-                      <PriceDisplay {...product} size="small" showBadge />
-                    </div>
+                  <div className="px-3 pt-4 pb-1">
+                    {product.category && <p className="mb-1 text-xs text-[#777777]">{product.category.name}</p>}
+                    <Link to={`/products/${productId}`} className="line-clamp-2 text-[14px] font-semibold leading-5 text-[#333333] transition-colors group-hover:text-[#bfa37c]">{name}</Link>
+                    <div className="mt-2"><PriceDisplay {...product} size="small" showBadge /></div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

@@ -213,10 +213,10 @@ export default function AdminCategories() {
       {/* Modal Thêm/Sửa */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-label={editMode ? 'Sửa danh mục' : 'Thêm danh mục mới'}>
             <div className="p-8 border-b border-surface-beige flex justify-between items-center bg-white">
               <h2 className="font-display-sm text-2xl text-primary">{editMode ? 'Sửa Danh mục' : 'Thêm Danh mục mới'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors" aria-label="Đóng form danh mục">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
