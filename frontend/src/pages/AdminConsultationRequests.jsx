@@ -334,43 +334,43 @@ export default function AdminConsultationRequests() {
         ) : (
           <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(93,64,55,0.05)] overflow-hidden">
             <div className="overflow-x-auto p-2">
-              <table className="w-full text-left font-body-sm">
+              <table className="w-full min-w-[1040px] table-fixed text-left text-[13px] leading-5">
                 <thead className="bg-surface-ivory border-b border-surface-beige text-xs font-label-lg uppercase tracking-wider">
                   <tr>
-                    <th className="p-5 font-semibold text-on-surface-variant">Mã yêu cầu</th>
-                    <th className="p-5 font-semibold text-on-surface-variant">Ngày tạo</th>
-                    <th className="p-5 font-semibold text-on-surface-variant">Khách hàng</th>
-                    <th className="p-5 font-semibold text-on-surface-variant">Điện thoại</th>
-                    <th className="p-5 font-semibold text-on-surface-variant">Công trình</th>
-                    <th className="p-5 font-semibold text-on-surface-variant">Ngân sách</th>
-                    <th className="p-5 font-semibold text-on-surface-variant text-center">Trạng thái</th>
-                    <th className="p-5 font-semibold text-on-surface-variant">Phụ trách</th>
-                    <th className="p-5 font-semibold text-on-surface-variant text-right">Thao tác</th>
+                    <th className="w-[126px] px-3 py-4 font-semibold text-on-surface-variant">Mã yêu cầu</th>
+                    <th className="w-[132px] px-3 py-4 font-semibold text-on-surface-variant">Ngày tạo</th>
+                    <th className="w-[188px] px-3 py-4 font-semibold text-on-surface-variant">Khách hàng</th>
+                    <th className="w-[118px] px-3 py-4 font-semibold text-on-surface-variant">Điện thoại</th>
+                    <th className="w-[128px] px-3 py-4 font-semibold text-on-surface-variant">Công trình</th>
+                    <th className="w-[134px] px-3 py-4 font-semibold text-on-surface-variant">Ngân sách</th>
+                    <th className="w-[126px] px-3 py-4 text-center font-semibold text-on-surface-variant">Trạng thái</th>
+                    <th className="w-[150px] px-3 py-4 font-semibold text-on-surface-variant">Phụ trách</th>
+                    <th className="sticky right-0 z-20 w-[88px] bg-white px-3 py-4 text-right font-semibold text-on-surface-variant">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-beige">
                   {consultations.map(item => (
-                    <tr key={item.id} onClick={() => openDetail(item)} className="hover:bg-surface-beige/30 transition-colors align-top cursor-pointer">
-                      <td className="p-5 font-label-lg text-primary whitespace-nowrap">{item.requestCode}</td>
-                      <td className="p-5 text-on-surface-variant min-w-[150px]">{formatDateTime(item.createdAt)}</td>
-                      <td className="p-5 min-w-[220px]">
-                        <p className="font-label-md text-primary">{item.fullName}</p>
-                        {item.email && <p className="text-xs text-on-surface-variant mt-1 truncate max-w-[220px]">{item.email}</p>}
+                    <tr key={item.id} onClick={() => openDetail(item)} className="group cursor-pointer align-top transition-colors hover:bg-surface-beige/30">
+                      <td className="whitespace-nowrap px-3 py-4 font-label-md text-primary">{item.requestCode}</td>
+                      <td className="whitespace-nowrap px-3 py-4 text-on-surface-variant">{formatDateTime(item.createdAt)}</td>
+                      <td className="px-3 py-4">
+                        <p className="truncate font-label-md text-primary" title={item.fullName}>{item.fullName}</p>
+                        {item.email && <p className="mt-1 truncate text-xs text-on-surface-variant" title={item.email}>{item.email}</p>}
                       </td>
-                      <td className="p-5 text-primary whitespace-nowrap">{item.phone}</td>
-                      <td className="p-5 text-on-surface-variant min-w-[140px]">{item.projectType || '-'}</td>
-                      <td className="p-5 text-on-surface-variant min-w-[150px]">{item.budgetRange || '-'}</td>
-                      <td className="p-5 text-center">
-                        <span className={`inline-flex items-center justify-center border px-3 py-1 rounded-full text-[11px] uppercase tracking-wider font-bold ${STATUS_CLASSES[item.status] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+                      <td className="whitespace-nowrap px-3 py-4 text-primary">{item.phone}</td>
+                      <td className="truncate px-3 py-4 text-on-surface-variant" title={item.projectType || '-'}>{item.projectType || '-'}</td>
+                      <td className="whitespace-nowrap px-3 py-4 text-on-surface-variant">{item.budgetRange || '-'}</td>
+                      <td className="px-3 py-4 text-center">
+                        <span className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[item.status] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
                           {getStatusLabel(item.status)}
                         </span>
                       </td>
-                      <td className="p-5 min-w-[180px]">
-                        <p className="font-label-md text-primary">{item.assignedStaff?.fullName || 'Chưa gán'}</p>
-                        {item.assignedStaff?.email && <p className="text-xs text-on-surface-variant mt-1">{item.assignedStaff.email}</p>}
+                      <td className="px-3 py-4">
+                        <p className="truncate font-label-md text-primary" title={item.assignedStaff?.fullName || 'Chưa gán'}>{item.assignedStaff?.fullName || 'Chưa gán'}</p>
+                        {item.assignedStaff?.email && <p className="mt-1 truncate text-xs text-on-surface-variant" title={item.assignedStaff.email}>{item.assignedStaff.email}</p>}
                       </td>
-                      <td className="p-5 text-right">
-                        <button onClick={(event) => { event.stopPropagation(); openDetail(item); }} className="text-primary hover:text-accent-terracotta hover:bg-surface-beige font-label-md tracking-wider uppercase border border-outline-variant/50 px-4 py-2 rounded-lg transition-colors">
+                      <td className="sticky right-0 z-10 bg-white px-3 py-4 text-right transition-colors group-hover:bg-surface-beige/30">
+                        <button onClick={(event) => { event.stopPropagation(); openDetail(item); }} className="whitespace-nowrap rounded-lg border border-outline-variant/50 px-3 py-1.5 font-label-md uppercase tracking-wider text-primary transition-colors hover:bg-surface-beige hover:text-accent-terracotta">
                           Xem
                         </button>
                       </td>
@@ -401,7 +401,7 @@ export default function AdminConsultationRequests() {
 
       {detailLoading && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl flex items-center gap-4 text-primary">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl flex items-center gap-4 text-primary" role="status" aria-live="polite">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             Đang tải chi tiết...
           </div>
@@ -410,13 +410,13 @@ export default function AdminConsultationRequests() {
 
       {selectedConsultation && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-end p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[760px] overflow-hidden flex flex-col max-h-[94vh]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[760px] overflow-hidden flex flex-col max-h-[94vh]" role="dialog" aria-modal="true" aria-label="Chi tiết yêu cầu tư vấn">
             <div className="p-6 border-b border-surface-beige flex items-start justify-between bg-white shrink-0">
               <div>
                 <h2 className="font-display-sm text-2xl text-primary font-semibold">{selectedConsultation.requestCode}</h2>
                 <p className="text-on-surface-variant text-sm mt-1">{formatDateTime(selectedConsultation.createdAt)}</p>
               </div>
-              <button onClick={closeDetail} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors shrink-0">
+              <button onClick={closeDetail} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors shrink-0" aria-label="Đóng chi tiết yêu cầu tư vấn">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

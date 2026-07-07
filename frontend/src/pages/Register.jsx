@@ -84,69 +84,89 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#f7f5f1]">
       <Header />
-      <main className="flex-grow w-full">
-        <section className="registration-split grid grid-cols-1 md:grid-cols-2 h-full min-h-[600px]">
-          <div className="relative hidden md:block overflow-hidden h-full">
-            <img className="absolute inset-0 w-full h-full object-cover" data-alt="A luxury contemporary living room with a neutral ivory palette featuring handcrafted wooden furniture and soft morning sunlight streaming through linen curtains. The space exudes modern Vietnamese heritage with a minimal brown leather sofa and artisanal ceramic vases on a low oak coffee table. The atmosphere is quiet, sophisticated, and deeply rooted in calm minimalist luxury aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpc1RXSk6NPmsvTL8Eqm5idouYT6Y0ZB6-B4wh_jYqibcRtXFjFgJk4J5JotoyQ_h7Qq5E_eF31HntYLjM_VPg_62F-K5X1rG27IKeJCmi6-R4oCB_Q0wL6DCO-P_jka9e_ksjJuVEUr_fH4J_tr9JPOS_K8FJhyPJgh-fRWzKgcZJXMTGy2P5UVxC24QrG6DyeqDaN0lcZvX3AH3RpvtS09fqC1pdzyuGOUXczGmm40M1D9TwL0gpK3q5PFfQpYrLZMNl6Z9fXF8" />
-            <div className="absolute inset-0 bg-primary/10 mix-blend-multiply"></div>
-            <div className="absolute bottom-16 left-16 right-16 text-white z-10">
-              <h2 className="font-display-lg text-display-lg mb-4">Kiến tạo không gian sống di sản</h2>
-              <p className="font-body-lg text-body-lg max-w-md opacity-90">Tham gia cộng đồng Heritage Modernist để nhận những thông tin thiết kế độc bản và ưu đãi đặc quyền.</p>
+      <main className="flex-grow px-4 py-10 sm:px-6 lg:py-16">
+        <section className="mx-auto grid w-full max-w-[1040px] overflow-hidden rounded-[14px] border border-[#e5e5e5] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.06)] lg:grid-cols-[0.9fr_1.1fr]">
+          <aside className="hidden border-r border-[#eeeeee] bg-[#fafaf8] p-10 lg:flex lg:flex-col lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#bfa37c]">Heritage Home</p>
+              <h1 className="mt-5 max-w-sm text-3xl font-semibold leading-tight text-[#333333]">
+                Tạo tài khoản để giữ mọi lựa chọn của bạn ở một nơi.
+              </h1>
+              <p className="mt-4 max-w-sm text-sm leading-6 text-[#666666]">
+                Lưu sản phẩm yêu thích, theo dõi đơn hàng và nhận thông tin phù hợp với không gian sống của bạn.
+              </p>
             </div>
-          </div>
+            <div className="mt-12 h-px w-20 bg-[#bfa37c]" />
+          </aside>
           
-          <div className="flex items-center justify-center p-8 md:p-16 lg:p-24 bg-surface-ivory">
-            <div className="w-full max-w-md">
-              <div className="mb-10 text-center md:text-left">
-                <h1 className="font-headline-lg text-headline-lg text-primary mb-2">Tạo tài khoản mới</h1>
-                <p className="text-on-surface-variant">Bắt đầu hành trình kiến tạo tổ ấm cùng chúng tôi.</p>
+          <section className="flex items-center justify-center px-5 py-9 sm:px-8 lg:px-12 lg:py-14">
+            <div className="w-full max-w-[460px]">
+              <div className="mb-8 flex items-center justify-between gap-4 border-b border-[#eeeeee]">
+                <Link
+                  to="/login"
+                  className="border-b-2 border-transparent pb-3 text-sm font-bold uppercase tracking-[0.12em] text-[#777777] transition-colors hover:text-[#bfa37c]"
+                >
+                  Đăng nhập
+                </Link>
+                <button className="border-b-2 border-[#333333] pb-3 text-sm font-bold uppercase tracking-[0.12em] text-[#333333]">
+                  Đăng ký
+                </button>
+              </div>
+
+              <div className="mb-7">
+                <h1 className="text-2xl font-semibold text-[#333333]">Tạo tài khoản mới</h1>
+                <p className="mt-2 text-sm leading-6 text-[#666666]">
+                  Bắt đầu hành trình kiến tạo tổ ấm cùng chúng tôi.
+                </p>
               </div>
 
               {success && (
-                <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-sm font-body-md border border-green-200">
+                <div className="mb-5 rounded-[10px] border border-[#cfe7d0] bg-[#f3fbf3] px-4 py-3 text-sm leading-6 text-[#2f7d32]">
                   {success}
                 </div>
               )}
 
               {error && (
-                <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-sm font-body-md text-body-md border border-red-200">
+                <div className="mb-5 rounded-[10px] border border-[#f1c9c0] bg-[#fff7f5] px-4 py-3 text-sm leading-6 text-[#b94732]">
                   {error}
                 </div>
               )}
 
               {!success && (
-                <form className="space-y-6" id="registrationForm" onSubmit={handleSubmit}>
-                <div className="relative">
-                  <label className="block font-label-lg text-label-lg text-primary mb-2" htmlFor="fullname">Họ và tên</label>
-                  <input required value={formData.fullname} onChange={handleChange} className="w-full bg-transparent border-t-0 border-x-0 border-b border-outline-variant py-3 px-0 focus:ring-0 focus:border-accent-gold transition-all duration-300 placeholder:text-outline/50" id="fullname" name="fullname" placeholder="Nguyễn Văn A" type="text" />
-                </div>
-                <div className="relative">
-                  <label className="block font-label-lg text-label-lg text-primary mb-2" htmlFor="email">Email</label>
-                  <input required value={formData.email} onChange={handleChange} className="w-full bg-transparent border-t-0 border-x-0 border-b border-outline-variant py-3 px-0 focus:ring-0 focus:border-accent-gold transition-all duration-300 placeholder:text-outline/50" id="email" name="email" placeholder="example@email.com" type="email" />
-                </div>
-                <div className="relative">
-                  <label className="block font-label-lg text-label-lg text-primary mb-2" htmlFor="password">Mật khẩu</label>
-                  <input required minLength="6" value={formData.password} onChange={handleChange} className="w-full bg-transparent border-t-0 border-x-0 border-b border-outline-variant py-3 px-0 focus:ring-0 focus:border-accent-gold transition-all duration-300 placeholder:text-outline/50" id="password" name="password" placeholder="••••••••" type="password" />
-                </div>
-                <div className="relative">
-                  <label className="block font-label-lg text-label-lg text-primary mb-2" htmlFor="confirm_password">Xác nhận mật khẩu</label>
-                  <input required minLength="6" value={formData.confirm_password} onChange={handleChange} className="w-full bg-transparent border-t-0 border-x-0 border-b border-outline-variant py-3 px-0 focus:ring-0 focus:border-accent-gold transition-all duration-300 placeholder:text-outline/50" id="confirm_password" name="confirm_password" placeholder="••••••••" type="password" />
-                </div>
-                <div className="pt-4">
-                  <button disabled={isLoading} className="w-full bg-primary text-white py-4 px-8 font-label-lg text-label-lg hover:bg-primary/90 transition-all active:scale-[0.98] duration-150 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed" type="submit">
+                <form className="space-y-5" id="registrationForm" onSubmit={handleSubmit}>
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="fullname">Họ và tên</label>
+                    <input required value={formData.fullname} onChange={handleChange} className="ui-input w-full" id="fullname" name="fullname" placeholder="Nguyễn Văn A" type="text" />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="email">Email</label>
+                    <input required value={formData.email} onChange={handleChange} className="ui-input w-full" id="email" name="email" placeholder="example@email.com" type="email" />
+                  </div>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="password">Mật khẩu</label>
+                      <input required minLength="6" value={formData.password} onChange={handleChange} className="ui-input w-full" id="password" name="password" placeholder="Nhập mật khẩu" type="password" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="confirm_password">Xác nhận mật khẩu</label>
+                      <input required minLength="6" value={formData.confirm_password} onChange={handleChange} className="ui-input w-full" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu" type="password" />
+                    </div>
+                  </div>
+                  <button disabled={isLoading} className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60" type="submit">
                     {isLoading ? 'Đang xử lý...' : 'Đăng ký'}
                   </button>
-                </div>
-              </form>
+                </form>
               )}
 
               <div className="relative my-6 flex items-center justify-center">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-outline-variant"></div>
+                  <div className="w-full border-t border-[#eeeeee]" />
                 </div>
-                <span className="relative px-4 bg-surface-ivory text-on-surface-variant font-label-sm text-label-sm uppercase">Hoặc</span>
+                <span className="relative bg-white px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#999999]">
+                  Hoặc
+                </span>
               </div>
 
               <div className="flex justify-center w-full">
@@ -160,12 +180,12 @@ export default function Register() {
                 />
               </div>
 
-              <p className="mt-10 text-center font-body-sm text-body-sm text-on-surface-variant">
+              <p className="mt-8 text-center text-sm text-[#666666]">
                 Đã có tài khoản?{' '}
-                <Link to="/login" className="text-primary font-bold hover:text-accent-terracotta transition-colors decoration-accent-gold underline underline-offset-4">Đăng nhập</Link>
+                <Link to="/login" className="font-semibold text-[#333333] transition-colors hover:text-[#bfa37c]">Đăng nhập</Link>
               </p>
             </div>
-          </div>
+          </section>
         </section>
       </main>
       <Footer />

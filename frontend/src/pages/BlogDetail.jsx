@@ -69,7 +69,7 @@ const Template1 = () => (<div className="w-full">
 <div className="group cursor-pointer">
 <div className="aspect-[4/5] overflow-hidden bg-surface-beige mb-stack-md relative">
 <img alt="Heritage Dining Table" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A minimalist solid walnut dining table showcased in a spacious, sunlit dining room with ivory walls and polished concrete floors. The table features clean lines and a smooth, dark finish that highlights the natural wood grain. A single artisanal ceramic vase with a dried branch sits on top. The atmosphere is quiet, luxurious, and modern-minimalist, adhering to a sophisticated ivory and deep brown color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVW_FINLUajHzFyzX2X5cS9xGsFCwlFsEGFfPK4c-zD1aRUP618SNsTdHv4heEM7xr55eDXOZ0AjXLaNqsokDjBdADGCRP4Gqnp76GpZnasEaD1WcsxMpEu4fEdFk-yGKh61Ot575TilS4O4D7_XU-LzynRBt283s0UngwxBrHS46DzdJGiuuVx5QM1oqXYzufb8GzXw4bBsMsFNqtg0nE9ETpTGpXh1RLOT5AqPKPvlBCnOb3-enYOdd_z-Z0JY3xXm5H8X0jKEo"/>
-<button className="absolute bottom-4 right-4 bg-primary text-on-primary p-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-xl">
+<button className="absolute bottom-4 right-4 bg-primary text-on-primary p-4 rounded-full opacity-0 shadow-sm transition-opacity duration-300 group-hover:opacity-100" aria-label="Thêm sản phẩm vào giỏ">
 <span className="material-symbols-outlined" data-icon="add_shopping_cart">add_shopping_cart</span>
 </button>
 </div>
@@ -80,7 +80,7 @@ const Template1 = () => (<div className="w-full">
 <div className="group cursor-pointer">
 <div className="aspect-[4/5] overflow-hidden bg-surface-beige mb-stack-md relative">
 <img alt="Oak Lounge Chair" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A contemporary lounge chair made of light oak and cream-colored linen fabric, positioned against a textured beige wall. The design is ergonomic and sculptural, emphasizing the joinery of the wooden frame. Soft morning light casts gentle shadows, creating a serene and inviting mood. The image reflects a modern Vietnamese heritage aesthetic, blending traditional craftsmanship with high-end minimal design in a soft tonal palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrvn-QSZhD9aWIaHwpID1oaR-QFJ_ls40sLTfLGKHm42Xxlqc5ZRic_KEJDEGSDchb92BdwHiDcRUGqem8ih1Ir7EN5As-xXf7MtLDT0h37GklNt2peijfNBZtUoDwA7JIII8sH0x3mn7cqiPMs9fJ20c42RhbVVMbXiIBQotHsgoObFB3AMbVmpu6HwL53cfDnoG3xGy_BfkILihhcj4-MxnPTOLLT4Wt-EVFoShLNRhcusr7ZkwNCMGzejzMD3b1yxAvjS6E7PE"/>
-<button className="absolute bottom-4 right-4 bg-primary text-on-primary p-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-xl">
+<button className="absolute bottom-4 right-4 bg-primary text-on-primary p-4 rounded-full opacity-0 shadow-sm transition-opacity duration-300 group-hover:opacity-100" aria-label="Thêm sản phẩm vào giỏ">
 <span className="material-symbols-outlined" data-icon="add_shopping_cart">add_shopping_cart</span>
 </button>
 </div>
@@ -91,7 +91,7 @@ const Template1 = () => (<div className="w-full">
 <div className="group cursor-pointer">
 <div className="aspect-[4/5] overflow-hidden bg-surface-beige mb-stack-md relative">
 <img alt="Wooden Sideboard" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A premium walnut wood sideboard with intricate hand-carved detailing on the door panels. It is displayed in a minimalist living area with a large neutral-toned rug and soft ambient lighting. The piece exudes a sense of history and modernity combined. The deep brown wood tones contrast beautifully against the ivory background, maintaining a quiet, sophisticated, and editorial feel consistent with high-end furniture photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPgdrg4YOVyQdTdKR97BJRti9JSiqUUYiFdLA_Z3y4WRCZj9uy7xjl5py7i_vRFn_CsUbBrMKCf2HyMtMlBzNd9M7XDPLNrw1deQkYaSUyh_leqfFHjbQ8LrS0qpmfcVucv76mRpfAOqhNehXMjPCCHNevF0GMF2XxpV7Hys77aTrqMiTHRakuBZ3HLAEfMrJUw638fHECOlWG0RoO6ugemzVMntEpGBZ2EmB5TdJ5Yh6MJEWdOeUvi2bOd4QuX2CaEH7296o4Zmo"/>
-<button className="absolute bottom-4 right-4 bg-primary text-on-primary p-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-xl">
+<button className="absolute bottom-4 right-4 bg-primary text-on-primary p-4 rounded-full opacity-0 shadow-sm transition-opacity duration-300 group-hover:opacity-100" aria-label="Thêm sản phẩm vào giỏ">
 <span className="material-symbols-outlined" data-icon="add_shopping_cart">add_shopping_cart</span>
 </button>
 </div>
@@ -237,7 +237,7 @@ const Template3 = () => (<div className="w-full">
 <div className="bg-primary-container p-10 text-white rounded-xl">
 <h3 className="font-headline-md text-headline-md mb-4">05. Phụ kiện Kim Loại</h3>
 <p className="font-body-sm text-body-sm leading-relaxed text-on-primary-container">
-                                Một chút ánh kim từ đồng thau (Gold Brass) trên chân bàn hay tay nắm cửa s��� là cú chốt cuối cùng để hoàn thiện vẻ đẹp "sang trọng thầm lặng" cho phòng khách của bạn.
+                                Một chút ánh kim từ đồng thau (Gold Brass) trên chân bàn hay tay nắm cửa sẽ là cú chốt cuối cùng để hoàn thiện vẻ đẹp "sang trọng thầm lặng" cho phòng khách của bạn.
                             </p>
 </div>
 </div>
@@ -260,8 +260,8 @@ const Template3 = () => (<div className="w-full">
 </div>
 <div className="flex items-center gap-4">
 <span className="font-label-sm text-label-sm text-outline">CHIA SẺ:</span>
-<button className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-primary hover:text-white transition-all"><span className="material-symbols-outlined text-sm">share</span></button>
-<button className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-primary hover:text-white transition-all"><span className="material-symbols-outlined text-sm">favorite</span></button>
+<button className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-primary hover:text-white transition-all" aria-label="Chia sẻ bài viết"><span className="material-symbols-outlined text-sm">share</span></button>
+<button className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-primary hover:text-white transition-all" aria-label="Lưu bài viết"><span className="material-symbols-outlined text-sm">favorite</span></button>
 </div>
 </div>
 </article>

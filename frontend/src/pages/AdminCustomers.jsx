@@ -523,7 +523,7 @@ export default function AdminCustomers() {
       {/* Custom Confirmation Modal */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-8 border-none animation-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-8 border-none animation-fade-in" role="dialog" aria-modal="true" aria-label="Xác nhận trạng thái khách hàng">
             <h3 className="font-display-sm text-2xl text-primary font-semibold mb-4">
               Xác nhận {confirmModal.currentStatus ? 'khóa' : 'mở khóa'}
             </h3>

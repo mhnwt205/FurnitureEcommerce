@@ -52,62 +52,64 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-ivory py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm border border-outline-variant/30 space-y-8">
-        <div className="text-center">
-          <Link to="/" className="font-display-lg text-[32px] tracking-tighter text-primary inline-block mb-6">
-            Nội Thất Cao Cấp
-          </Link>
-          <h2 className="text-3xl font-headline-lg text-primary">Đặt lại mật khẩu</h2>
-          <p className="mt-2 text-sm font-body-md text-on-surface-variant">
-            Nhập mật khẩu mới cho tài khoản của bạn.
-          </p>
-        </div>
-        
-        {!token ? (
-          <div className="bg-error-container/20 text-error p-4 rounded-lg text-center font-body-md">
-            Thiếu token xác thực. Vui lòng kiểm tra lại liên kết.
+    <div className="min-h-screen bg-[#f7f5f1] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-md items-center justify-center">
+        <div className="ui-card w-full p-6 sm:p-8">
+          <div className="text-center">
+            <Link to="/" className="inline-block text-2xl font-semibold tracking-tight text-[#333333] transition-colors hover:text-[#bfa37c]">
+              Heritage Home
+            </Link>
+            <h2 className="mt-7 text-2xl font-semibold text-[#333333]">Đặt lại mật khẩu</h2>
+            <p className="mt-3 text-sm leading-6 text-[#666666]">
+              Nhập mật khẩu mới cho tài khoản của bạn.
+            </p>
           </div>
-        ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label className="block font-label-md text-primary mb-2">Mật khẩu mới</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                className="w-full bg-surface-beige border-none rounded-lg px-4 py-3 font-body-md text-primary focus:ring-1 focus:ring-accent-gold outline-none mb-4"
-                value={formData.newPassword}
-                onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
-              />
+        
+          {!token ? (
+            <div className="mt-7 rounded-[10px] border border-[#f1c9c0] bg-[#fff7f5] px-4 py-3 text-center text-sm leading-6 text-[#b94732]">
+              Thiếu token xác thực. Vui lòng kiểm tra lại liên kết.
             </div>
+          ) : (
+            <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-[#434343]">Mật khẩu mới</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className="ui-input w-full"
+                  value={formData.newPassword}
+                  onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
+                />
+              </div>
             
-            <div>
-              <label className="block font-label-md text-primary mb-2">Xác nhận mật khẩu mới</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                className="w-full bg-surface-beige border-none rounded-lg px-4 py-3 font-body-md text-primary focus:ring-1 focus:ring-accent-gold outline-none"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-              />
-            </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-[#434343]">Xác nhận mật khẩu mới</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className="ui-input w-full"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-lg font-label-lg text-white bg-primary hover:bg-primary-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-50"
-            >
-              {loading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
-            </button>
-          </form>
-        )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
+              </button>
+            </form>
+          )}
 
-        <div className="text-center mt-6">
-          <Link to="/login" className="font-label-md text-accent-gold hover:text-accent-terracotta transition-colors">
-            Quay lại đăng nhập
-          </Link>
+          <div className="mt-7 text-center">
+            <Link to="/login" className="text-sm font-semibold text-[#333333] transition-colors hover:text-[#bfa37c]">
+              Quay lại đăng nhập
+            </Link>
+          </div>
         </div>
       </div>
     </div>

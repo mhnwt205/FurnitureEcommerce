@@ -9,8 +9,119 @@ import ScrollReveal from '../components/common/ScrollReveal';
 import WishlistButton from '../components/common/WishlistButton';
 import { wishlistService } from '../services/api/wishlistService';
 import { reviewService } from '../services/api/reviewService';
-import { uploadService } from '../services/api/uploadService';
 import PriceDisplay from '../components/common/PriceDisplay';
+
+const hasSpecValue = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+
+const formatCm = (value) => {
+  if (!hasSpecValue(value)) return '';
+  const number = Number(value);
+  const displayValue = Number.isFinite(number) ? number.toLocaleString('vi-VN') : String(value).trim();
+  return `${displayValue} cm`;
+};
+
+const collectProductImages = (product) => {
+  const sources = [];
+  if (Array.isArray(product?.images)) {
+    product.images.forEach((image) => sources.push(image?.imageUrl || image));
+  }
+  sources.push(product?.imageUrl);
+
+  return sources
+    .map((image) => getStaticFileUrl(image))
+    .filter(Boolean)
+    .filter((image, index, list) => list.indexOf(image) === index);
+};
+
+function ProductImagePlaceholder({ productName }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-[#f7f7f7] px-4 text-center text-[#777777]">
+      <span className="material-symbols-outlined text-[34px]">image_not_supported</span>
+      <span className="mt-2 line-clamp-2 text-sm font-medium">{productName}</span>
+    </div>
+  );
+}
+
+function ProductDetailSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-[1200px] px-5 py-8 md:px-10 lg:px-0">
+      <div className="grid gap-[30px] lg:grid-cols-[58.333%_41.667%]">
+        <div className="flex gap-5">
+          <div className="hidden w-[9%] space-y-[10px] lg:block">
+            {[0, 1, 2, 3, 4].map((item) => <div key={item} className="aspect-square animate-pulse bg-[#f1f1f1]" />)}
+          </div>
+          <div className="flex-1">
+            <div className="aspect-square animate-pulse bg-[#f1f1f1]" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="h-7 w-3/4 animate-pulse bg-[#f1f1f1]" />
+          <div className="h-4 w-1/2 animate-pulse bg-[#f1f1f1]" />
+          <div className="h-12 w-full animate-pulse bg-[#f1f1f1]" />
+          <div className="h-24 w-full animate-pulse bg-[#f1f1f1]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RelatedProductCard({ product, isWishlisted }) {
+  const productImages = collectProductImages(product);
+  const primaryImage = productImages[0];
+  const hoverImage = productImages[1];
+  const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
+  const discountPercent = Number(product.discountPercent || 0);
+  const hasPromotion = Boolean(product.hasPromotion && discountPercent > 0);
+
+  return (
+    <article className="group h-full bg-white text-[#252a2b]">
+      <div className="relative overflow-hidden bg-[#fafafa]">
+        <Link to={`/products/${product.id}`} className="relative block aspect-square overflow-hidden">
+          {primaryImage ? (
+            <img
+              src={primaryImage}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${hoverImage ? 'group-hover:opacity-0' : ''}`}
+            />
+          ) : (
+            <ProductImagePlaceholder productName={product.name} />
+          )}
+          {hoverImage && (
+            <img
+              src={hoverImage}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100"
+            />
+          )}
+        </Link>
+        {hasPromotion && (
+          <span className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white">-{discountPercent}%</span>
+        )}
+        <WishlistButton
+          productId={product.id}
+          initialIsActive={isWishlisted}
+          className="absolute right-[10px] top-[10px] z-10 h-8 w-8 border border-[#e5e5e5] bg-white/95 text-[#434343] opacity-95 shadow-none transition-all duration-300 ease-commerce hover:border-[#bfa37c] hover:text-[#bfa37c] md:opacity-0 md:group-hover:opacity-100"
+          iconClassName="text-[18px]"
+        />
+      </div>
+      <div className="pt-[10px]">
+        {product.category?.name && <p className="mb-[3px] line-clamp-1 text-[12px] leading-5 text-[#777777]">{product.category.name}</p>}
+        <Link to={`/products/${product.id}`}>
+          <h3 className="line-clamp-2 min-h-[42px] text-[14px] font-semibold leading-[1.5] text-[#333333] transition-colors duration-300 ease-commerce group-hover:text-[#bfa37c]">{product.name}</h3>
+        </Link>
+        <div className="mt-[6px]">
+          <PriceDisplay {...product} size="normal" variant="compact" showBadge={false} showSavings={false} showPromotionName={false} />
+        </div>
+        {soldCount > 0 && <p className="mt-2 text-xs leading-5 text-[#777777]">Đã bán {soldCount}</p>}
+      </div>
+    </article>
+  );
+}
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -26,6 +137,7 @@ export default function ProductDetail() {
   const [wishlistIds, setWishlistIds] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [reviewSummary, setReviewSummary] = useState({ averageRating: 0, reviewCount: 0, distribution: {} });
+  const [activeTab, setActiveTab] = useState('description');
 
   useEffect(() => {
     const fetchWishlistIds = async () => {
@@ -35,7 +147,7 @@ export default function ProductDetail() {
           const res = await wishlistService.getWishlistIds();
           if (res && res.ids) setWishlistIds(res.ids);
         } catch (error) {
-          console.error("Failed to fetch wishlist ids", error);
+          console.error('Failed to fetch wishlist ids', error);
         }
       }
     };
@@ -104,7 +216,6 @@ export default function ProductDetail() {
         const productsArray = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
         let related = productsArray.filter(p => p.id !== product?.id && p.isActive);
 
-        // If not enough related products from the same category, maybe fetch more without category
         if (related.length < 4) {
           const backupRes = await productService.getProducts({ limit: 8 });
           const backupArray = Array.isArray(backupRes) ? backupRes : Array.isArray(backupRes?.data) ? backupRes.data : [];
@@ -114,7 +225,7 @@ export default function ProductDetail() {
 
         setRelatedProducts(related.slice(0, 4));
       } catch (err) {
-        console.error("Lỗi tải sản phẩm liên quan:", err);
+        console.error('Lỗi tải sản phẩm liên quan:', err);
       }
     };
 
@@ -123,23 +234,13 @@ export default function ProductDetail() {
     }
   }, [product]);
 
-
-
-  const renderStars = (rating, className = 'text-accent-gold') => {
+  const renderStars = (rating, className = 'text-[#f6b800]') => {
     const rounded = Math.round(Number(rating) || 0);
     return Array.from({ length: 5 }, (_, index) => (
-      <span key={index} className={`material-symbols-outlined text-[20px] ${className}`}>
+      <span key={index} className={`material-symbols-outlined text-[17px] ${className}`}>
         {index < rounded ? 'star' : 'star_outline'}
       </span>
     ));
-  };
-  const hasSpecValue = (value) => value !== null && value !== undefined && String(value).trim() !== '';
-
-  const formatCm = (value) => {
-    if (!hasSpecValue(value)) return '';
-    const number = Number(value);
-    const displayValue = Number.isFinite(number) ? number.toLocaleString('vi-VN') : String(value).trim();
-    return `${displayValue} cm`;
   };
 
   const getProductSpecs = (item) => {
@@ -169,10 +270,10 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="flex min-h-screen flex-col bg-white">
         <Header />
-        <main className="flex-grow flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <main className="flex-grow">
+          <ProductDetailSkeleton />
         </main>
         <Footer />
       </div>
@@ -180,14 +281,17 @@ export default function ProductDetail() {
   }
 
   if (error || !product) {
+    const message = error === 'Product not found' ? 'Sản phẩm không tồn tại hoặc đã ngừng bán.' : (error || 'Sản phẩm không tồn tại hoặc đã ngừng bán.');
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="flex min-h-screen flex-col bg-white">
         <Header />
-        <main className="flex-grow flex justify-center items-center py-20">
-          <div className="text-center">
-            <span className="material-symbols-outlined text-6xl text-outline-variant mb-4">production_quantity_limits</span>
-            <div className="text-error font-body-lg">{error === 'Product not found' ? 'Sản phẩm không tồn tại hoặc đã ngừng bán.' : (error || 'Sản phẩm không tồn tại hoặc đã ngừng bán.')}</div>
-            <Link to="/products" className="inline-block mt-6 px-6 py-2 bg-primary text-white rounded hover:opacity-90">Quay lại danh sách sản phẩm</Link>
+        <main className="flex flex-grow items-center justify-center px-5 py-20">
+          <div className="max-w-md border border-[#e7e7e7] bg-white px-6 py-12 text-center">
+            <span className="material-symbols-outlined text-[46px] text-[#999999]">production_quantity_limits</span>
+            <div className="mt-4 text-base font-semibold text-[#252a2b]">{message}</div>
+            <Link to="/products" className="mt-6 inline-flex h-[40px] items-center justify-center bg-[#333333] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#4A3A31]">
+              Quay lại danh sách sản phẩm
+            </Link>
           </div>
         </main>
         <Footer />
@@ -195,240 +299,265 @@ export default function ProductDetail() {
     );
   }
 
+  const productImages = collectProductImages(product);
+  const mainImageSrc = getStaticFileUrl(mainImage) || productImages[0];
   const productSpecs = getProductSpecs(product);
+  const ratingValue = Number(reviewSummary.averageRating || product.averageRating || 0);
+  const reviewCount = Number(reviewSummary.reviewCount || product.reviewCount || 0);
+  const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
+  const stockKnown = product.stockQuantity !== null && product.stockQuantity !== undefined;
+  const inStock = !stockKnown || Number(product.stockQuantity) > 0;
+  const sku = product.sku || product.slug || (product.id ? String(product.id).slice(0, 8).toUpperCase() : '');
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col bg-white text-[#252a2b]">
       <Header />
-      <main className="flex-grow">
+      <main className="w-full max-w-full flex-grow overflow-x-hidden bg-white">
+        <nav className="border-b border-[#ededed] bg-white" aria-label="Breadcrumb">
+          <div className="mx-auto w-full max-w-[1200px] px-5 py-[10px] text-xs text-[#777a7b] md:px-10 xl:px-0">
+            <ol className="flex flex-wrap items-center gap-1">
+              <li><Link to="/" className="transition-colors hover:text-[#bfa37c]">Trang chủ</Link></li>
+              <li className="text-[#b9b9b9]">/</li>
+              <li><Link to="/products" className="transition-colors hover:text-[#bfa37c]">Sản phẩm</Link></li>
+              <li className="text-[#b9b9b9]">/</li>
+              <li className="line-clamp-1 text-[#252a2b]">{product.name}</li>
+            </ol>
+          </div>
+        </nav>
 
-        {/**/}
+        <section className="mx-auto w-full max-w-[1200px] px-5 py-6 md:px-10 md:py-[30px] xl:px-0">
+          <div className="grid gap-[30px] lg:grid-cols-[58.333%_41.667%] lg:gap-0">
+            <ScrollReveal className="lg:pr-[15px]">
+              <div className="flex flex-wrap lg:flex-nowrap">
+                {productImages.length > 1 && (
+                  <div className="order-2 mt-[15px] w-full lg:order-1 lg:mt-0 lg:w-[9%] lg:pr-[10px]">
+                    <div className="flex gap-[10px] overflow-x-auto lg:block lg:space-y-[10px]">
+                      {productImages.map((image, index) => (
+                        <button
+                          key={image}
+                          type="button"
+                          onClick={() => setMainImage(image)}
+                          className={`relative aspect-square w-[68px] shrink-0 border bg-[#f7f7f8] transition-colors lg:w-full ${mainImageSrc === image ? 'border-[#808284]' : 'border-[#f7f7f8] hover:border-[#a3a5a7]'}`}
+                          aria-label={`Xem ảnh sản phẩm ${index + 1}`}
+                        >
+                          <img src={image} alt="" className="h-full w-full object-cover opacity-90" loading="lazy" decoding="async" aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-        <main className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg">
-          {/**/}
-          <nav className="flex gap-2 text-label-sm text-on-surface-variant mb-stack-lg items-center">
-            <Link className="hover:text-primary transition-colors" to="/">Trang chủ</Link>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <Link className="hover:text-primary transition-colors" to="/products">Sản phẩm</Link>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-primary font-bold">{product.name}</span>
-          </nav>
-          {/**/}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
-            {/**/}
-            <ScrollReveal className="lg:col-span-7 space-y-4">
-              <div className="aspect-[4/5] bg-surface-beige overflow-hidden">
-                <img alt={product.name} className="w-full h-full object-cover product-image-transition" id="mainImage" src={getStaticFileUrl(mainImage) || 'https://placehold.co/800x1000?text=No+Image'} />
+                <div className={`${productImages.length > 1 ? 'lg:w-[91%] lg:pl-[10px]' : 'lg:w-full'} order-1 w-full border-b border-[#ededed] pb-[10px] lg:order-2 lg:border-b-0 lg:pb-0`}>
+                  <div className="group relative block w-full overflow-hidden bg-white">
+                    <span className="relative block aspect-square bg-white">
+                      {mainImageSrc ? (
+                        <img
+                          src={mainImageSrc}
+                          alt={product.name}
+                          className="h-full w-full object-cover transition-transform duration-500 ease-commerce group-hover:scale-[1.025]"
+                          loading="eager"
+                        />
+                      ) : (
+                        <ProductImagePlaceholder productName={product.name} />
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
-              {(product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [{ imageUrl: product.imageUrl }] : [])).length > 1 && (
-                <div className="grid grid-cols-4 gap-4">
-                  {(product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [{ imageUrl: product.imageUrl }] : [])).map((img, idx) => (
-                    <button key={idx} className={`aspect-square bg-surface-beige overflow-hidden ${mainImage === img.imageUrl ? 'ring-2 ring-accent-gold' : 'ring-1 ring-outline-variant opacity-70 hover:opacity-100'} transition-all`} onClick={() => setMainImage(img.imageUrl)}>
-                      <img className="w-full h-full object-cover" alt={`${product.name} ${idx + 1}`} src={getStaticFileUrl(img.imageUrl)} />
-                    </button>
-                  ))}
-                </div>
-              )}
             </ScrollReveal>
-            {/**/}
-            <ScrollReveal delay={100} className="lg:col-span-5 flex flex-col gap-6 sticky top-24">
-              <div>
-                <span className="text-label-sm uppercase tracking-widest text-accent-gold mb-2 block">{product.category?.name || 'SẢN PHẨM'}</span>
-                <h1 className="font-display-lg text-display-lg text-primary leading-tight">{product.name}</h1>
-                <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <div className="flex items-center gap-1">{renderStars(reviewSummary.averageRating || product.averageRating || 0)}</div>
-                  <span className="text-body-sm text-on-surface-variant">
-                    {(reviewSummary.averageRating || product.averageRating || 0).toFixed(1)} / 5 ({reviewSummary.reviewCount || product.reviewCount || 0} đánh giá)
-                  </span>
+
+            <ScrollReveal delay={100} className="lg:pl-[15px]">
+              <section className="lg:sticky lg:top-24">
+                <div className="border-b border-dotted border-[#dfe0e1] pb-[12px]">
+                  {product.category?.name && <p className="mb-2 text-xs text-[#777a7b]">{product.category.name}</p>}
+                  <h1 className="m-0 text-[22px] font-bold leading-snug text-[#252a2b] md:text-[24px]">{product.name}</h1>
+                  {(reviewCount > 0 || soldCount > 0) && (
+                    <div className="mt-[8px] flex flex-wrap items-center gap-3 text-xs text-[#777a7b]">
+                      {reviewCount > 0 && (
+                        <div className="flex items-center gap-1">
+                          <div className="flex items-center">{renderStars(ratingValue)}</div>
+                          <span>({reviewCount} đánh giá)</span>
+                        </div>
+                      )}
+                      {soldCount > 0 && <span>Đã bán: {soldCount}</span>}
+                    </div>
+                  )}
+                  {sku && (
+                    <div className="mt-[10px] text-xs text-[#a3a5a7]"><strong className="text-[#777a7b]">SKU:</strong> {sku}</div>
+                  )}
                 </div>
-                <div className="flex items-baseline gap-4 mt-4">
+
+                <div className="border-b border-dotted border-[#dfe0e1] py-[12px]">
                   <PriceDisplay {...product} size="large" showBadge showSavings showPromotionName showCountdown />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-y-2 py-4 border-y border-outline-variant">
-                <div className="text-label-sm text-on-surface-variant">Mã SP: <span className="text-on-surface font-semibold uppercase">{product.slug || product.id.substring(0, 8)}</span></div>
-                <div className="text-label-sm text-on-surface-variant">Danh mục: <span className="text-on-surface font-semibold underline">{product.category?.name || 'Chung'}</span></div>
-              </div>
-              {/**/}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center border border-outline-variant rounded-lg p-1">
-                    <button className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors" onClick={() => adjustQty(-1)}>
-                      <span className="material-symbols-outlined">remove</span>
-                    </button>
-                    <input className="w-12 text-center border-none bg-transparent font-semibold focus:ring-0 p-0" id="quantity" min="1" type="number" value={quantity} readOnly />
-                    <button className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors" onClick={() => adjustQty(1)}>
-                      <span className="material-symbols-outlined">add</span>
-                    </button>
-                  </div>
-                  <button onClick={() => addToCart(product, quantity)} className="flex-1 bg-accent-terracotta text-white py-4 rounded-lg font-label-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined">shopping_bag</span>
-                    THÊM VÀO GIỎ HÀNG
-                  </button>
-                  <WishlistButton 
-                    productId={product.id} 
-                    initialIsActive={wishlistIds.includes(product.id)}
-                    className="w-14 h-[56px] border border-outline-variant rounded-lg flex items-center justify-center text-outline hover:text-accent-terracotta hover:border-accent-terracotta transition-colors shrink-0"
-                    iconClassName="text-[28px]"
-                  />
+
+                <div className="border-b border-dotted border-[#dfe0e1] py-[14px] text-sm leading-6 text-[#434343]">
+                  {product.description ? (
+                    <p className="line-clamp-4 whitespace-pre-line">{product.description}</p>
+                  ) : (
+                    <p className="text-[#777777]">Thông tin sản phẩm đang được cập nhật.</p>
+                  )}
                 </div>
-                <button onClick={() => { addToCart(product, quantity); navigate('/checkout'); }} className="w-full border border-primary text-primary py-4 rounded-lg font-label-lg hover:bg-primary hover:text-white transition-all">
-                  MUA NGAY
-                </button>
-              </div>
-              {/**/}
-              {productSpecs.length > 0 && (
-                <div className="border-t border-outline-variant pt-4 mt-4">
-                  <h2 className="font-label-lg text-primary mb-3">Thông số kỹ thuật</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {productSpecs.map((spec) => (
-                      <div
-                        key={spec.label}
-                        className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2"
-                      >
-                        <p className="text-label-sm text-on-surface-variant">{spec.label}</p>
-                        <p className="text-body-sm font-semibold text-primary mt-1">{spec.value}</p>
-                      </div>
-                    ))}
+
+                <div className="border-b border-dotted border-[#dfe0e1] py-[12px] text-[13px] leading-6 text-[#434343]">
+                  {stockKnown && (
+                    <p>
+                      <span className="font-semibold">Tình trạng:</span>{' '}
+                      <span className={inStock ? 'text-[#2f7d32]' : 'text-[#b94732]'}>{inStock ? `Còn hàng${product.stockQuantity ? ` (${product.stockQuantity})` : ''}` : 'Hết hàng'}</span>
+                    </p>
+                  )}
+                  {product.category?.name && <p><span className="font-semibold">Danh mục:</span> {product.category.name}</p>}
+                </div>
+
+                <div className="mt-[15px]">
+                  <div className="mb-[15px] flex">
+                    <button
+                      className="grid size-8 place-items-center border border-[#f5f5f5] bg-[#f5f5f5] text-base font-semibold transition-colors hover:bg-[#ededed]"
+                      type="button"
+                      onClick={() => adjustQty(-1)}
+                      aria-label="Giảm số lượng"
+                    >
+                      <span className="material-symbols-outlined text-[17px]">remove</span>
+                    </button>
+                    <span className="grid h-8 w-[70px] place-items-center border-y border-[#f5f5f5] bg-white text-sm font-semibold">{quantity}</span>
+                    <button
+                      className="grid size-8 place-items-center border border-[#f5f5f5] bg-[#f5f5f5] text-base font-semibold transition-colors hover:bg-[#ededed]"
+                      type="button"
+                      onClick={() => adjustQty(1)}
+                      aria-label="Tăng số lượng"
+                    >
+                      <span className="material-symbols-outlined text-[17px]">add</span>
+                    </button>
+                  </div>
+
+                  <div className="grid gap-[8px] sm:grid-cols-[1fr_1fr_auto]">
+                    <button
+                      type="button"
+                      onClick={() => addToCart(product, quantity)}
+                      disabled={!inStock}
+                      className="flex min-h-[50px] items-center justify-center bg-[#333333] px-4 py-[14px] text-center text-xs font-bold uppercase leading-[22px] text-white transition-colors hover:bg-[#4A3A31] disabled:cursor-not-allowed disabled:bg-[#cfcfcf]"
+                    >
+                      Thêm vào giỏ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { addToCart(product, quantity); navigate('/checkout'); }}
+                      disabled={!inStock}
+                      className="flex min-h-[50px] items-center justify-center border border-[#333333] bg-white px-4 py-[14px] text-center text-xs font-bold uppercase leading-[22px] text-[#333333] transition-colors hover:border-[#4A3A31] hover:bg-[#FAFAF8] disabled:cursor-not-allowed disabled:border-[#d7d7d7] disabled:text-[#999999]"
+                    >
+                      Mua ngay
+                    </button>
+                    <WishlistButton
+                      productId={product.id}
+                      initialIsActive={wishlistIds.includes(product.id)}
+                      className="flex min-h-[50px] min-w-[54px] items-center justify-center border border-[#e5e5e5] bg-white text-[#434343] shadow-none transition-colors hover:border-[#bfa37c] hover:text-[#bfa37c]"
+                      iconClassName="text-[22px]"
+                    />
                   </div>
                 </div>
-              )}
-              <div className="border-t border-outline-variant pt-4 mt-4 space-y-2">
-                <details className="group" open>
-                  <summary className="flex justify-between items-center py-3 cursor-pointer list-none">
-                    <span className="font-label-lg text-primary">Mô tả sản phẩm</span>
-                    <span className="material-symbols-outlined group-open:rotate-180 transition-transform">expand_more</span>
-                  </summary>
-                  <div className="pb-4 text-body-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
-                    {product.description || 'Thông tin sản phẩm đang được cập nhật.'}
-                  </div>
-                </details>
-              </div>
+              </section>
             </ScrollReveal>
           </div>
+        </section>
 
-          {/**/}
-          <ScrollReveal className="mt-12 border-t border-outline-variant pt-10">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
-              <div>
-                <h2 className="font-display-lg text-headline-lg text-primary">Đánh giá của khách hàng</h2>
-                <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <div className="flex items-center gap-1">{renderStars(reviewSummary.averageRating)}</div>
-                  <span className="font-label-lg text-primary">{reviewSummary.averageRating.toFixed(1)} / 5</span>
-                  <span className="text-body-sm text-on-surface-variant">{reviewSummary.reviewCount} đánh giá</span>
-                </div>
-              </div>
-            </div>
-
-            {reviews.length === 0 ? (
-              <div className="text-center py-12 bg-surface-ivory rounded-xl border border-outline-variant"><span className="material-symbols-outlined text-4xl text-outline-variant mb-2">rate_review</span><p className="text-on-surface-variant">Chưa có đánh giá nào cho sản phẩm này.</p></div>
-            ) : (
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <div key={review.id} className="border border-outline-variant rounded-xl p-5 bg-white">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3"><div><p className="font-label-lg text-primary">{review.user?.fullName || 'Khách hàng'}</p><div className="flex items-center gap-1 mt-1">{renderStars(review.rating)}</div></div><span className="text-body-sm text-on-surface-variant">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span></div>
-                    {review.comment && <p className="text-body-md text-on-surface-variant leading-relaxed mt-4 whitespace-pre-line">{review.comment}</p>}
-                    {review.images?.length > 0 && <div className="flex flex-wrap gap-3 mt-4">{review.images.map((imageUrl, index) => (<a key={index} href={getStaticFileUrl(imageUrl)} target="_blank" rel="noreferrer" className="w-20 h-20 rounded-lg overflow-hidden border border-outline-variant bg-surface-beige"><img src={getStaticFileUrl(imageUrl)} alt={`Đánh giá ${index + 1}`} className="w-full h-full object-cover" /></a>))}</div>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollReveal>
-
-          <ScrollReveal className="bg-[#F8F4EC] border border-outline-variant p-6 md:p-8 rounded-2xl shadow-sm mt-12">
-            <div className="border-b border-neutral-200 pb-4 mb-2">
-              <div className="flex items-center gap-3 text-primary">
-                <span className="material-symbols-outlined text-[24px]">store</span>
-                <h3 className="font-display-lg text-headline-sm">Sẵn có tại Showroom</h3>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 py-5 border-b border-neutral-200">
-                <div>
-                  <p className="font-semibold text-primary mb-2">Showroom Quận 1</p>
-                  <div className="text-neutral-600 leading-relaxed text-body-md">
-                    <p>123 Lê Lợi</p>
-                    <p>Phường Bến Thành</p>
-                    <p>Quận 1, TP.HCM</p>
-                  </div>
-                </div>
-                <button className="text-accent-gold flex items-center gap-1 text-label-sm font-bold hover:bg-accent-gold hover:text-white whitespace-nowrap bg-white px-4 py-2 rounded-full border border-accent-gold transition-colors shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">directions</span>
-                  Chỉ đường
+        <section className="mx-auto w-full max-w-[1200px] px-5 md:px-10 xl:px-0">
+          <div className="border border-[#dfe0e1]">
+            <div className="flex overflow-x-auto border-b border-[#dfe0e1] text-sm">
+              {[
+                ['description', 'Mô tả'],
+                ['specs', 'Thông số'],
+                ['reviews', 'Đánh giá']
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className={`min-h-[44px] shrink-0 px-5 text-left transition-colors ${activeTab === key ? 'border-b-2 border-[#252a2b] font-semibold text-[#252a2b]' : 'text-[#777a7b] hover:text-[#252a2b]'}`}
+                >
+                  {label}
                 </button>
-              </div>
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 py-5 border-b border-neutral-200">
-                <div>
-                  <p className="font-semibold text-primary mb-2">Showroom Hoàn Kiếm</p>
-                  <div className="text-neutral-600 leading-relaxed text-body-md">
-                    <p>45 Lý Thường Kiệt</p>
-                    <p>Hoàn Kiếm</p>
-                    <p>Hà Nội</p>
-                  </div>
-                </div>
-                <button className="text-accent-gold flex items-center gap-1 text-label-sm font-bold hover:bg-accent-gold hover:text-white whitespace-nowrap bg-white px-4 py-2 rounded-full border border-accent-gold transition-colors shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">directions</span>
-                  Chỉ đường
-                </button>
-              </div>
+              ))}
             </div>
-          </ScrollReveal>
-          {/**/}
-          {relatedProducts.length > 0 && (
-            <section className="py-section-gap mt-16 border-t border-outline-variant">
-              <div className="flex justify-between items-end mb-stack-lg">
+
+            <div className="mx-auto max-w-[920px] px-4 py-6 text-[15px] leading-7 text-[#434343] md:px-6">
+              {activeTab === 'description' && (
                 <div>
-                  <h2 className="font-display-lg text-headline-lg text-primary">Sản phẩm tương tự</h2>
-                  <p className="text-on-surface-variant text-body-md mt-2">Hoàn thiện không gian sống của bạn</p>
+                  <h2 className="text-center text-[22px] font-normal text-[#252a2b]">{product.name}</h2>
+                  {product.description ? (
+                    <p className="mt-4 whitespace-pre-line">{product.description}</p>
+                  ) : (
+                    <p className="mt-4 text-center text-[#777777]">Thông tin sản phẩm đang được cập nhật.</p>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  <button className="w-10 h-10 rounded-full border border-outline flex items-center justify-center hover:bg-primary hover:text-white transition-all">
-                    <span className="material-symbols-outlined">arrow_back</span>
-                  </button>
-                  <button className="w-10 h-10 rounded-full border border-outline flex items-center justify-center hover:bg-primary hover:text-white transition-all">
-                    <span className="material-symbols-outlined">arrow_forward</span>
-                  </button>
+              )}
+
+              {activeTab === 'specs' && (
+                productSpecs.length > 0 ? (
+                  <dl className="border-t border-[#e5e5e5] text-sm">
+                    {productSpecs.map((spec) => (
+                      <div className="grid grid-cols-1 border-b border-[#e5e5e5] sm:grid-cols-[180px_1fr]" key={spec.label}>
+                        <dt className="bg-[#f7f7f7] p-3 font-semibold text-[#252a2b]">{spec.label}</dt>
+                        <dd className="p-3 text-[#555555]">{spec.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="text-center text-[#777777]">Thông số sản phẩm đang được cập nhật.</p>
+                )
+              )}
+
+              {activeTab === 'reviews' && (
+                <div>
+                  <div className="mb-5 flex flex-wrap items-center justify-center gap-3 text-center">
+                    <div className="flex items-center">{renderStars(ratingValue)}</div>
+                    <span className="font-semibold text-[#252a2b]">{ratingValue.toFixed(1)} / 5</span>
+                    <span className="text-[#777777]">{reviewCount} đánh giá</span>
+                  </div>
+                  {reviews.length === 0 ? (
+                    <div className="border border-[#e5e5e5] bg-[#fafafa] px-5 py-10 text-center text-[#777777]">Chưa có đánh giá nào cho sản phẩm này.</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {reviews.map((review) => (
+                        <article key={review.id} className="border border-[#e5e5e5] bg-white p-5">
+                          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <p className="font-semibold text-[#252a2b]">{review.user?.fullName || 'Khách hàng'}</p>
+                              <div className="mt-1 flex items-center">{renderStars(review.rating)}</div>
+                            </div>
+                            {review.createdAt && <span className="text-sm text-[#777777]">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>}
+                          </div>
+                          {review.comment && <p className="mt-4 whitespace-pre-line leading-7 text-[#555555]">{review.comment}</p>}
+                          {review.images?.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-3">
+                              {review.images.map((imageUrl, index) => (
+                                <a key={index} href={getStaticFileUrl(imageUrl)} target="_blank" rel="noreferrer" className="h-20 w-20 overflow-hidden border border-[#e5e5e5] bg-[#f7f7f7]">
+                                  <img src={getStaticFileUrl(imageUrl)} alt={`Đánh giá ${index + 1}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-gutter overflow-x-auto no-scrollbar lg:overflow-visible">
-                {relatedProducts.map((rp, index) => {
-                  const rpImage = rp.images && rp.images.length > 0 ? rp.images[0].imageUrl : (rp.imageUrl || 'https://placehold.co/800x1000?text=No+Image');
-                  return (
-                    <ScrollReveal key={rp.id} delay={index * 100}>
-                      <Link to={`/products/${rp.id}`} className="min-w-[280px] lg:min-w-0 group cursor-pointer block">
-                        <div className="aspect-[4/5] bg-surface-beige overflow-hidden relative mb-4">
-                          <img alt={rp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src={getStaticFileUrl(rpImage)} />
-                          <WishlistButton 
-                            productId={rp.id} 
-                            initialIsActive={wishlistIds.includes(rp.id)}
-                            className="absolute top-4 right-4 w-10 h-10 bg-white/80 backdrop-blur rounded-full opacity-0 group-hover:opacity-100 hover:text-accent-terracotta"
-                            iconClassName="text-[20px]"
-                          />
-                        </div>
-                        <h3 className="font-label-lg text-primary group-hover:text-accent-terracotta transition-colors line-clamp-1">{rp.name}</h3>
-                        <PriceDisplay {...rp} size="small" showBadge className="mt-1" />
-                      </Link>
-                    </ScrollReveal>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-        </main>
-        {/**/}
+              )}
+            </div>
+          </div>
+        </section>
 
-        {/**/}
-
-
-
-
-
-
-
-
-
-
-
+        {relatedProducts.length > 0 && (
+          <section className="mx-auto w-full max-w-[1200px] px-5 py-12 md:px-10 md:py-14 xl:px-0">
+            <h2 className="mb-[30px] text-center text-[24px] font-bold uppercase text-[#252a2b] md:text-[28px]">Sản phẩm liên quan</h2>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-[30px] md:grid-cols-4 lg:gap-x-6">
+              {relatedProducts.map((rp, index) => (
+                <ScrollReveal key={rp.id} delay={index * 80}>
+                  <RelatedProductCard product={rp} isWishlisted={wishlistIds.includes(rp.id)} />
+                </ScrollReveal>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
       <Footer />
     </div>

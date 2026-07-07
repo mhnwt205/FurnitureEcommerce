@@ -24,52 +24,54 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-ivory py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm border border-outline-variant/30 space-y-8">
-        <div className="text-center">
-          <Link to="/" className="font-display-lg text-[32px] tracking-tighter text-primary inline-block mb-6">
-            Nội Thất Cao Cấp
-          </Link>
-          <h2 className="text-3xl font-headline-lg text-primary">Quên mật khẩu</h2>
-          <p className="mt-2 text-sm font-body-md text-on-surface-variant">
-            Nhập email đã đăng ký. Chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu cho bạn.
-          </p>
-        </div>
-        
-        {success ? (
-          <div className="bg-success-container/20 text-success p-4 rounded-lg text-center font-body-md">
-            Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi.
+    <div className="min-h-screen bg-[#f7f5f1] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-md items-center justify-center">
+        <div className="ui-card w-full p-6 sm:p-8">
+          <div className="text-center">
+            <Link to="/" className="inline-block text-2xl font-semibold tracking-tight text-[#333333] transition-colors hover:text-[#bfa37c]">
+              Heritage Home
+            </Link>
+            <h2 className="mt-7 text-2xl font-semibold text-[#333333]">Quên mật khẩu</h2>
+            <p className="mt-3 text-sm leading-6 text-[#666666]">
+              Nhập email đã đăng ký. Chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu cho bạn.
+            </p>
           </div>
-        ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="email" className="block font-label-md text-primary mb-2">Địa chỉ Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="w-full bg-surface-beige border-none rounded-lg px-4 py-3 font-body-md text-primary focus:ring-1 focus:ring-accent-gold outline-none"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+        
+          {success ? (
+            <div className="mt-7 rounded-[10px] border border-[#cfe7d0] bg-[#f3fbf3] px-4 py-3 text-center text-sm leading-6 text-[#2f7d32]">
+              Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi.
             </div>
+          ) : (
+            <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#434343]">Địa chỉ email</label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  className="ui-input w-full"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-lg font-label-lg text-white bg-primary hover:bg-primary-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-50"
-            >
-              {loading ? 'Đang gửi...' : 'Gửi liên kết đặt lại mật khẩu'}
-            </button>
-          </form>
-        )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'Đang gửi...' : 'Gửi liên kết đặt lại mật khẩu'}
+              </button>
+            </form>
+          )}
 
-        <div className="text-center mt-6">
-          <Link to="/login" className="font-label-md text-accent-gold hover:text-accent-terracotta transition-colors">
-            Quay lại đăng nhập
-          </Link>
+          <div className="mt-7 text-center">
+            <Link to="/login" className="text-sm font-semibold text-[#333333] transition-colors hover:text-[#bfa37c]">
+              Quay lại đăng nhập
+            </Link>
+          </div>
         </div>
       </div>
     </div>

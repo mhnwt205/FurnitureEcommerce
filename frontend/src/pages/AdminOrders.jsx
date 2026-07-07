@@ -358,7 +358,7 @@ export default function AdminOrders() {
       {/* Modal Chi tiết đơn hàng */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1000px] overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1000px] overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-label="Chi tiết đơn hàng">
             
             {/* Header */}
             <div className="p-6 md:p-8 border-b border-surface-beige flex justify-between items-start md:items-center bg-white shrink-0">
@@ -375,7 +375,7 @@ export default function AdminOrders() {
                   </span>
                 </div>
               </div>
-              <button onClick={handleCloseDetail} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors shrink-0">
+              <button onClick={handleCloseDetail} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors shrink-0" aria-label="Đóng chi tiết đơn hàng">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

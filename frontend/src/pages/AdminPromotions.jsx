@@ -442,13 +442,13 @@ export default function AdminPromotions() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={handleSubmit} className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl">
+          <form onSubmit={handleSubmit} className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Khuyến mãi">
             <div className="flex items-center justify-between border-b border-surface-beige px-6 py-4">
               <div>
                 <h2 className="text-xl font-bold text-primary">{isViewMode ? 'Chi tiết khuyến mãi' : isEditMode ? 'Cập nhật khuyến mãi' : 'Tạo khuyến mãi'}</h2>
                 <p className="text-sm text-on-surface-variant">Chọn sản phẩm hoặc danh mục áp dụng cho chương trình khuyến mãi.</p>
               </div>
-              <button type="button" onClick={closeModal} className="rounded-full p-2 text-on-surface-variant hover:bg-surface-beige">
+              <button type="button" onClick={closeModal} className="rounded-full p-2 text-on-surface-variant hover:bg-surface-beige" aria-label="Đóng khuyến mãi">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

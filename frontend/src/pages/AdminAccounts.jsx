@@ -288,10 +288,10 @@ export default function AdminAccounts() {
       {/* Modal Thêm/Sửa */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[600px] overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[600px] overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-label={editMode ? 'Cập nhật tài khoản quản trị' : 'Tạo tài khoản quản trị mới'}>
             <div className="p-8 border-b border-surface-beige flex justify-between items-center bg-white shrink-0">
               <h2 className="font-display-sm text-2xl text-primary font-semibold">{editMode ? 'Cập nhật tài khoản quản trị' : 'Tạo tài khoản quản trị mới'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-colors" aria-label="Đóng form tài khoản">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

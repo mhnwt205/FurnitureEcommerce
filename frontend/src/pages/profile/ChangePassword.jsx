@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { authService } from '../../services/api/authService';
-import Toast from '../../components/common/Toast';
 
 export default function ChangePassword() {
   const [formData, setFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -13,7 +12,6 @@ export default function ChangePassword() {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Mật khẩu mới không khớp', type: 'error' }}));
       return;
     }
-    
     setLoading(true);
     try {
       await authService.changePassword({ currentPassword: formData.currentPassword, newPassword: formData.newPassword });
@@ -21,62 +19,43 @@ export default function ChangePassword() {
       setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: error.response?.data?.message || 'Có lỗi xảy ra', type: 'error' }}));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
     <>
-      <div className="border-b border-outline-variant pb-8 mb-8">
-        <h1 className="font-display-lg text-display-lg text-primary mb-2">Đổi mật khẩu</h1>
-        <p className="font-body-md text-on-surface-variant">Để bảo mật tài khoản, vui lòng không chia sẻ mật khẩu cho người khác.</p>
+      <div className="border-b border-[#eeeeee] pb-6">
+        <h2 className="text-2xl font-bold text-[#333333]">Đổi mật khẩu</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777777]">
+          Để bảo mật tài khoản, vui lòng không chia sẻ mật khẩu cho người khác.
+        </p>
       </div>
-
-      <div className="bg-surface-beige p-8 md:p-10 rounded-lg max-w-2xl">
+      <div className="mt-6 max-w-2xl rounded-[12px] border border-[#e5e5e5] bg-[#fafaf8] p-5 md:p-6">
         {user.provider === 'google' ? (
-          <div className="text-center py-8 text-on-surface-variant font-body-lg">
-            <span className="material-symbols-outlined text-4xl mb-4 text-accent-gold">g_translate</span>
+          <div className="ui-empty-state border-0 shadow-none">
+            <span className="material-symbols-outlined mb-3 block text-4xl text-[#999999]">g_translate</span>
             <p>Tài khoản Google không sử dụng mật khẩu nội bộ.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex flex-col gap-2">
-            <label className="font-label-lg text-label-lg text-on-surface-variant opacity-70">Mật khẩu hiện tại</label>
-            <input 
-              className="bg-transparent border-0 border-b border-outline-variant py-3 font-body-md text-body-md focus:ring-0 focus:border-accent-gold transition-colors" 
-              type="password" 
-              required
-              value={formData.currentPassword}
-              onChange={e => setFormData({...formData, currentPassword: e.target.value})}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="font-label-lg text-label-lg text-on-surface-variant opacity-70">Mật khẩu mới</label>
-            <input 
-              className="bg-transparent border-0 border-b border-outline-variant py-3 font-body-md text-body-md focus:ring-0 focus:border-accent-gold transition-colors" 
-              type="password" 
-              required
-              minLength={6}
-              value={formData.newPassword}
-              onChange={e => setFormData({...formData, newPassword: e.target.value})}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="font-label-lg text-label-lg text-on-surface-variant opacity-70">Xác nhận mật khẩu mới</label>
-            <input 
-              className="bg-transparent border-0 border-b border-outline-variant py-3 font-body-md text-body-md focus:ring-0 focus:border-accent-gold transition-colors" 
-              type="password" 
-              required
-              minLength={6}
-              value={formData.confirmPassword}
-              onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
-            />
-          </div>
-          <div className="pt-4">
-            <button disabled={loading} type="submit" className="px-8 py-3 bg-primary text-white rounded font-label-lg disabled:opacity-50">Cập nhật mật khẩu</button>
-          </div>
-        </form>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-[#555555]">Mật khẩu hiện tại</label>
+              <input className="ui-input w-full" type="password" required value={formData.currentPassword} onChange={e => setFormData({ ...formData, currentPassword: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-[#555555]">Mật khẩu mới</label>
+              <input className="ui-input w-full" type="password" required minLength={6} value={formData.newPassword} onChange={e => setFormData({ ...formData, newPassword: e.target.value })} />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-[#555555]">Xác nhận mật khẩu mới</label>
+              <input className="ui-input w-full" type="password" required minLength={6} value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} />
+            </div>
+            <div className="pt-1">
+              <button disabled={loading} type="submit" className="ui-button-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
+                {loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </>
