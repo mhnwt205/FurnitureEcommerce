@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import PriceDisplay from './PriceDisplay';
 import WishlistButton from './WishlistButton';
-import { getStaticFileUrl } from '../../utils/imageUtils';
+import { getProductImages } from '../../utils/imageUtils';
 
 export const customerHomeTokens = {
   container: 'mx-auto w-full max-w-container-max',
@@ -129,22 +129,6 @@ export function SoftBadge({ children, className = '' }) {
     </span>
   );
 }
-
-const collectProductImages = (product) => {
-  const sources = [product?.imageUrl];
-  if (Array.isArray(product?.images)) {
-    product.images.forEach((image) => {
-      sources.push(image?.imageUrl || image);
-    });
-  }
-
-  return sources
-    .map((image) => getStaticFileUrl(image))
-    .filter(Boolean)
-    .filter((image, index, list) => list.indexOf(image) === index);
-};
-
-const getProductImages = (product) => collectProductImages(product);
 
 function ProductImagePlaceholder({ productName }) {
   return (

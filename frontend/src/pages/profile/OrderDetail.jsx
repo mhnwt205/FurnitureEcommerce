@@ -4,20 +4,11 @@ import { orderService } from '../../services/api/orderService';
 import { reviewService } from '../../services/api/reviewService';
 import { uploadService } from '../../services/api/uploadService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
+import { formatPlainVnd as formatMoney } from '../../utils/formatters';
+import { getCustomerOrderStatusClass as getStatusClass, getCustomerOrderStatusText as getStatusText } from '../../utils/statusMaps';
 
 const REVIEWABLE_STATUSES = ['delivered', 'completed'];
 
-const statusStyles = {
-  pending: 'bg-[#fbf3db] text-[#956400] border-[#f1dfb5]', confirmed: 'bg-[#e1f3fe] text-[#1f6c9f] border-[#c8e6f6]', preparing: 'bg-[#f3eef8] text-[#6e4b86] border-[#e6d9ee]', shipping: 'bg-[#e9f4f8] text-[#2f6477] border-[#d4e7ee]', delivered: 'bg-[#edf3ec] text-[#346538] border-[#dbe8d8]', completed: 'bg-[#edf3ec] text-[#346538] border-[#dbe8d8]', cancelled: 'bg-[#fdebec] text-[#9f2f2d] border-[#f5d2d3]'
-};
-
-function getStatusText(status) {
-  switch (status) {
-    case 'pending': return 'Chờ xác nhận'; case 'confirmed': return 'Đã xác nhận'; case 'preparing': return 'Đang chuẩn bị'; case 'shipping': return 'Đang giao'; case 'delivered': return 'Đã giao'; case 'completed': return 'Hoàn thành'; case 'cancelled': return 'Đã hủy'; default: return status;
-  }
-}
-function getStatusClass(status) { return statusStyles[status] || 'bg-[#f3f3f3] text-[#555555] border-[#e5e5e5]'; }
-function formatMoney(value) { return `${Number(value || 0).toLocaleString('vi-VN')} đ`; }
 function ItemImage({ src, alt }) { if (!src) return <div className="flex h-full w-full items-center justify-center bg-[#f3f3f1] text-[#999999]"><span className="material-symbols-outlined text-2xl">inventory_2</span></div>; return <img src={src} alt={alt} className="h-full w-full object-cover" />; }
 
 export default function OrderDetail({ orderId }) {

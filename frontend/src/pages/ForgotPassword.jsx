@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authService } from '../services/api/authService';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -45,7 +47,7 @@ export default function ForgotPassword() {
             <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#434343]">Địa chỉ email</label>
-                <input
+                <Input
                   id="email"
                   name="email"
                   type="email"
@@ -57,13 +59,13 @@ export default function ForgotPassword() {
                 />
               </div>
 
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full"
               >
                 {loading ? 'Đang gửi...' : 'Gửi liên kết đặt lại mật khẩu'}
-              </button>
+              </Button>
             </form>
           )}
 

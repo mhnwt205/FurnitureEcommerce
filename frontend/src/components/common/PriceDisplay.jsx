@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatPrice } from '../../utils/formatters';
 
 const sizeClasses = {
   small: {
@@ -20,11 +21,6 @@ const sizeClasses = {
     meta: 'text-sm'
   }
 };
-
-const formatPrice = (price) => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND'
-}).format(Number(price || 0));
 
 const getRemainingText = (endAt) => {
   if (!endAt) return '';

@@ -2,15 +2,13 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
+import { formatPrice } from '../utils/formatters';
 
 
 export default function OrderSuccess() {
   const location = useLocation();
   const order = location.state?.order;
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
 
   return (
     <div className="min-h-screen flex flex-col">

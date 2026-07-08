@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderService } from '../services/api/orderService';
 import AdminLayout from '../layouts/AdminLayout';
+import AdminTable from '../components/admin/AdminTable';
 import { getStaticFileUrl } from '../utils/imageUtils';
+import { formatPrice } from '../utils/formatters';
+import { ADMIN_ORDER_STATUS_CLASSES as statusColors, ADMIN_ORDER_STATUS_LABELS as statusLabels, getAdminPaymentStatusBadge as getPaymentStatusBadge } from '../utils/statusMaps';
 
 export default function AdminOrders() {
   const navigate = useNavigate();
@@ -99,40 +102,6 @@ export default function AdminOrders() {
   const handleCloseDetail = () => {
     setSelectedOrder(null);
     setIsModalOpen(false);
-  };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-  };
-
-  const getPaymentStatusBadge = (status) => {
-    switch (status) {
-      case 'paid': return { text: 'Đã thanh toán', color: 'bg-green-100 text-green-800 border-green-200' };
-      case 'unpaid': return { text: 'Chưa thanh toán', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
-      case 'failed': return { text: 'Thanh toán lỗi', color: 'bg-red-100 text-red-800 border-red-200' };
-      case 'refunded': return { text: 'Đã hoàn tiền', color: 'bg-purple-100 text-purple-800 border-purple-200' };
-      default: return { text: status, color: 'bg-gray-100 text-gray-800 border-gray-200' };
-    }
-  };
-
-  const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200 text-yellow-600',
-    confirmed: 'bg-blue-100 text-blue-800 border-blue-200 text-blue-600',
-    preparing: 'bg-purple-100 text-purple-800 border-purple-200 text-purple-600',
-    shipping: 'bg-sky-100 text-sky-800 border-sky-200 text-sky-600',
-    delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200 text-emerald-600',
-    completed: 'bg-green-100 text-green-800 border-green-200 text-green-600',
-    cancelled: 'bg-red-100 text-red-800 border-red-200 text-red-600'
-  };
-
-  const statusLabels = {
-    pending: 'Chờ xác nhận',
-    confirmed: 'Đã xác nhận',
-    preparing: 'Đang chuẩn bị',
-    shipping: 'Đang giao',
-    delivered: 'Đã giao',
-    completed: 'Hoàn thành',
-    cancelled: 'Đã hủy'
   };
 
   const stats = {
@@ -249,8 +218,7 @@ export default function AdminOrders() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border-none shadow-[0_4px_24px_rgba(93,64,55,0.05)] overflow-hidden flex flex-col">
-          <div className="overflow-x-auto p-2">
-            <table className="w-full text-left font-body-sm">
+          <AdminTable containerClassName="overflow-x-auto p-2" className="w-full text-left font-body-sm">
               <thead className="bg-surface-ivory border-b border-surface-beige text-xs font-label-lg uppercase tracking-wider">
                 <tr>
                   <th className="p-5 font-semibold text-on-surface-variant">Mã đơn / Ngày</th>
@@ -327,8 +295,7 @@ export default function AdminOrders() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+          </AdminTable>
           {/* Phân trang */}
           <div className="p-4 border-t border-surface-beige flex flex-col md:flex-row justify-between items-center bg-surface-ivory gap-4">
             <div className="text-on-surface-variant font-body-sm">
@@ -342,7 +309,7 @@ export default function AdminOrders() {
               >
                 Trước
               </button>
-              <span className="font-label-md text-primary mx-2">Trang {page} / {totalPages || 1}</span>
+              <span className="font-label-md text-primary mx-2" aria-current="page">Trang {page} / {totalPages || 1}</span>
               <button 
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
                 disabled={page >= totalPages}
@@ -443,8 +410,9 @@ export default function AdminOrders() {
                     </h3>
                     <div className="space-y-5">
                       <div>
-                        <label className="block text-xs font-bold text-primary uppercase tracking-wider mb-2">Trạng thái hiện tại</label>
+                        <label htmlFor="admin-order-status" className="block text-xs font-bold text-primary uppercase tracking-wider mb-2">Trạng thái hiện tại</label>
                         <select 
+                          id="admin-order-status"
                           value={selectedOrder.status}
                           onChange={(e) => {
                             const newStatus = e.target.value;

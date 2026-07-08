@@ -1,5 +1,9 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { customerService } from '../../services/api/customerService';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Badge from '../../components/ui/Badge';
+import Skeleton from '../../components/ui/Skeleton';
 
 export default function PersonalInfo() {
   const [profile, setProfile] = useState(null);
@@ -35,7 +39,7 @@ export default function PersonalInfo() {
   };
 
   if (!profile) {
-    return <div className="space-y-4"><div className="ui-skeleton h-8 w-56 rounded" /><div className="ui-skeleton h-4 w-72 rounded" /><div className="ui-skeleton h-56 rounded-[12px]" /></div>;
+    return <div className="space-y-4"><Skeleton className="h-8 w-56 rounded" /><Skeleton className="h-4 w-72 rounded" /><Skeleton className="h-56 rounded-[12px]" /></div>;
   }
 
   return (
@@ -45,26 +49,26 @@ export default function PersonalInfo() {
           <h2 className="text-2xl font-bold leading-tight text-[#333333] md:text-[28px]">Xin chào, {profile.fullName || profile.email.split('@')[0]}</h2>
           <p className="mt-2 flex items-center gap-2 text-sm text-[#777777]"><span className="material-symbols-outlined text-[18px] text-[#bfa37c]">stars</span>Thành viên từ tháng {new Date(profile.createdAt).getMonth() + 1}, {new Date(profile.createdAt).getFullYear()}</p>
         </div>
-        {!isEditing && <button type="button" onClick={() => setIsEditing(true)} className="ui-button-secondary px-4 py-2 text-sm">Chỉnh sửa</button>}
+        {!isEditing && <Button type="button" variant="secondary" onClick={() => setIsEditing(true)} className="px-4 py-2 text-sm">Chỉnh sửa</Button>}
       </div>
       <div className="pt-6">
         <div className="rounded-[12px] border border-[#e5e5e5] bg-[#fafaf8] p-5 md:p-6">
-          <div className="mb-5 flex items-center justify-between"><h3 className="text-[15px] font-bold text-[#333333]">Thông tin cá nhân</h3><span className="ui-badge">Hồ sơ</span></div>
+          <div className="mb-5 flex items-center justify-between"><h3 className="text-[15px] font-bold text-[#333333]">Thông tin cá nhân</h3><Badge>Hồ sơ</Badge></div>
           <form className="grid w-full max-w-4xl grid-cols-1 gap-x-6 gap-y-6 md:grid-cols-2" onSubmit={handleSave}>
             <div className="flex min-w-0 flex-col">
-              <label className="mb-2 block text-sm font-semibold text-[#555555]">Họ và tên</label>
-              <input className="ui-input h-11 w-full" readOnly={!isEditing} type="text" value={isEditing ? formData.fullName : profile.fullName || ''} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} required />
+              <label htmlFor="profile-full-name" className="mb-2 block text-sm font-semibold text-[#555555]">Họ và tên</label>
+              <Input id="profile-full-name" className="ui-input h-11 w-full" readOnly={!isEditing} type="text" value={isEditing ? formData.fullName : profile.fullName || ''} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} required />
             </div>
             <div className="flex min-w-0 flex-col">
-              <label className="mb-2 block text-sm font-semibold text-[#555555]">Số điện thoại</label>
-              <input className="ui-input h-11 w-full" readOnly={!isEditing} type="tel" value={isEditing ? formData.phone : profile.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+              <label htmlFor="profile-phone" className="mb-2 block text-sm font-semibold text-[#555555]">Số điện thoại</label>
+              <Input id="profile-phone" className="ui-input h-11 w-full" readOnly={!isEditing} type="tel" value={isEditing ? formData.phone : profile.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
             </div>
             <div className="flex min-w-0 flex-col md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-[#555555]">Địa chỉ email</label>
-              <input className="ui-input h-11 w-full opacity-75" readOnly type="email" value={profile.email} />
+              <label htmlFor="profile-email" className="mb-2 block text-sm font-semibold text-[#555555]">Địa chỉ email</label>
+              <Input id="profile-email" className="ui-input h-11 w-full opacity-75" readOnly type="email" value={profile.email} />
               <span className="mt-1.5 block text-xs text-[#888888]">Email không thể thay đổi</span>
             </div>
-            {isEditing && <div className="flex flex-wrap gap-3 pt-2"><button type="submit" className="ui-button-primary px-5 py-2.5 text-sm">Lưu thay đổi</button><button type="button" onClick={() => setIsEditing(false)} className="ui-button-secondary px-5 py-2.5 text-sm">Hủy</button></div>}
+            {isEditing && <div className="flex flex-wrap gap-3 pt-2"><Button type="submit" className="px-5 py-2.5 text-sm">Lưu thay đổi</Button><Button type="button" variant="secondary" onClick={() => setIsEditing(false)} className="px-5 py-2.5 text-sm">Hủy</Button></div>}
           </form>
         </div>
       </div>

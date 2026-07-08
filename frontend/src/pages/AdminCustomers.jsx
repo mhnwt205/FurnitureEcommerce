@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { customerService } from '../services/api/customerService';
 import AdminLayout from '../layouts/AdminLayout';
+import AdminTable from '../components/admin/AdminTable';
 import { getStaticFileUrl } from '../utils/imageUtils';
+import { formatPrice as formatCurrency } from '../utils/formatters';
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -109,10 +111,6 @@ export default function AdminCustomers() {
 
 
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-  };
-
   if (loading) {
     return (
       <AdminLayout>
@@ -203,8 +201,7 @@ export default function AdminCustomers() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto p-2">
-                <table className="w-full text-left font-body-sm">
+              <AdminTable containerClassName="overflow-x-auto p-2" className="w-full text-left font-body-sm">
                   <thead className="bg-surface-ivory border-b border-surface-beige text-xs font-label-lg uppercase tracking-wider">
                     <tr>
                       <th className="p-5 font-semibold text-on-surface-variant">Khách hàng</th>
@@ -279,8 +276,7 @@ export default function AdminCustomers() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
+              </AdminTable>
               {/* Phân trang */}
               <div className="p-4 border-t border-surface-beige flex flex-col md:flex-row justify-between items-center bg-surface-ivory gap-4">
                 <div className="text-on-surface-variant font-body-sm">

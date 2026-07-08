@@ -1,9 +1,14 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import ScrollReveal from '../components/common/ScrollReveal';
 import { consultationRequestService } from '../services/api/consultationRequestService';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Textarea from '../components/ui/Textarea';
+import FormField from '../components/ui/FormField';
 
 const heroImage = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFlWAg5EoCzMM6yT5PPPPzBf2qDoD3AzZmkFtOK995d5HDgwktLuieW6DX_fBqZOrqh_L0Ac1ThEnBdbnsZHRiSyUmxWTN5vly9PX46JWyBV7Y-WD8LRZpCfHOSJta_CkozjioPQbu7uwbi2Cu2gHh_Efa5zOiUbvDRQwM8hoyx5jkXjc7QxRfAsw5yVwWJhN8ShbjpVSBARLmF4qCcH31ggv4wgS4l6qBEw2s3h7cEbQlAE3oTQYQXvGY7o1AUWq0HtM4qcM2PBo';
 const stepImages = [
@@ -189,15 +194,15 @@ export default function DesignServices() {
               <div className="w-full rounded-[12px] border border-[#e5e5e5] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] md:p-8">
                 <form onSubmit={handleConsultationSubmit} className="grid w-full grid-cols-1 gap-5 md:grid-cols-2">
                   <input type="text" name="website" tabIndex="-1" autoComplete="off" className="hidden" aria-hidden="true" />
-                  <div className="space-y-3"><label className="block text-sm font-semibold text-[#333333]">Họ và tên *</label><input required className="ui-input h-11 w-full rounded-[8px]" name="fullName" placeholder="Nguyễn Văn A" type="text" /></div>
-                  <div className="space-y-3"><label className="block text-sm font-semibold text-[#333333]">Số điện thoại *</label><input required className="ui-input h-11 w-full rounded-[8px]" name="phone" placeholder="090 000 0000" type="tel" /></div>
-                  <div className="space-y-3 md:col-span-2"><label className="block text-sm font-semibold text-[#333333]">Email</label><input className="ui-input h-11 w-full rounded-[8px]" name="email" placeholder="example@email.com" type="email" /></div>
-                  <div className="space-y-3"><label className="block text-sm font-semibold text-[#333333]">Loại công trình</label><select name="projectType" className="ui-select h-11 w-full rounded-[8px]"><option>Căn hộ</option><option>Nhà phố</option><option>Biệt thự</option><option>Văn phòng</option><option>Showroom</option><option>Khác</option></select></div>
-                  <div className="space-y-3"><label className="block text-sm font-semibold text-[#333333]">Ngân sách dự kiến</label><select name="budgetRange" className="ui-select h-11 w-full rounded-[8px]"><option>Dưới 100 triệu</option><option>100 - 300 triệu</option><option>300 - 500 triệu</option><option>500 triệu - 1 tỷ</option><option>Trên 1 tỷ</option></select></div>
-                  <div className="space-y-3 md:col-span-2"><label className="block text-sm font-semibold text-[#333333]">Nội dung yêu cầu</label><textarea className="ui-textarea min-h-[130px] w-full resize-y rounded-[8px]" name="message" required placeholder="Hãy mô tả ngắn gọn về yêu cầu thiết kế của bạn..." rows="4" /></div>
+                  <FormField label="Họ và tên" required className="space-y-3" labelClassName="block text-sm font-semibold text-[#333333]"><Input required className="h-11 w-full rounded-[8px]" name="fullName" placeholder="Nguyễn Văn A" type="text" /></FormField>
+                  <FormField label="Số điện thoại" required className="space-y-3" labelClassName="block text-sm font-semibold text-[#333333]"><Input required className="h-11 w-full rounded-[8px]" name="phone" placeholder="090 000 0000" type="tel" /></FormField>
+                  <FormField label="Email" className="space-y-3 md:col-span-2" labelClassName="block text-sm font-semibold text-[#333333]"><Input className="h-11 w-full rounded-[8px]" name="email" placeholder="example@email.com" type="email" /></FormField>
+                  <FormField label="Loại công trình" className="space-y-3" labelClassName="block text-sm font-semibold text-[#333333]"><Select name="projectType" className="h-11 w-full rounded-[8px]"><option>Căn hộ</option><option>Nhà phố</option><option>Biệt thự</option><option>Văn phòng</option><option>Showroom</option><option>Khác</option></Select></FormField>
+                  <FormField label="Ngân sách dự kiến" className="space-y-3" labelClassName="block text-sm font-semibold text-[#333333]"><Select name="budgetRange" className="h-11 w-full rounded-[8px]"><option>Dưới 100 triệu</option><option>100 - 300 triệu</option><option>300 - 500 triệu</option><option>500 triệu - 1 tỷ</option><option>Trên 1 tỷ</option></Select></FormField>
+                  <FormField label="Nội dung yêu cầu" className="space-y-3 md:col-span-2" labelClassName="block text-sm font-semibold text-[#333333]"><Textarea className="min-h-[130px] w-full resize-y rounded-[8px]" name="message" required placeholder="Hãy mô tả ngắn gọn về yêu cầu thiết kế của bạn..." rows="4" /></FormField>
                   {consultationError && <p className="rounded-[8px] border border-[#f5d2d3] bg-[#fdebec] px-4 py-3 text-sm font-medium text-[#9f2f2d] md:col-span-2">{consultationError}</p>}
                   {consultationSuccess && <p className="rounded-[8px] border border-[#dbe8d8] bg-[#edf3ec] px-4 py-3 text-sm font-medium text-[#346538] md:col-span-2">{consultationSuccess}</p>}
-                  <button className="ui-button-primary w-full py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-70 md:col-span-2" type="submit" disabled={consultationSubmitting}>{consultationSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu tư vấn'}</button>
+                  <Button className="w-full py-3.5 text-sm disabled:opacity-70 md:col-span-2" type="submit" disabled={consultationSubmitting}>{consultationSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu tư vấn'}</Button>
                 </form>
               </div>
             </div>

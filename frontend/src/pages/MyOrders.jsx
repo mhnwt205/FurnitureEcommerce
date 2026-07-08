@@ -5,15 +5,9 @@ import Footer from '../components/common/Footer';
 import { orderService } from '../services/api/orderService';
 import { paymentService } from '../services/api/paymentService';
 import { getStaticFileUrl } from '../utils/imageUtils';
+import { formatPrice } from '../utils/formatters';
+import { getCustomerOrderListStatusBadge as getStatusLabel, getCustomerPaymentStatusBadge as getPaymentStatusBadge } from '../utils/statusMaps';
 
-const statusStyles = {
-  pending: 'bg-[#fbf3db] text-[#956400] border-[#f1dfb5]', confirmed: 'bg-[#e1f3fe] text-[#1f6c9f] border-[#c8e6f6]', preparing: 'bg-[#f3eef8] text-[#6e4b86] border-[#e6d9ee]', shipping: 'bg-[#e9f4f8] text-[#2f6477] border-[#d4e7ee]', delivered: 'bg-[#edf3ec] text-[#346538] border-[#dbe8d8]', completed: 'bg-[#edf3ec] text-[#346538] border-[#dbe8d8]', cancelled: 'bg-[#fdebec] text-[#9f2f2d] border-[#f5d2d3]'
-};
-const paymentStyles = { paid: 'bg-[#edf3ec] text-[#346538] border-[#dbe8d8]', unpaid: 'bg-[#fbf3db] text-[#956400] border-[#f1dfb5]', failed: 'bg-[#fdebec] text-[#9f2f2d] border-[#f5d2d3]', refunded: 'bg-[#f3eef8] text-[#6e4b86] border-[#e6d9ee]' };
-
-function formatPrice(price) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0); }
-function getPaymentStatusBadge(status) { switch (status) { case 'paid': return { text: 'Đã thanh toán', color: paymentStyles.paid }; case 'unpaid': return { text: 'Chưa thanh toán', color: paymentStyles.unpaid }; case 'failed': return { text: 'Thanh toán lỗi', color: paymentStyles.failed }; case 'refunded': return { text: 'Đã hoàn tiền', color: paymentStyles.refunded }; default: return { text: status, color: 'bg-[#f3f3f3] text-[#555555] border-[#e5e5e5]' }; } }
-function getStatusLabel(status) { switch (status) { case 'pending': return { text: 'Chờ xác nhận', color: statusStyles.pending }; case 'confirmed': return { text: 'Đã xác nhận', color: statusStyles.confirmed }; case 'preparing': return { text: 'Đang chuẩn bị hàng', color: statusStyles.preparing }; case 'shipping': return { text: 'Đang giao hàng', color: statusStyles.shipping }; case 'delivered': return { text: 'Đã giao hàng', color: statusStyles.delivered }; case 'completed': return { text: 'Hoàn thành', color: statusStyles.completed }; case 'cancelled': return { text: 'Đã hủy', color: statusStyles.cancelled }; default: return { text: status, color: 'bg-[#f3f3f3] text-[#555555] border-[#e5e5e5]' }; } }
 function ItemImage({ src, alt }) { if (!src) return <div className="flex h-full w-full items-center justify-center bg-[#f3f3f1] text-[#999999]"><span className="material-symbols-outlined text-2xl">inventory_2</span></div>; return <img src={src} alt={alt} className="h-full w-full object-cover" />; }
 
 export default function MyOrders() {

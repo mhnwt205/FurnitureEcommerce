@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services/api/authService';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -73,7 +75,7 @@ export default function ResetPassword() {
             <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-[#434343]">Mật khẩu mới</label>
-                <input
+                <Input
                   type="password"
                   required
                   minLength={6}
@@ -85,7 +87,7 @@ export default function ResetPassword() {
             
               <div>
                 <label className="mb-2 block text-sm font-semibold text-[#434343]">Xác nhận mật khẩu mới</label>
-                <input
+                <Input
                   type="password"
                   required
                   minLength={6}
@@ -95,13 +97,13 @@ export default function ResetPassword() {
                 />
               </div>
 
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full"
               >
                 {loading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
-              </button>
+              </Button>
             </form>
           )}
 
