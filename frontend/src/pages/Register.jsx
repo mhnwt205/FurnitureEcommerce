@@ -4,6 +4,8 @@ import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { authService } from '../services/api/authService';
 import { GoogleLogin } from '@react-oauth/google';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -138,25 +140,25 @@ export default function Register() {
                 <form className="space-y-5" id="registrationForm" onSubmit={handleSubmit}>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="fullname">Họ và tên</label>
-                    <input required value={formData.fullname} onChange={handleChange} className="ui-input w-full" id="fullname" name="fullname" placeholder="Nguyễn Văn A" type="text" />
+                    <Input required value={formData.fullname} onChange={handleChange} className="ui-input w-full" id="fullname" name="fullname" placeholder="Nguyễn Văn A" type="text" />
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="email">Email</label>
-                    <input required value={formData.email} onChange={handleChange} className="ui-input w-full" id="email" name="email" placeholder="example@email.com" type="email" />
+                    <Input required value={formData.email} onChange={handleChange} className="ui-input w-full" id="email" name="email" placeholder="example@email.com" type="email" />
                   </div>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div>
                       <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="password">Mật khẩu</label>
-                      <input required minLength="6" value={formData.password} onChange={handleChange} className="ui-input w-full" id="password" name="password" placeholder="Nhập mật khẩu" type="password" />
+                      <Input required minLength="6" value={formData.password} onChange={handleChange} className="ui-input w-full" id="password" name="password" placeholder="Nhập mật khẩu" type="password" />
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-semibold text-[#434343]" htmlFor="confirm_password">Xác nhận mật khẩu</label>
-                      <input required minLength="6" value={formData.confirm_password} onChange={handleChange} className="ui-input w-full" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu" type="password" />
+                      <Input required minLength="6" value={formData.confirm_password} onChange={handleChange} className="ui-input w-full" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu" type="password" />
                     </div>
                   </div>
-                  <button disabled={isLoading} className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60" type="submit">
+                  <Button disabled={isLoading} className="w-full" type="submit">
                     {isLoading ? 'Đang xử lý...' : 'Đăng ký'}
-                  </button>
+                  </Button>
                 </form>
               )}
 

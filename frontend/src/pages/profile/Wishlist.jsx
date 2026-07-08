@@ -1,13 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { wishlistService } from '../../services/api/wishlistService';
-import { getStaticFileUrl } from '../../utils/imageUtils';
-import PriceDisplay from '../../components/common/PriceDisplay';
-
-function ProductImage({ src, alt }) {
-  if (!src) return <div className="flex h-full w-full items-center justify-center bg-[#f3f3f1] text-[#999999]"><span className="material-symbols-outlined text-3xl">chair</span></div>;
-  return <img src={src} alt={alt} className="h-full w-full object-cover transition-transform duration-700 ease-commerce group-hover:scale-105" />;
-}
+import ProductImage from '../../components/product/ProductImage';
+import ProductPriceBlock from '../../components/product/ProductPriceBlock';
 
 export default function Wishlist() {
   const [wishlist, setWishlist] = useState([]);
@@ -55,17 +50,16 @@ export default function Wishlist() {
               const productId = product.id;
               const name = product.name;
               const imageUrl = product.images && product.images.length > 0 ? product.images.find(img => img.isPrimary)?.imageUrl || product.images[0].imageUrl : product.imageUrl;
-              const resolvedImage = imageUrl ? getStaticFileUrl(imageUrl) : '';
               return (
                 <article key={item.wishlistId} className="group min-w-0">
                   <div className="relative aspect-square overflow-hidden rounded-[12px] bg-[#f6f6f4]" onClick={() => navigate(`/products/${productId}`)}>
-                    <ProductImage src={resolvedImage} alt={name} />
+                    <ProductImage src={imageUrl} alt={name} className="h-full w-full object-cover transition-transform duration-700 ease-commerce group-hover:scale-105" placeholder={<div className="flex h-full w-full items-center justify-center bg-[#f3f3f1] text-[#999999]"><span className="material-symbols-outlined text-3xl">chair</span></div>} />
                     <button type="button" onClick={(e) => { e.stopPropagation(); handleRemove(productId); }} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e5e5e5] bg-white/95 text-[#b94732] transition-colors hover:border-[#b94732]" aria-label="Xóa khỏi yêu thích"><span className="material-symbols-outlined text-[19px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span></button>
                   </div>
                   <div className="px-3 pt-4 pb-1">
                     {product.category && <p className="mb-1 text-xs text-[#777777]">{product.category.name}</p>}
                     <Link to={`/products/${productId}`} className="line-clamp-2 text-[14px] font-semibold leading-5 text-[#333333] transition-colors group-hover:text-[#bfa37c]">{name}</Link>
-                    <div className="mt-2"><PriceDisplay {...product} size="small" showBadge /></div>
+                    <div className="mt-2"><ProductPriceBlock product={product} size="small" showBadge /></div>
                   </div>
                 </article>
               );

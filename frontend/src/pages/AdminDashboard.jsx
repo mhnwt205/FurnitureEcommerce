@@ -4,43 +4,8 @@ import dashboardService from '../services/api/dashboardService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 import { getStaticFileUrl } from '../utils/imageUtils';
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-};
-
-const statusColors = {
-  pending: '#F59E0B', // gold
-  confirmed: '#3B82F6', // blue
-  preparing: '#8B5CF6', // purple
-  shipping: '#0EA5E9', // cyan
-  delivered: '#10B981', // green
-  completed: '#059669', // dark green
-  cancelled: '#EF4444' // red
-};
-
-const statusLabels = {
-  pending: 'Chờ xác nhận',
-  confirmed: 'Đã xác nhận',
-  preparing: 'Đang chuẩn bị',
-  shipping: 'Đang giao',
-  delivered: 'Đã giao',
-  completed: 'Hoàn thành',
-  cancelled: 'Đã hủy'
-};
-
-const getStatusColorClass = (status) => {
-  switch(status) {
-    case 'pending': return 'bg-yellow-100 text-yellow-800';
-    case 'confirmed': return 'bg-blue-100 text-blue-800';
-    case 'preparing': return 'bg-purple-100 text-purple-800';
-    case 'shipping': return 'bg-sky-100 text-sky-800';
-    case 'delivered': return 'bg-emerald-100 text-emerald-800';
-    case 'completed': return 'bg-green-100 text-green-800';
-    case 'cancelled': return 'bg-red-100 text-red-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
-};
+import { formatPrice } from '../utils/formatters';
+import { ADMIN_ORDER_CHART_COLORS as statusColors, ADMIN_ORDER_STATUS_LABELS as statusLabels, getAdminOrderStatusColorClass as getStatusColorClass } from '../utils/statusMaps';
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null);

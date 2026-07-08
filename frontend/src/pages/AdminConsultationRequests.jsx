@@ -1,35 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
+import AdminTable from '../components/admin/AdminTable';
 import { consultationRequestService } from '../services/api/consultationRequestService';
-
-const STATUS_OPTIONS = [
-  { value: 'new', label: 'Mới' },
-  { value: 'contacted', label: 'Đã liên hệ' },
-  { value: 'consulting', label: 'Đang tư vấn' },
-  { value: 'completed', label: 'Hoàn thành' },
-  { value: 'cancelled', label: 'Đã hủy' }
-];
-
-const STATUS_CLASSES = {
-  new: 'bg-blue-100 text-blue-800 border-blue-200',
-  contacted: 'bg-amber-100 text-amber-800 border-amber-200',
-  consulting: 'bg-purple-100 text-purple-800 border-purple-200',
-  completed: 'bg-green-100 text-green-800 border-green-200',
-  cancelled: 'bg-red-100 text-red-800 border-red-200'
-};
-
-const getStatusLabel = (status) => STATUS_OPTIONS.find(item => item.value === status)?.label || status || 'Không rõ';
-
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-};
+import { formatShortDateTime as formatDateTime } from '../utils/date';
+import { CONSULTATION_STATUS_OPTIONS as STATUS_OPTIONS, CONSULTATION_STATUS_CLASSES as STATUS_CLASSES, getConsultationStatusLabel as getStatusLabel } from '../utils/statusMaps';
 
 const SkeletonRows = () => (
   <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(93,64,55,0.05)] overflow-hidden">
@@ -333,8 +307,7 @@ export default function AdminConsultationRequests() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(93,64,55,0.05)] overflow-hidden">
-            <div className="overflow-x-auto p-2">
-              <table className="w-full min-w-[1040px] table-fixed text-left text-[13px] leading-5">
+            <AdminTable containerClassName="overflow-x-auto p-2" className="w-full min-w-[1040px] table-fixed text-left text-[13px] leading-5">
                 <thead className="bg-surface-ivory border-b border-surface-beige text-xs font-label-lg uppercase tracking-wider">
                   <tr>
                     <th className="w-[126px] px-3 py-4 font-semibold text-on-surface-variant">Mã yêu cầu</th>
@@ -377,8 +350,7 @@ export default function AdminConsultationRequests() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+            </AdminTable>
 
             <div className="p-4 border-t border-surface-beige flex flex-col md:flex-row justify-between items-center bg-surface-ivory gap-4">
               <div className="text-on-surface-variant font-body-sm flex items-center gap-3">

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { authService } from '../../services/api/authService';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 
 export default function ChangePassword() {
   const [formData, setFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -39,21 +41,21 @@ export default function ChangePassword() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-[#555555]">Mật khẩu hiện tại</label>
-              <input className="ui-input w-full" type="password" required value={formData.currentPassword} onChange={e => setFormData({ ...formData, currentPassword: e.target.value })} />
+              <label htmlFor="current-password" className="mb-2 block text-sm font-semibold text-[#555555]">Mật khẩu hiện tại</label>
+              <Input id="current-password" className="ui-input w-full" type="password" required value={formData.currentPassword} onChange={e => setFormData({ ...formData, currentPassword: e.target.value })} />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-semibold text-[#555555]">Mật khẩu mới</label>
-              <input className="ui-input w-full" type="password" required minLength={6} value={formData.newPassword} onChange={e => setFormData({ ...formData, newPassword: e.target.value })} />
+              <label htmlFor="new-password" className="mb-2 block text-sm font-semibold text-[#555555]">Mật khẩu mới</label>
+              <Input id="new-password" className="ui-input w-full" type="password" required minLength={6} value={formData.newPassword} onChange={e => setFormData({ ...formData, newPassword: e.target.value })} />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-semibold text-[#555555]">Xác nhận mật khẩu mới</label>
-              <input className="ui-input w-full" type="password" required minLength={6} value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} />
+              <label htmlFor="confirm-password" className="mb-2 block text-sm font-semibold text-[#555555]">Xác nhận mật khẩu mới</label>
+              <Input id="confirm-password" className="ui-input w-full" type="password" required minLength={6} value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} />
             </div>
             <div className="pt-1">
-              <button disabled={loading} type="submit" className="ui-button-primary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60">
+              <Button disabled={loading} type="submit" className="w-full sm:w-auto">
                 {loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
-              </button>
+              </Button>
             </div>
           </form>
         )}

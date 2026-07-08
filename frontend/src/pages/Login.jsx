@@ -4,6 +4,8 @@ import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { authService } from '../services/api/authService';
 import { GoogleLogin } from '@react-oauth/google';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -125,7 +127,7 @@ export default function Login() {
                   <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#434343]">
                     Email
                   </label>
-                  <input
+                  <Input
                     id="email"
                     required
                     name="email"
@@ -141,7 +143,7 @@ export default function Login() {
                   <label htmlFor="password" className="mb-2 block text-sm font-semibold text-[#434343]">
                     Mật khẩu
                   </label>
-                  <input
+                  <Input
                     id="password"
                     required
                     name="password"
@@ -158,9 +160,9 @@ export default function Login() {
                   </div>
                 </div>
 
-                <button disabled={isLoading} className="ui-button-primary w-full disabled:cursor-not-allowed disabled:opacity-60" type="submit">
+                <Button disabled={isLoading} className="w-full" type="submit">
                   {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
-                </button>
+                </Button>
               </form>
 
               <div className="relative my-6 flex items-center justify-center">

@@ -5,10 +5,12 @@ import Footer from '../components/common/Footer';
 import { productService } from '../services/api/productService';
 import { wishlistService } from '../services/api/wishlistService';
 import { useCart } from '../hooks/useCart';
-import { getStaticFileUrl } from '../utils/imageUtils';
+import { getProductImages } from '../utils/imageUtils';
 import ScrollReveal from '../components/common/ScrollReveal';
 import WishlistButton from '../components/common/WishlistButton';
-import PriceDisplay from '../components/common/PriceDisplay';
+import ProductImage from '../components/product/ProductImage';
+import ProductBadge from '../components/product/ProductBadge';
+import ProductPriceBlock from '../components/product/ProductPriceBlock';
 
 const categories = [
   { name: 'Tất cả', slug: 'ALL' },
@@ -28,18 +30,6 @@ const sortOptions = [
   { value: 'name_asc', label: 'Tên: A-Z' }
 ];
 
-const collectProductImages = (product) => {
-  const sources = [product?.imageUrl];
-  if (Array.isArray(product?.images)) {
-    product.images.forEach((image) => sources.push(image?.imageUrl || image));
-  }
-
-  return sources
-    .map((image) => getStaticFileUrl(image))
-    .filter(Boolean)
-    .filter((image, index, list) => list.indexOf(image) === index);
-};
-
 function ProductImagePlaceholder({ productName }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-[#f7f7f7] px-3 text-center text-[#777777]">
@@ -50,45 +40,40 @@ function ProductImagePlaceholder({ productName }) {
 }
 
 function CollectionProductCard({ product, isWishlisted }) {
-  const productImages = collectProductImages(product);
+  const productImages = getProductImages(product);
   const primaryImage = productImages[0];
   const hoverImage = productImages[1];
   const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
   const discountPercent = Number(product.discountPercent || 0);
-  const hasPromotion = Boolean(product.hasPromotion && discountPercent > 0);
 
   return (
     <article className="group h-full bg-white text-[#252a2b]">
       <div className="relative overflow-hidden bg-[#fafafa]">
         <Link to={`/products/${product.id}`} className="relative block aspect-square overflow-hidden">
           {primaryImage ? (
-            <img
+            <ProductImage
               src={primaryImage}
               alt={product.name}
-              loading="lazy"
-              decoding="async"
               className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             />
           ) : (
             <ProductImagePlaceholder productName={product.name} />
           )}
           {hoverImage && (
-            <img
+            <ProductImage
               src={hoverImage}
               alt=""
-              loading="lazy"
-              decoding="async"
               aria-hidden="true"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100"
             />
           )}
         </Link>
 
-        {hasPromotion && (
-          <span className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white">
-            -{discountPercent}%
-          </span>
-        )}
+        <ProductBadge
+          product={product}
+          discountPercent={discountPercent}
+          className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white"
+        />
 
         <WishlistButton
           productId={product.id}
@@ -108,8 +93,8 @@ function CollectionProductCard({ product, isWishlisted }) {
           </h3>
         </Link>
         <div className="mt-[6px]">
-          <PriceDisplay
-            {...product}
+          <ProductPriceBlock
+            product={product}
             size="normal"
             variant="compact"
             showBadge={false}
@@ -124,44 +109,39 @@ function CollectionProductCard({ product, isWishlisted }) {
 }
 
 function ProductListRow({ product, isWishlisted, onAddToCart }) {
-  const productImages = collectProductImages(product);
+  const productImages = getProductImages(product);
   const primaryImage = productImages[0];
   const hoverImage = productImages[1];
   const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
   const discountPercent = Number(product.discountPercent || 0);
-  const hasPromotion = Boolean(product.hasPromotion && discountPercent > 0);
 
   return (
     <article className="group grid gap-5 border-b border-[#e5e5e5] pb-6 text-[#252a2b] last:border-b-0 sm:grid-cols-[190px_1fr] lg:grid-cols-[220px_1fr]">
       <div className="relative overflow-hidden bg-[#fafafa]">
         <Link to={`/products/${product.id}`} className="relative block aspect-square overflow-hidden">
           {primaryImage ? (
-            <img
+            <ProductImage
               src={primaryImage}
               alt={product.name}
-              loading="lazy"
-              decoding="async"
               className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             />
           ) : (
             <ProductImagePlaceholder productName={product.name} />
           )}
           {hoverImage && (
-            <img
+            <ProductImage
               src={hoverImage}
               alt=""
-              loading="lazy"
-              decoding="async"
               aria-hidden="true"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100"
             />
           )}
         </Link>
-        {hasPromotion && (
-          <span className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white">
-            -{discountPercent}%
-          </span>
-        )}
+        <ProductBadge
+          product={product}
+          discountPercent={discountPercent}
+          className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white"
+        />
         <WishlistButton
           productId={product.id}
           initialIsActive={isWishlisted}
@@ -185,8 +165,8 @@ function ProductListRow({ product, isWishlisted, onAddToCart }) {
         </div>
 
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <PriceDisplay
-            {...product}
+          <ProductPriceBlock
+            product={product}
             size="normal"
             variant="compact"
             showBadge={false}

@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { orderService } from '../services/api/orderService';
 import { paymentService } from '../services/api/paymentService';
-import { getStaticFileUrl } from '../utils/imageUtils';
+import { getProductImage } from '../utils/imageUtils';
+import { formatPrice } from '../utils/formatters';
 
 const copy = {
   brand: 'Heritage Home',
@@ -60,23 +61,7 @@ const copy = {
   increase: 'T\u0103ng s\u1ed1 l\u01b0\u1ee3ng'
 };
 
-const formatPrice = (price) => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND'
-}).format(Number(price || 0));
-
-const getCartImageUrl = (item) => {
-  if (!item) return null;
-  if (Array.isArray(item.images) && item.images.length > 0) {
-    const sortedImages = [...item.images].sort((a, b) => {
-      if (a.isPrimary && !b.isPrimary) return -1;
-      if (!a.isPrimary && b.isPrimary) return 1;
-      return (a.sortOrder || 0) - (b.sortOrder || 0);
-    });
-    return getStaticFileUrl(sortedImages[0]?.imageUrl);
-  }
-  return getStaticFileUrl(item.imageUrl);
-};
+const getCartImageUrl = (item) => getProductImage(item, null);
 
 const getUserLabel = (user) => user?.fullName || user?.name || user?.email || copy.signedIn;
 

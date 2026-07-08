@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
@@ -5,29 +6,22 @@ import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
 import PaymentResult from './pages/PaymentResult';
-import AdminOrders from './pages/AdminOrders';
-import AdminProducts from './pages/AdminProducts';
+
 import AdminCategories from './pages/AdminCategories';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminCustomers from './pages/AdminCustomers';
+
 import AdminAccounts from './pages/AdminAccounts';
 import AdminReviews from './pages/AdminReviews';
-import AdminConsultationRequests from './pages/AdminConsultationRequests';
-import AdminPromotions from './pages/AdminPromotions';
+
 import MyOrders from './pages/MyOrders';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import StoreSystem from './pages/StoreSystem';
+
 import Promotions from './pages/Promotions';
 import DesignServices from './pages/DesignServices';
-import SpaceInspiration from './pages/SpaceInspiration';
-import FeaturedProjects from './pages/FeaturedProjects';
-import ProjectDetail from './pages/ProjectDetail';
-import About from './pages/About';
-import BlogDetail from './pages/BlogDetail';
+
 import CustomerProfile from './pages/profile/CustomerProfile';
 import CustomerOrderPage from './pages/profile/CustomerOrderPage';
 import FloatingButtons from './components/common/FloatingButtons';
@@ -35,13 +29,30 @@ import AISalesAdvisor from './components/ai/AISalesAdvisor';
 import AdminRoute from './components/common/AdminRoute';
 import ScrollToTop from './components/common/ScrollToTop';
 
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminOrders = lazy(() => import('./pages/AdminOrders'));
+const AdminProducts = lazy(() => import('./pages/AdminProducts'));
+const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
+const AdminConsultationRequests = lazy(() => import('./pages/AdminConsultationRequests'));
+const AdminPromotions = lazy(() => import('./pages/AdminPromotions'));
+const StoreSystem = lazy(() => import('./pages/StoreSystem'));
+const SpaceInspiration = lazy(() => import('./pages/SpaceInspiration'));
+const FeaturedProjects = lazy(() => import('./pages/FeaturedProjects'));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
+const About = lazy(() => import('./pages/About'));
+const BlogDetail = lazy(() => import('./pages/BlogDetail'));
+
+function RouteFallback() {
+  return <div className="min-h-screen bg-white" role="status" aria-live="polite" />;
+}
 function AppContent() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
     <>
-      <Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/:id" element={<ProductDetail />} />
@@ -73,7 +84,8 @@ function AppContent() {
         <Route path="/blogs/:slug" element={<BlogDetail />} />
         <Route path="/profile" element={<CustomerProfile />} />
         <Route path="/profile/orders/:id" element={<CustomerOrderPage />} />
-      </Routes>
+        </Routes>
+      </Suspense>
       {!isAdminRoute && (
         <>
           <FloatingButtons />

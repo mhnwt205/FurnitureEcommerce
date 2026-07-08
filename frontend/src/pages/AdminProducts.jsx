@@ -5,6 +5,7 @@ import { categoryService } from '../services/api/categoryService';
 import { uploadService } from '../services/api/uploadService';
 import AdminLayout from '../layouts/AdminLayout';
 import { getStaticFileUrl } from '../utils/imageUtils';
+import { formatPrice } from '../utils/formatters';
 
 export default function AdminProducts() {
   const navigate = useNavigate();
@@ -131,10 +132,6 @@ export default function AdminProducts() {
   const handleCategoryChange = (e) => {
     setCategoryFilter(e.target.value);
     setPage(1);
-  };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
   // getStaticFileUrl imported from utils

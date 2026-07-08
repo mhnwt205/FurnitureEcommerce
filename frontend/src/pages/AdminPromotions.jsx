@@ -1,29 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
+import AdminTable from '../components/admin/AdminTable';
 import { promotionService } from '../services/api/promotionService';
 import { productService } from '../services/api/productService';
 import { categoryService } from '../services/api/categoryService';
+import { formatCurrencyNoFraction as formatMoney } from '../utils/formatters';
+import { formatDateTime } from '../utils/date';
+import { PROMOTION_STATUS_OPTIONS as STATUS_OPTIONS, PROMOTION_STATUS_CLASSES as STATUS_CLASSES, getPromotionStatusLabel as getStatusLabel } from '../utils/statusMaps';
 
 const DISCOUNT_TYPES = [
   { value: 'percentage', label: 'Phần trăm' },
   { value: 'fixed_amount', label: 'Số tiền cố định' }
 ];
-
-const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Bản nháp' },
-  { value: 'scheduled', label: 'Đã lên lịch' },
-  { value: 'active', label: 'Đang hoạt động' },
-  { value: 'expired', label: 'Đã hết hạn' },
-  { value: 'disabled', label: 'Đã tắt' }
-];
-
-const STATUS_CLASSES = {
-  draft: 'bg-slate-100 text-slate-700 border-slate-200',
-  scheduled: 'bg-blue-100 text-blue-700 border-blue-200',
-  active: 'bg-green-100 text-green-700 border-green-200',
-  expired: 'bg-amber-100 text-amber-700 border-amber-200',
-  disabled: 'bg-red-100 text-red-700 border-red-200'
-};
 
 const initialForm = () => {
   const now = new Date();
@@ -43,19 +31,6 @@ const initialForm = () => {
   };
 };
 
-const formatMoney = (value) => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-  maximumFractionDigits: 0
-}).format(Number(value || 0));
-
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleString('vi-VN');
-};
-
 function toDateTimeLocal(value) {
   if (!value) return '';
   const date = new Date(value);
@@ -66,7 +41,6 @@ function toDateTimeLocal(value) {
 
 const toIsoString = (value) => value ? new Date(value).toISOString() : null;
 
-const getStatusLabel = (status) => STATUS_OPTIONS.find(item => item.value === status)?.label || status || '-';
 
 const getPriorityLabel = (priority) => {
   const value = Number(priority || 0);
@@ -377,8 +351,7 @@ export default function AdminPromotions() {
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         <div className="overflow-hidden rounded-xl border border-surface-beige bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1280px] table-fixed text-left text-sm">
+          <AdminTable className="min-w-[1280px] table-fixed text-left text-sm">
               <thead className="bg-surface-beige/60 text-xs uppercase tracking-wider text-on-surface-variant">
                 <tr>
                   <th className="w-[250px] px-4 py-3">Tên</th>
@@ -411,8 +384,8 @@ export default function AdminPromotions() {
                       <td className="px-4 py-3 text-right font-semibold text-accent-terracotta">{renderDiscount(promotion)}</td>
                       <td className="px-4 py-3 text-center"><span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${STATUS_CLASSES[promotion.status] || STATUS_CLASSES.draft}`}>{getStatusLabel(promotion.status)}</span></td>
                       <td className="px-4 py-3 text-center"><span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${runtime.className}`}>{runtime.label}</span></td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(promotion.startAt)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(promotion.endAt)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(promotion.startAt, '-')}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(promotion.endAt, '-')}</td>
                       <td className="px-4 py-3 text-center">{promotion._count?.promotionProducts ?? promotion.promotionProducts?.length ?? 0}</td>
                       <td className="px-4 py-3 text-center">{promotion._count?.promotionCategories ?? promotion.promotionCategories?.length ?? 0}</td>
                       <td className="px-4 py-3 text-center"><span className="whitespace-nowrap text-xs font-semibold text-primary">{getPriorityLabel(promotion.priority)}</span></td>
@@ -427,8 +400,7 @@ export default function AdminPromotions() {
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+          </AdminTable>
           <div className="flex items-center justify-between border-t border-surface-beige px-4 py-3 text-sm text-on-surface-variant">
             <span>Tổng: {totalItems}</span>
             <div className="flex items-center gap-2">
