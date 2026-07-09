@@ -11,6 +11,11 @@ const dashboardService = {
 
   getWidgets: async () => {
     return await apiClient('/dashboard/widgets', { method: 'GET' });
+  },
+
+  getRevenue: async ({ from, to }) => {
+    const query = new URLSearchParams({ from, to }).toString();
+    return await apiClient(`/dashboard/revenue?${query}`, { method: 'GET' });
   }
 };
 
