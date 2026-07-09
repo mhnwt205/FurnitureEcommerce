@@ -321,21 +321,34 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: 'Bắt buộc nhập lý do hủy đơn hàng' });
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: { 
-        status,
-        statusHistory: {
-          create: {
-            fromStatus: currentStatus,
-            toStatus: status,
-            note: note || '',
-            cancelReason: status === 'cancelled' ? cancelReason : null,
-            changedById: userId,
-            changedByName: userName
+    const updateData = {
+      status,
+      statusHistory: {
+        create: {
+          fromStatus: currentStatus,
+          toStatus: status,
+          note: note || '',
+          cancelReason: status === 'cancelled' ? cancelReason : null,
+          changedById: userId,
+          changedByName: userName
+        }
+      }
+    };
+
+    if (order.paymentMethod === 'COD') {
+      if (status === 'delivered') {
+        if (order.paymentStatus !== 'paid') {
+          if (order.paymentStatus !== 'refunded') {
+            updateData.paymentStatus = 'paid';
+            updateData.paidAt = new Date();
           }
         }
-      },
+      }
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: updateData,
       include: {
         statusHistory: { orderBy: { createdAt: 'desc' } }
       }

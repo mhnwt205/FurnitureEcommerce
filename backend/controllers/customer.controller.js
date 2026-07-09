@@ -91,7 +91,8 @@ export const getCustomers = async (req, res) => {
             select: {
               id: true,
               totalAmount: true,
-              status: true
+              status: true,
+              paymentStatus: true
             }
           },
           _count: {
@@ -107,7 +108,7 @@ export const getCustomers = async (req, res) => {
     const formattedCustomers = customers.map(c => {
       const orderCount = c.orders.length;
       const totalSpend = c.orders
-        .filter(o => o.status !== 'cancelled')
+        .filter(o => o.paymentStatus === 'paid')
         .reduce((sum, o) => sum + Number(o.totalAmount), 0);
       
       const { orders, _count, ...customerData } = c;
@@ -191,9 +192,9 @@ export const getCustomerById = async (req, res) => {
     }
 
     const totalOrders = customer.orders.length;
-    const completedOrders = customer.orders.filter(o => o.status !== 'cancelled');
-    const totalSpent = completedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
-    const averageOrderValue = completedOrders.length > 0 ? totalSpent / completedOrders.length : 0;
+    const paidOrders = customer.orders.filter(o => o.paymentStatus === 'paid');
+    const totalSpent = paidOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
+    const averageOrderValue = paidOrders.length > 0 ? totalSpent / paidOrders.length : 0;
     const latestOrderDate = customer.orders.length > 0 ? customer.orders[0].createdAt : null;
     const wishlistCount = customer._count?.wishlists || 0;
     
