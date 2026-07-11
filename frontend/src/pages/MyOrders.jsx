@@ -7,6 +7,7 @@ import { paymentService } from '../services/api/paymentService';
 import { getStaticFileUrl } from '../utils/imageUtils';
 import { formatPrice } from '../utils/formatters';
 import { getCustomerOrderListStatusBadge as getStatusLabel, getCustomerPaymentStatusBadge as getPaymentStatusBadge } from '../utils/statusMaps';
+import { useAuth } from '../context/AuthContext';
 
 function ItemImage({ src, alt }) { if (!src) return <div className="flex h-full w-full items-center justify-center bg-[#f3f3f1] text-[#999999]"><span className="material-symbols-outlined text-2xl">inventory_2</span></div>; return <img src={src} alt={alt} className="h-full w-full object-cover" />; }
 
@@ -18,6 +19,7 @@ export default function MyOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(null);
+  const { authStatus, isAuthenticated, refreshSession } = useAuth();
 
   const handlePayAgain = async (orderId) => {
     try {
@@ -31,11 +33,10 @@ export default function MyOrders() {
   };
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    if (!userStr || !token) { navigate('/login'); return; }
+    if (authStatus === 'initializing' || authStatus === 'unavailable') return;
+    if (!isAuthenticated) { navigate('/login'); return; }
     fetchMyOrders();
-  }, [navigate]);
+  }, [authStatus, isAuthenticated, navigate]);
 
   const fetchMyOrders = async () => {
     try { setLoading(true); const data = await orderService.getMyOrders(); setOrders(data); }
@@ -50,6 +51,30 @@ export default function MyOrders() {
   };
   const handleCloseDetail = () => { setSelectedOrder(null); setIsModalOpen(false); };
 
+  if (authStatus === 'initializing') {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#f7f7f5]"><Header />
+        <main className="mx-auto w-full max-w-[1200px] flex-grow px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+          <div className="space-y-4">{[0, 1, 2].map(item => <div key={item} className="ui-skeleton h-28 rounded-[12px]" />)}</div>
+        </main><Footer />
+      </div>
+    );
+  }
+
+  if (authStatus === 'unavailable') {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#f7f7f5]"><Header />
+        <main className="mx-auto w-full max-w-[760px] flex-grow px-4 py-16 text-center sm:px-6 lg:px-8">
+          <div className="rounded-[12px] border border-[#e5e5e5] bg-white p-8">
+            <span className="material-symbols-outlined text-5xl text-[#999999]">cloud_off</span>
+            <h1 className="mt-4 text-xl font-bold text-[#333333]">Khong the xac minh phien</h1>
+            <p className="mt-2 text-sm leading-6 text-[#777777]">Vui long thu lai khi ket noi toi may chu on dinh.</p>
+            <button type="button" onClick={refreshSession} className="ui-button-primary mt-5 inline-flex px-5 py-2.5 text-sm">Thu lai</button>
+          </div>
+        </main><Footer />
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f7f5]"><Header />
       <main className="mx-auto w-full max-w-[1200px] flex-grow px-4 py-8 sm:px-6 lg:px-8 lg:py-12">

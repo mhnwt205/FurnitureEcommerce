@@ -1,56 +1,51 @@
-import apiClient from './apiClient';
+import apiClient, { refreshAccessToken } from './apiClient.js';
 
 export const authService = {
-  login: async (credentials) => {
-    const data = await apiClient('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
-    return data;
-  },
-  googleLogin: async (credential) => {
-    const data = await apiClient('/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ credential }),
-    });
-    return data;
-  },
-  register: async (userData) => {
-    const data = await apiClient('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-    return data;
-  },
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  },
-  verifyEmail: async (token) => {
-    const data = await apiClient(`/auth/verify-email?token=${token}`, {
-      method: 'GET'
-    });
-    return data;
-  },
-  changePassword: async (passwordData) => {
-    const data = await apiClient('/auth/change-password', {
-      method: 'PUT',
-      body: JSON.stringify(passwordData),
-    });
-    return data;
-  },
-  forgotPassword: async (email) => {
-    const data = await apiClient('/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-    return data;
-  },
-  resetPassword: async (resetData) => {
-    const data = await apiClient('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify(resetData),
-    });
-    return data;
-  }
+  login: (credentials) => apiClient('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials)
+  }),
+
+  googleLogin: (credential) => apiClient('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ credential })
+  }),
+
+  refresh: () => refreshAccessToken(),
+
+  logout: () => apiClient('/auth/logout', {
+    method: 'POST'
+  }),
+
+  logoutAll: () => apiClient('/auth/logout-all', {
+    method: 'POST'
+  }),
+
+  me: () => apiClient('/auth/me', {
+    method: 'GET'
+  }),
+
+  register: (userData) => apiClient('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(userData)
+  }),
+
+  verifyEmail: (token) => apiClient(`/auth/verify-email?token=${token}`, {
+    method: 'GET'
+  }),
+
+  changePassword: (passwordData) => apiClient('/auth/change-password', {
+    method: 'PUT',
+    body: JSON.stringify(passwordData)
+  }),
+
+  forgotPassword: (email) => apiClient('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  }),
+
+  resetPassword: (resetData) => apiClient('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(resetData)
+  })
 };

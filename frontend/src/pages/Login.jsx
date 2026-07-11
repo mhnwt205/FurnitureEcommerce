@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { authService } from '../services/api/authService';
+import { useAuth } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -15,6 +16,7 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { setSession } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -28,12 +30,7 @@ export default function Login() {
     setIsLoading(true);
     try {
       const response = await authService.googleLogin(credentialResponse.credential);
-      // Save token and user info
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-
-      // Dispatch a custom event to notify Header of auth change
-      window.dispatchEvent(new Event('auth-change'));
+      setSession(response);
 
       if (response.user && (response.user.role === 'admin' || response.user.role === 'staff')) {
         navigate('/admin/dashboard');
@@ -58,12 +55,7 @@ export default function Login() {
 
     try {
       const response = await authService.login(formData);
-      // Save token and user info
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-
-      // Dispatch a custom event to notify Header of auth change
-      window.dispatchEvent(new Event('auth-change'));
+      setSession(response);
 
       if (response.user && (response.user.role === 'admin' || response.user.role === 'staff')) {
         navigate('/admin/dashboard');

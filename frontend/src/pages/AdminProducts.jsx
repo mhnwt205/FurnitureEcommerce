@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { productService } from '../services/api/productService';
 import { categoryService } from '../services/api/categoryService';
 import { uploadService } from '../services/api/uploadService';
@@ -8,7 +7,6 @@ import { getStaticFileUrl } from '../utils/imageUtils';
 import { formatPrice } from '../utils/formatters';
 
 export default function AdminProducts() {
-  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [apiCategories, setApiCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,14 +55,8 @@ export default function AdminProducts() {
   const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      navigate('/login');
-      return;
-    }
-
     fetchInitialData();
-  }, [navigate]);
+  }, []);
 
   const fetchInitialData = async () => {
     try {

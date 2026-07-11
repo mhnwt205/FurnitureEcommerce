@@ -1,26 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { authService } from '../../services/api/authService';
+import { useAuth } from '../../context/AuthContext';
 
 export default function CustomerProfileLayout() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, isChecking, isAuthenticated, isUnavailable, logout } = useAuth();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
+    if (!isChecking && !isUnavailable && !isAuthenticated) {
       navigate('/login');
-    } else {
-      setUser(JSON.parse(storedUser));
     }
-  }, [navigate]);
+  }, [isChecking, isUnavailable, isAuthenticated, navigate]);
 
-  const handleLogout = () => {
-    authService.logout();
-    window.dispatchEvent(new Event('auth-change'));
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
+  if (isChecking) return null;
+  if (isUnavailable) return <main className="pt-8 pb-section-gap px-margin-desktop max-w-container-max mx-auto min-h-screen mt-8 text-center text-sm text-on-surface-variant">Khong the xac minh phien dang nhap. Vui long thu lai sau.</main>;
   if (!user) return null;
 
   return (

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { wishlistService } from '../../services/api/wishlistService';
+import { useAuth } from '../../context/AuthContext';
 
 export default function WishlistButton({ productId, initialIsActive = false, className, iconClassName }) {
   const [isActive, setIsActive] = useState(initialIsActive);
   const [loading, setLoading] = useState(false);
+  const { authStatus, isAuthenticated } = useAuth();
 
   useEffect(() => {
     setIsActive(initialIsActive);
@@ -12,9 +14,9 @@ export default function WishlistButton({ productId, initialIsActive = false, cla
   const handleToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (authStatus === 'initializing') return;
 
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated) {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Vui lòng đăng nhập để thêm sản phẩm yêu thích.', type: 'error' } }));
       return;
     }
