@@ -5,6 +5,7 @@ import Footer from '../components/common/Footer';
 import { productService } from '../services/api/productService';
 import ScrollReveal from '../components/common/ScrollReveal';
 import { wishlistService } from '../services/api/wishlistService';
+import { useAuth } from '../context/AuthContext';
 import {
   CustomerProductCard,
   LoadingProductGrid,
@@ -134,11 +135,14 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wishlistIds, setWishlistIds] = useState([]);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const fetchWishlistIds = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!isAuthenticated) {
+        setWishlistIds([]);
+        return;
+      }
 
       try {
         const res = await wishlistService.getWishlistIds();
@@ -149,7 +153,7 @@ export default function Home() {
     };
 
     fetchWishlistIds();
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const fetchProducts = async () => {

@@ -1,5 +1,5 @@
-import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { Suspense, lazy, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
@@ -28,6 +28,7 @@ import FloatingButtons from './components/common/FloatingButtons';
 import AISalesAdvisor from './components/ai/AISalesAdvisor';
 import AdminRoute from './components/common/AdminRoute';
 import ScrollToTop from './components/common/ScrollToTop';
+import { useAuth } from './context/AuthContext';
 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
@@ -44,6 +45,32 @@ const BlogDetail = lazy(() => import('./pages/BlogDetail'));
 
 function RouteFallback() {
   return <div className="min-h-screen bg-white" role="status" aria-live="polite" />;
+}
+
+const protectedExactPaths = new Set(['/checkout', '/my-orders']);
+const protectedPathPrefixes = ['/admin', '/profile'];
+
+const isProtectedPath = (pathname) => (
+  protectedExactPaths.has(pathname) ||
+  protectedPathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+);
+
+function AuthRedirectBoundary() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { authStatus } = useAuth();
+
+  useEffect(() => {
+    if (authStatus !== 'unauthenticated') return;
+    if (!isProtectedPath(location.pathname)) return;
+
+    navigate('/login', {
+      replace: true,
+      state: { from: location }
+    });
+  }, [authStatus, location, navigate]);
+
+  return null;
 }
 function AppContent() {
   const location = useLocation();
@@ -103,6 +130,7 @@ function App() {
     <Router>
       <ScrollToTop />
       <Toast />
+      <AuthRedirectBoundary />
       <AppContent />
     </Router>
   );

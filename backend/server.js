@@ -20,6 +20,7 @@ import aiAdvisorRoutes from './routes/aiAdvisor.routes.js';
 import consultationRequestRoutes from './routes/consultationRequest.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
+import { isAllowedOrigin } from './utils/originPolicy.js';
 
 dotenv.config();
 
@@ -29,15 +30,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 5000;
 
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
+const trustProxyHops = Number.parseInt(process.env.TRUST_PROXY_HOPS || '1', 10);
+if (process.env.NODE_ENV === 'production' && Number.isSafeInteger(trustProxyHops) && trustProxyHops >= 0) {
+  app.set('trust proxy', trustProxyHops);
+}
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
@@ -71,11 +72,11 @@ app.use('/api/promotions', promotionRoutes);
 // Error Handling Middleware
 app.use((err, req, res, next) => {
   if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({ message: 'Forbidden', error: 'Origin not allowed by CORS' });
+    return res.status(403).json({ message: 'Origin not allowed by CORS' });
   }
   
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
+  console.error('Unhandled request error', { method: req.method, path: req.path, name: err?.name });
+  res.status(500).json({ message: 'Something went wrong. Please try again later.' });
 });
 
 app.listen(port, () => {

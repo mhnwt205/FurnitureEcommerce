@@ -5,6 +5,7 @@ import { orderService } from '../services/api/orderService';
 import { paymentService } from '../services/api/paymentService';
 import { getProductImage } from '../utils/imageUtils';
 import { formatPrice } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 
 const copy = {
   brand: 'Heritage Home',
@@ -117,6 +118,7 @@ function PaymentOption({ value, title, description, paymentMethod, onChange }) {
 export default function Checkout() {
   const navigate = useNavigate();
   const { cartItems, cartCount, cartTotal, getCartItemUnitPrice, refreshCartPricing, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { user: currentUser, authStatus, isAuthenticated, refreshSession } = useAuth();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -130,7 +132,6 @@ export default function Checkout() {
   const [error, setError] = useState(null);
   const [refreshingPricing, setRefreshingPricing] = useState(false);
   const [pricingWarning, setPricingWarning] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
 
   const hasItemDiscount = cartItems.some(item => {
     const basePrice = Number(item.originalPrice ?? item.price ?? 0);
@@ -139,8 +140,9 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (authStatus === 'initializing' || authStatus === 'unavailable') return;
+
+    if (!isAuthenticated) {
       navigate('/login');
       return;
     }
@@ -158,21 +160,16 @@ export default function Checkout() {
     };
     refreshPricing();
 
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setCurrentUser(user);
-        setFormData(prev => ({
-          ...prev,
-          fullName: user.fullName || '',
-          email: user.email || '',
-          phone: user.phone || '',
-          address: user.address || ''
-        }));
-      } catch (e) {}
+    if (currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: currentUser.fullName || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        address: currentUser.address || ''
+      }));
     }
-  }, [navigate]);
+  }, [authStatus, isAuthenticated, currentUser, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -236,6 +233,43 @@ export default function Checkout() {
     }
   };
 
+  if (authStatus === 'initializing') {
+    return (
+      <main className="min-h-screen bg-[#f6f6f6] px-4 py-6 text-[#333333]">
+        <div className="mx-auto w-full max-w-[980px]">
+          <div className="mb-8 flex items-center justify-between">
+            <Link to="/" className="text-[24px] font-bold tracking-[-0.02em] text-[#333333]">{copy.brand}</Link>
+            <Link to="/products" className="text-[13px] font-semibold text-[#666666] transition-colors hover:text-[#333333]">{copy.backStore}</Link>
+          </div>
+          <section className="mx-auto mt-20 w-full max-w-[460px] rounded-[12px] border border-[#e5e5e5] bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#dddddd] border-t-[#333333]" />
+            <p className="mt-5 text-[14px] font-semibold text-[#333333]">Dang xac minh phien dang nhap...</p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (authStatus === 'unavailable') {
+    return (
+      <main className="min-h-screen bg-[#f6f6f6] px-4 py-6 text-[#333333]">
+        <div className="mx-auto w-full max-w-[980px]">
+          <div className="mb-8 flex items-center justify-between">
+            <Link to="/" className="text-[24px] font-bold tracking-[-0.02em] text-[#333333]">{copy.brand}</Link>
+            <Link to="/products" className="text-[13px] font-semibold text-[#666666] transition-colors hover:text-[#333333]">{copy.backStore}</Link>
+          </div>
+          <section className="mx-auto mt-20 w-full max-w-[460px] rounded-[12px] border border-[#e5e5e5] bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <span className="material-symbols-outlined text-[40px] text-[#999999]">cloud_off</span>
+            <h1 className="mt-5 text-[20px] font-bold text-[#333333]">Khong the xac minh phien</h1>
+            <p className="mt-2 text-[13px] leading-6 text-[#777777]">Vui long thu lai khi ket noi toi may chu on dinh.</p>
+            <button type="button" onClick={refreshSession} className="mt-6 inline-flex h-10 items-center justify-center rounded-[6px] bg-[#333333] px-5 text-[13px] font-bold text-white hover:bg-[#111111]">
+              Thu lai
+            </button>
+          </section>
+        </div>
+      </main>
+    );
+  }
   if (cartItems.length === 0) {
     return (
       <main className="min-h-screen bg-[#f6f6f6] px-4 py-6 text-[#333333]">

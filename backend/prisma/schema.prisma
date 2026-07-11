@@ -38,6 +38,28 @@ model User {
   notifications            Notification[]      @relation("UserNotifications")
   actorNotifications       Notification[]      @relation("ActorNotifications")
   createdPromotions        Promotion[]         @relation("PromotionCreatedBy")
+  refreshSessions          RefreshSession[]
+}
+
+model RefreshSession {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  tokenHash         String    @unique @db.VarChar(255)
+  familyId          String    @db.VarChar(255)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastUsedAt        DateTime?
+  userAgent         String?   @db.NVarChar(512)
+  ipAddressHash     String?   @db.VarChar(255)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model Permission {

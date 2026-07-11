@@ -4,11 +4,13 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import Skeleton from '../../components/ui/Skeleton';
+import { useAuth } from '../../context/AuthContext';
 
 export default function PersonalInfo() {
   const [profile, setProfile] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ fullName: '', phone: '' });
+  const { updateCurrentUser } = useAuth();
 
   useEffect(() => { fetchProfile(); }, []);
 
@@ -27,12 +29,7 @@ export default function PersonalInfo() {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Cập nhật thông tin thành công', type: 'success' }}));
       setIsEditing(false);
       fetchProfile();
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (user) {
-        user.fullName = formData.fullName;
-        localStorage.setItem('user', JSON.stringify(user));
-        window.dispatchEvent(new Event('auth-change'));
-      }
+      updateCurrentUser(formData);
     } catch (error) {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Có lỗi xảy ra', type: 'error' }}));
     }

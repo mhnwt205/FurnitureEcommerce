@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { orderService } from '../services/api/orderService';
 import AdminLayout from '../layouts/AdminLayout';
 import AdminTable from '../components/admin/AdminTable';
@@ -8,7 +7,6 @@ import { formatPrice } from '../utils/formatters';
 import { ADMIN_ORDER_STATUS_CLASSES as statusColors, ADMIN_ORDER_STATUS_LABELS as statusLabels, getAdminPaymentStatusBadge as getPaymentStatusBadge } from '../utils/statusMaps';
 
 export default function AdminOrders() {
-  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,16 +25,7 @@ export default function AdminOrders() {
   // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      navigate('/login');
-      return;
-    }
-  }, [navigate]);
-
-  useEffect(() => {
+useEffect(() => {
     fetchOrders();
   }, [page, limit, search, statusFilter, customerId]);
 

@@ -4,6 +4,7 @@ import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import { productService } from '../services/api/productService';
 import { wishlistService } from '../services/api/wishlistService';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../hooks/useCart';
 import { getProductImages } from '../utils/imageUtils';
 import ScrollReveal from '../components/common/ScrollReveal';
@@ -224,6 +225,7 @@ export default function ProductList() {
   const [products, setProducts] = useState([]);
   const [wishlistIds, setWishlistIds] = useState([]);
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -255,20 +257,22 @@ export default function ProductList() {
 
   useEffect(() => {
     const fetchWishlistIds = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const res = await wishlistService.getWishlistIds();
-          if (res && res.ids) {
-            setWishlistIds(res.ids);
-          }
-        } catch (error) {
-          console.error('Failed to fetch wishlist ids', error);
+      if (!isAuthenticated) {
+        setWishlistIds([]);
+        return;
+      }
+
+      try {
+        const res = await wishlistService.getWishlistIds();
+        if (res && res.ids) {
+          setWishlistIds(res.ids);
         }
+      } catch (error) {
+        console.error('Failed to fetch wishlist ids', error);
       }
     };
     fetchWishlistIds();
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const fetchProducts = async () => {

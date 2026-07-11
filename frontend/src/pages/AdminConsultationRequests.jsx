@@ -4,6 +4,7 @@ import AdminTable from '../components/admin/AdminTable';
 import { consultationRequestService } from '../services/api/consultationRequestService';
 import { formatShortDateTime as formatDateTime } from '../utils/date';
 import { CONSULTATION_STATUS_OPTIONS as STATUS_OPTIONS, CONSULTATION_STATUS_CLASSES as STATUS_CLASSES, getConsultationStatusLabel as getStatusLabel } from '../utils/statusMaps';
+import { useAuth } from '../context/AuthContext';
 
 const SkeletonRows = () => (
   <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(93,64,55,0.05)] overflow-hidden">
@@ -47,26 +48,10 @@ export default function AdminConsultationRequests() {
   const [assignees, setAssignees] = useState([]);
   const [assigneesLoading, setAssigneesLoading] = useState(true);
   const [assigneesError, setAssigneesError] = useState('');
+  const { user: currentUser } = useAuth();
 
-  const currentUser = (() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || 'null');
-    } catch (error) {
-      return null;
-    }
-  })();
-  const tokenRole = (() => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return '';
-      const payload = JSON.parse(atob(token.split('.')[1] || ''));
-      return payload?.role || '';
-    } catch (error) {
-      return '';
-    }
-  })();
   const permissions = currentUser?.userPermissions?.map(item => item.permission?.key || item.key).filter(Boolean) || [];
-  const isAdminUser = String(currentUser?.role || tokenRole).toLowerCase() === 'admin';
+  const isAdminUser = String(currentUser?.role || '').toLowerCase() === 'admin';
   const canAssignConsultation = isAdminUser;
   const canUpdateConsultation = isAdminUser || permissions.includes('consultation.update');
   const normalizedAssigneeId = selectedConsultation?.assignedStaffId ? String(selectedConsultation.assignedStaffId) : '';

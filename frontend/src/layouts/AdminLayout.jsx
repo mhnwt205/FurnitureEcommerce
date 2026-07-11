@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { notificationService } from '../services/api/notificationService';
+import { useAuth } from '../context/AuthContext';
 
 const NOTIFICATION_POLL_INTERVAL_MS = 45000;
 
@@ -47,18 +48,15 @@ export default function AdminLayout({ children }) {
   const [notificationsError, setNotificationsError] = useState('');
   const [unreadLoading, setUnreadLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  const { user, logout } = useAuth();
 
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
   const fetchUnreadCount = useCallback(async () => {
-    if (!localStorage.getItem('token')) {
+    if (!user) {
       setUnreadCount(0);
       return;
     }
@@ -75,7 +73,7 @@ export default function AdminLayout({ children }) {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
-    if (!localStorage.getItem('token')) {
+    if (!user) {
       setNotifications([]);
       setNotificationsError('Vui lòng đăng nhập để xem thông báo.');
       return;

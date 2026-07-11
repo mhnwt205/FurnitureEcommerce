@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { authService } from '../../services/api/authService';
 import Header from '../../components/common/Header';
 import Footer from '../../components/common/Footer';
 import PersonalInfo from './PersonalInfo';
@@ -9,6 +8,7 @@ import OrderDetail from './OrderDetail';
 import Wishlist from './Wishlist';
 import AddressBook from './AddressBook';
 import ChangePassword from './ChangePassword';
+import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
   { tab: 'info', icon: 'person', label: 'Thông tin cá nhân' },
@@ -21,23 +21,21 @@ const navItems = [
 export default function CustomerProfile() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [user, setUser] = useState(null);
+  const { user, isChecking, isAuthenticated, isUnavailable, logout } = useAuth();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
+    if (!isChecking && !isUnavailable && !isAuthenticated) {
       navigate('/login');
-    } else {
-      setUser(JSON.parse(storedUser));
     }
-  }, [navigate]);
+  }, [isChecking, isUnavailable, isAuthenticated, navigate]);
 
-  const handleLogout = () => {
-    authService.logout();
-    window.dispatchEvent(new Event('auth-change'));
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
+  if (isChecking) return null;
+  if (isUnavailable) return <div className="min-h-screen bg-[#f7f7f5] p-8 text-center text-sm text-[#666666]">Khong the xac minh phien dang nhap. Vui long thu lai sau.</div>;
   if (!user) return null;
 
   const currentTab = searchParams.get('tab') || 'info';

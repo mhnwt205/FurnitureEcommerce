@@ -7,6 +7,7 @@ import { categoryService } from '../services/api/categoryService';
 import { formatCurrencyNoFraction as formatMoney } from '../utils/formatters';
 import { formatDateTime } from '../utils/date';
 import { PROMOTION_STATUS_OPTIONS as STATUS_OPTIONS, PROMOTION_STATUS_CLASSES as STATUS_CLASSES, getPromotionStatusLabel as getStatusLabel } from '../utils/statusMaps';
+import { useAuth } from '../context/AuthContext';
 
 const DISCOUNT_TYPES = [
   { value: 'percentage', label: 'Phần trăm' },
@@ -62,24 +63,21 @@ const getRuntimeState = (promotion) => {
 
 const getProductPrice = (product) => Number(product.finalPrice ?? product.displayPrice ?? product.price ?? 0);
 
-const getUserPermissions = () => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const permissions = user?.userPermissions?.map(item => item.permission?.key || item.key).filter(Boolean) || [];
-    return {
-      role: user?.role,
-      canView: user?.role === 'admin' || permissions.includes('promotion.view'),
-      canCreate: user?.role === 'admin' || permissions.includes('promotion.create'),
-      canUpdate: user?.role === 'admin' || permissions.includes('promotion.update'),
-      canDelete: user?.role === 'admin' || permissions.includes('promotion.delete')
-    };
-  } catch (error) {
-    return { role: null, canView: false, canCreate: false, canUpdate: false, canDelete: false };
-  }
+const getUserPermissions = (user) => {
+  const permissions = user?.userPermissions?.map(item => item.permission?.key || item.key).filter(Boolean) || [];
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
+  return {
+    role: user?.role,
+    canView: isAdmin || permissions.includes('promotion.view'),
+    canCreate: isAdmin || permissions.includes('promotion.create'),
+    canUpdate: isAdmin || permissions.includes('promotion.update'),
+    canDelete: isAdmin || permissions.includes('promotion.delete')
+  };
 };
 
 export default function AdminPromotions() {
-  const permissions = useMemo(() => getUserPermissions(), []);
+  const { user } = useAuth();
+  const permissions = useMemo(() => getUserPermissions(user), [user]);
   const [promotions, setPromotions] = useState([]);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);

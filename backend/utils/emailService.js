@@ -90,12 +90,12 @@ export const sendVerificationEmail = async (toEmail, token) => {
       console.log(`Verification email sent to ${toEmail}`);
       return 'SMTP_MODE';
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('Verification email delivery failed.');
       throw new Error(`L\u1ED7i g\u1EEDi email x\u00E1c th\u1EF1c: ${error.message}`);
     }
   } else {
     console.log(`[EmailService] Running in DEV MODE`);
-    console.log(`[EmailService] Verification Link for ${toEmail}: ${verifyUrl}`);
+    console.log('[EmailService] Verification email generated in DEV MODE.');
     return 'DEV_MODE';
   }
 };
@@ -125,12 +125,12 @@ export const sendPasswordResetEmail = async (toEmail, token) => {
       console.log(`Password reset email sent to ${toEmail}`);
       return 'SMTP_MODE';
     } catch (error) {
-      console.error('Error sending password reset email:', error);
+      console.error('Password reset email delivery failed.');
       throw new Error(`L\u1ED7i g\u1EEDi email \u0111\u1EB7t l\u1EA1i m\u1EADt kh\u1EA9u: ${error.message}`);
     }
   } else {
     console.log(`[EmailService] Running in DEV MODE for Password Reset`);
-    console.log(`\n\n=== PASSWORD RESET LINK ===\nPassword reset link for ${toEmail}: ${resetUrl}\n===========================\n\n`);
+    console.log('[EmailService] Password reset email generated in DEV MODE.');
     return 'DEV_MODE';
   }
 };

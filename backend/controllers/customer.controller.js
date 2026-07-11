@@ -13,6 +13,14 @@ export const getMyProfile = async (req, res) => {
         role: true,
         isActive: true,
         createdAt: true,
+        provider: true,
+        userPermissions: {
+          select: {
+            permission: {
+              select: { key: true }
+            }
+          }
+        }
       }
     });
     if (!customer) return res.status(404).json({ message: 'User not found' });
