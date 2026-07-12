@@ -206,3 +206,26 @@ export const sendConsultationAdminNotificationEmail = async (toEmail, data) => {
     context: 'admin notification',
   });
 };
+
+export const sendTransactionalEmail = async ({ to, subject, html, text }) => {
+  if (!to) {
+    return 'SKIPPED_NO_RECIPIENT';
+  }
+
+  if (isDevMode()) {
+    return 'DEV_MODE';
+  }
+
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"FurnitureEcommerce" <noreply@furniture.com>',
+    to,
+    subject,
+    html,
+    text,
+  });
+
+  return 'SMTP_MODE';
+};
+
+export { escapeHtml };

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+﻿import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
@@ -6,13 +6,14 @@ import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
 import PaymentResult from './pages/PaymentResult';
+import OrderLookup from './pages/OrderLookup';
+import GuestOrderManage from './pages/GuestOrderManage';
 
 import AdminCategories from './pages/AdminCategories';
 
 import AdminAccounts from './pages/AdminAccounts';
 import AdminReviews from './pages/AdminReviews';
 
-import MyOrders from './pages/MyOrders';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
@@ -47,7 +48,7 @@ function RouteFallback() {
   return <div className="min-h-screen bg-white" role="status" aria-live="polite" />;
 }
 
-const protectedExactPaths = new Set(['/checkout', '/my-orders']);
+const protectedExactPaths = new Set();
 const protectedPathPrefixes = ['/admin', '/profile'];
 
 const isProtectedPath = (pathname) => (
@@ -86,7 +87,8 @@ function AppContent() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/payment-result" element={<PaymentResult />} />
-        <Route path="/my-orders" element={<MyOrders />} />
+        <Route path="/orders/lookup" element={<OrderLookup />} />
+        <Route path="/orders/manage" element={<GuestOrderManage />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/admin/dashboard" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="dashboard.view"><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/orders" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="order.view"><AdminOrders /></AdminRoute>} />
@@ -110,6 +112,7 @@ function AppContent() {
         <Route path="/inspirations" element={<SpaceInspiration />} />
         <Route path="/blogs/:slug" element={<BlogDetail />} />
         <Route path="/profile" element={<CustomerProfile />} />
+        <Route path="/profile/orders" element={<CustomerProfile />} />
         <Route path="/profile/orders/:id" element={<CustomerOrderPage />} />
         </Routes>
       </Suspense>

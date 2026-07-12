@@ -1,4 +1,4 @@
-export const CUSTOMER_ORDER_STATUS_STYLES = {
+﻿export const CUSTOMER_ORDER_STATUS_STYLES = {
   pending: 'bg-[#fbf3db] text-[#956400] border-[#f1dfb5]',
   confirmed: 'bg-[#e1f3fe] text-[#1f6c9f] border-[#c8e6f6]',
   preparing: 'bg-[#f3eef8] text-[#6e4b86] border-[#e6d9ee]',
@@ -12,8 +12,8 @@ export const CUSTOMER_ORDER_STATUS_LABELS = {
   pending: 'Chờ xác nhận',
   confirmed: 'Đã xác nhận',
   preparing: 'Đang chuẩn bị',
-  shipping: 'Đang giao',
-  delivered: 'Đã giao',
+  shipping: 'Đang giao hàng',
+  delivered: 'Đã giao hàng',
   completed: 'Hoàn thành',
   cancelled: 'Đã hủy'
 };
@@ -35,7 +35,7 @@ export const CUSTOMER_PAYMENT_STATUS_STYLES = {
 export const PAYMENT_STATUS_LABELS = {
   paid: 'Đã thanh toán',
   unpaid: 'Chưa thanh toán',
-  failed: 'Thanh toán lỗi',
+  failed: 'Thanh toán thất bại',
   refunded: 'Đã hoàn tiền'
 };
 
@@ -70,8 +70,8 @@ export const ADMIN_ORDER_STATUS_LABELS = {
   pending: 'Chờ xác nhận',
   confirmed: 'Đã xác nhận',
   preparing: 'Đang chuẩn bị',
-  shipping: 'Đang giao',
-  delivered: 'Đã giao',
+  shipping: 'Đang giao hàng',
+  delivered: 'Đã giao hàng',
   completed: 'Hoàn thành',
   cancelled: 'Đã hủy'
 };
@@ -141,5 +141,5 @@ export const getAdminPaymentStatusBadge = (status) => ({
 
 export const getAdminOrderStatusColorClass = (status) => ADMIN_ORDER_STATUS_BADGE_CLASSES[status] || 'bg-gray-100 text-gray-800';
 
-export const getConsultationStatusLabel = (status) => CONSULTATION_STATUS_OPTIONS.find(item => item.value === status)?.label || status || 'Không rõ';
-export const getPromotionStatusLabel = (status) => PROMOTION_STATUS_OPTIONS.find(item => item.value === status)?.label || status || '-';
+export const getConsultationStatusLabel = (status) => CONSULTATION_STATUS_OPTIONS.find((item) => item.value === status)?.label || status || 'Không rõ';
+export const getPromotionStatusLabel = (status) => PROMOTION_STATUS_OPTIONS.find((item) => item.value === status)?.label || status || '-';

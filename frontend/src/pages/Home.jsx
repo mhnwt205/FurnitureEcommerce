@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
@@ -233,7 +233,6 @@ export default function Home() {
             ))}
           </div>
         </SectionContainer>
-
         <SectionContainer surface="soft">
           <SectionTitle
             eyebrow="Sản phẩm chọn lọc"

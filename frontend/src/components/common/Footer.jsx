@@ -67,6 +67,7 @@ export default function Footer() {
             <li><Link className={footerLinkClass} to="/design-service">Dịch vụ thiết kế</Link></li>
             <li><Link className={footerLinkClass} to="/featured-projects">Dự án tiêu biểu</Link></li>
             <li><Link className={footerLinkClass} to="/stores">Hệ thống cửa hàng</Link></li>
+            <li><Link className={footerLinkClass} to="/orders/lookup">Tra cứu đơn hàng</Link></li>
           </ul>
         </FooterColumn>
 

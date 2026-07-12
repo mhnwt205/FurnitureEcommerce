@@ -133,6 +133,9 @@ export default function Checkout() {
   const [refreshingPricing, setRefreshingPricing] = useState(false);
   const [pricingWarning, setPricingWarning] = useState(null);
 
+  const isGuestCheckout = authStatus === 'unauthenticated';
+  const isLoggedInCheckout = isAuthenticated && authStatus === 'authenticated';
+
   const hasItemDiscount = cartItems.some(item => {
     const basePrice = Number(item.originalPrice ?? item.price ?? 0);
     const unitPrice = getCartItemUnitPrice(item);
@@ -141,11 +144,6 @@ export default function Checkout() {
 
   useEffect(() => {
     if (authStatus === 'initializing' || authStatus === 'unavailable') return;
-
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
 
     const refreshPricing = async () => {
       try {
@@ -160,17 +158,16 @@ export default function Checkout() {
     };
     refreshPricing();
 
-    if (currentUser) {
+    if (isLoggedInCheckout && currentUser) {
       setFormData(prev => ({
         ...prev,
-        fullName: currentUser.fullName || '',
+        fullName: currentUser.fullName || prev.fullName,
         email: currentUser.email || '',
-        phone: currentUser.phone || '',
-        address: currentUser.address || ''
+        phone: currentUser.phone || prev.phone,
+        address: currentUser.address || prev.address
       }));
     }
-  }, [authStatus, isAuthenticated, currentUser, navigate]);
-
+  }, [authStatus, isLoggedInCheckout, currentUser]);
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -178,7 +175,12 @@ export default function Checkout() {
 
   const handleOrder = async (e) => {
     e.preventDefault();
-    if (cartItems.length === 0) return;
+    if (cartItems.length === 0 || loading || authStatus === 'initializing') return;
+
+    if (authStatus === 'unavailable') {
+      setError('Khong the xac minh trang thai phien. Vui long thu lai khi ket noi on dinh.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -195,10 +197,10 @@ export default function Checkout() {
       }
 
       const orderPayload = {
-        fullName: formData.fullName,
-        phone: formData.phone,
-        address: formData.address,
-        note: formData.note,
+        fullName: formData.fullName.trim(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
+        note: formData.note.trim(),
         paymentMethod: paymentMethod,
         items: cartItems.map(item => ({
           productId: parseInt(item.id, 10),
@@ -206,33 +208,54 @@ export default function Checkout() {
         }))
       };
 
+      if (isGuestCheckout) {
+        orderPayload.email = formData.email.trim().toLowerCase();
+      }
+
+      const resultOrder = await orderService.createOrder(orderPayload);
+      if (!resultOrder || !resultOrder.order || !resultOrder.order.id) {
+        setError(copy.createOrderError);
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: copy.createOrderError } }));
+        return;
+      }
+
       if (paymentMethod === 'VNPAY') {
-        const resultOrder = await orderService.createOrder(orderPayload);
-        if (!resultOrder || !resultOrder.order || !resultOrder.order.id) {
-          setError(copy.createOrderError);
-          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: copy.createOrderError } }));
+        if (resultOrder.customerType === 'guest') {
+          if (resultOrder.paymentUrl) {
+            window.location.href = resultOrder.paymentUrl;
+            return;
+          }
+          const orderCode = resultOrder.order?.orderCode ? ` Ma don: ${resultOrder.order.orderCode}.` : '';
+          const message = `Don hang da duoc tao nhung chua the mo cong thanh toan.${orderCode}`;
+          setError(message);
+          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message } }));
           return;
         }
 
         const resultVnpay = await paymentService.createVnpayUrl({ orderId: resultOrder.order.id });
         if (resultVnpay.success && resultVnpay.paymentUrl) {
           window.location.href = resultVnpay.paymentUrl;
-        } else {
-          setError(copy.vnpayUrlError);
-          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: copy.vnpayUrlError } }));
+          return;
         }
-      } else {
-        const result = await orderService.createOrder(orderPayload);
-        clearCart();
-        navigate('/order-success', { state: { order: result.order } });
+
+        setError(copy.vnpayUrlError);
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: copy.vnpayUrlError } }));
+        return;
       }
+
+      clearCart();
+      navigate('/order-success', {
+        state: {
+          order: resultOrder.order,
+          customerType: resultOrder.customerType
+        }
+      });
     } catch (err) {
       setError(err.message || copy.orderError);
     } finally {
       setLoading(false);
     }
   };
-
   if (authStatus === 'initializing') {
     return (
       <main className="min-h-screen bg-[#f6f6f6] px-4 py-6 text-[#333333]">
@@ -314,23 +337,27 @@ export default function Checkout() {
             <CheckoutCard title={copy.account}>
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[#333333] text-[14px] font-bold uppercase text-white">
-                  {getUserLabel(currentUser).charAt(0)}
+                  {isGuestCheckout ? 'G' : getUserLabel(currentUser).charAt(0)}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold text-[#333333]">{getUserLabel(currentUser)}</p>
-                  {currentUser?.email && <p className="truncate text-[12px] text-[#777777]">{currentUser.email}</p>}
-                  {!currentUser?.email && <p className="text-[12px] text-[#777777]">{copy.signedInHint}</p>}
+                  <p className="truncate text-[14px] font-bold text-[#333333]">{isGuestCheckout ? 'Thanh toan voi tu cach khach' : getUserLabel(currentUser)}</p>
+                  {isGuestCheckout ? (
+                    <p className="text-[12px] leading-5 text-[#777777]">Ban khong can tao tai khoan. <Link to="/login" className="font-semibold text-[#333333] underline underline-offset-2">Dang nhap</Link> neu muon dung thong tin da luu.</p>
+                  ) : currentUser?.email ? (
+                    <p className="truncate text-[12px] text-[#777777]">{currentUser.email}</p>
+                  ) : (
+                    <p className="text-[12px] text-[#777777]">{copy.signedInHint}</p>
+                  )}
                 </div>
               </div>
             </CheckoutCard>
-
             <CheckoutCard title={copy.shippingInfo}>
               <form id="checkout-form" onSubmit={handleOrder} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label={copy.fullName} className="sm:col-span-2">
                   <input required name="fullName" value={formData.fullName} onChange={handleInputChange} className="h-11 w-full rounded-[7px] border border-[#dddddd] bg-white px-3 text-[13px] text-[#333333] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#333333]" placeholder={copy.fullNamePlaceholder} type="text" />
                 </Field>
-                <Field label={copy.email}>
-                  <input required name="email" value={formData.email} onChange={handleInputChange} className="h-11 w-full rounded-[7px] border border-[#dddddd] bg-white px-3 text-[13px] text-[#333333] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#333333]" placeholder="example@gmail.com" type="email" />
+                <Field label={isLoggedInCheckout ? 'Email tai khoan' : copy.email}>
+                  <input required name="email" value={formData.email} onChange={handleInputChange} readOnly={isLoggedInCheckout} aria-readonly={isLoggedInCheckout} className={`h-11 w-full rounded-[7px] border border-[#dddddd] px-3 text-[13px] text-[#333333] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#333333] ${isLoggedInCheckout ? 'bg-[#f5f5f5] text-[#666666] cursor-not-allowed' : 'bg-white'}`} placeholder="example@gmail.com" type="email" />
                 </Field>
                 <Field label={copy.phone}>
                   <input required name="phone" value={formData.phone} onChange={handleInputChange} className="h-11 w-full rounded-[7px] border border-[#dddddd] bg-white px-3 text-[13px] text-[#333333] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#333333]" placeholder={copy.phonePlaceholder} type="tel" />
