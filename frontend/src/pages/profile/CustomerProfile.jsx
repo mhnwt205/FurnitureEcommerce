@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+﻿import React, { useEffect } from 'react';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/common/Header';
 import Footer from '../../components/common/Footer';
 import PersonalInfo from './PersonalInfo';
@@ -20,7 +20,8 @@ const navItems = [
 
 export default function CustomerProfile() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, isChecking, isAuthenticated, isUnavailable, logout } = useAuth();
 
   useEffect(() => {
@@ -35,21 +36,23 @@ export default function CustomerProfile() {
   };
 
   if (isChecking) return null;
-  if (isUnavailable) return <div className="min-h-screen bg-[#f7f7f5] p-8 text-center text-sm text-[#666666]">Khong the xac minh phien dang nhap. Vui long thu lai sau.</div>;
+  if (isUnavailable) return <div className="min-h-screen bg-[#f7f7f5] p-8 text-center text-sm text-[#666666]">Không thể xác minh phiên đăng nhập. Vui lòng thử lại sau.</div>;
   if (!user) return null;
 
-  const currentTab = searchParams.get('tab') || 'info';
-  const orderId = searchParams.get('id');
+  const currentTab = location.pathname === '/profile/orders' ? 'orders' : (searchParams.get('tab') || 'info');
 
   const setTab = (tab) => {
-    setSearchParams({ tab });
+    if (tab === 'orders') {
+      navigate('/profile/orders');
+      return;
+    }
+    navigate(`/profile?tab=${tab}`);
   };
 
   const renderContent = () => {
     switch (currentTab) {
       case 'info': return <PersonalInfo />;
       case 'orders': return <OrderHistory />;
-      case 'order-detail': return <OrderDetail orderId={orderId} />;
       case 'wishlist': return <Wishlist />;
       case 'addresses': return <AddressBook />;
       case 'password': return <ChangePassword />;
@@ -58,7 +61,7 @@ export default function CustomerProfile() {
   };
 
   const navItemClass = (tabName) => {
-    const isActive = currentTab === tabName || (tabName === 'orders' && currentTab === 'order-detail');
+    const isActive = currentTab === tabName;
     return `flex w-full items-center gap-3 rounded-[10px] px-4 py-3 text-left text-[14px] font-semibold transition-all duration-200 ${isActive ? 'bg-[#333333] text-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : 'text-[#555555] hover:bg-[#fafaf8] hover:text-[#333333]'}`;
   };
 

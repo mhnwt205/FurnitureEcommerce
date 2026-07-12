@@ -2,13 +2,47 @@ import crypto from 'crypto';
 import querystring from 'qs';
 import moment from 'moment';
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const requiredConfigKeys = ['VNP_TMNCODE', 'VNP_HASHSECRET', 'VNP_URL', 'VNP_RETURNURL'];
+
+const assertVNPayConfig = () => {
+  const missing = requiredConfigKeys.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    const error = new Error('VNPAY_CONFIG_MISSING');
+    error.code = 'VNPAY_CONFIG_MISSING';
+    error.missingKeys = missing;
+    throw error;
+  }
+};
+
+const normalizeIpAddress = (ipAddr) => {
+  const value = String(ipAddr || '').trim();
+  if (!value || value === '::1') return '127.0.0.1';
+  if (value.startsWith('::ffff:')) return value.slice('::ffff:'.length);
+  if (value.includes(',')) return normalizeIpAddress(value.split(',')[0]);
+  return value;
+};
 
 export const createVNPayUrl = (ipAddr, orderId, amount, orderInfo) => {
+  assertVNPayConfig();
+
   const tmnCode = process.env.VNP_TMNCODE;
   const secretKey = process.env.VNP_HASHSECRET;
   let vnpUrl = process.env.VNP_URL;
   const returnUrl = process.env.VNP_RETURNURL;
+  const numericAmount = Number(amount);
+
+  if (!orderId || !orderInfo || !Number.isFinite(numericAmount) || numericAmount <= 0) {
+    const error = new Error('VNPAY_INVALID_PAYMENT_INPUT');
+    error.code = 'VNPAY_INVALID_PAYMENT_INPUT';
+    throw error;
+  }
 
   const date = new Date();
   const createDate = moment(date).format('YYYYMMDDHHmmss');
@@ -25,9 +59,9 @@ export const createVNPayUrl = (ipAddr, orderId, amount, orderInfo) => {
   vnp_Params['vnp_TxnRef'] = orderId;
   vnp_Params['vnp_OrderInfo'] = orderInfo;
   vnp_Params['vnp_OrderType'] = 'other';
-  vnp_Params['vnp_Amount'] = amount * 100; // VNPay requires amount * 100
+  vnp_Params['vnp_Amount'] = Math.round(numericAmount * 100); // VNPay requires amount * 100
   vnp_Params['vnp_ReturnUrl'] = returnUrl;
-  vnp_Params['vnp_IpAddr'] = ipAddr;
+  vnp_Params['vnp_IpAddr'] = normalizeIpAddress(ipAddr);
   vnp_Params['vnp_CreateDate'] = createDate;
   vnp_Params['vnp_ExpireDate'] = expireDate;
 
@@ -46,6 +80,8 @@ export const createVNPayUrl = (ipAddr, orderId, amount, orderInfo) => {
 };
 
 export const verifyVNPaySignature = (vnp_Params) => {
+  assertVNPayConfig();
+
   const secureHash = vnp_Params['vnp_SecureHash'];
   const secretKey = process.env.VNP_HASHSECRET;
 

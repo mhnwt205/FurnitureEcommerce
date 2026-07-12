@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../hooks/useCart';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +16,8 @@ const copy = {
   searchProducts: 'T\u00ecm ki\u1ebfm s\u1ea3n ph\u1ea9m...',
   search: 'T\u00ecm ki\u1ebfm',
   myAccount: 'T\u00e0i kho\u1ea3n c\u1ee7a t\u00f4i',
+
+  orderLookup: 'Tra c\u1ee9u \u0111\u01a1n h\u00e0ng',
   account: 'T\u00e0i kho\u1ea3n',
   loginRegister: '\u0110\u0103ng nh\u1eadp / \u0110\u0103ng k\u00fd',
   login: '\u0110\u0103ng nh\u1eadp',
@@ -35,7 +37,8 @@ const copy = {
 const navItems = [
   { label: copy.designService, to: '/design-service' },
   { label: copy.featuredProjects, to: '/featured-projects' },
-  { label: copy.about, to: '/about' }
+  { label: copy.about, to: '/about' },
+  { label: copy.orderLookup, to: '/orders/lookup' }
 ];
 
 const categoryItems = [
@@ -163,6 +166,7 @@ export default function Header() {
                       <Link to="/admin/dashboard" onClick={() => setIsAccountOpen(false)} className="block px-5 py-3 text-sm text-[#434343] transition-colors hover:bg-[#f8f8f8] hover:text-[#bfa37c]">{copy.admin}</Link>
                     ) : null}
                     <Link to="/profile?tab=info" onClick={() => setIsAccountOpen(false)} className="block px-5 py-3 text-sm text-[#434343] transition-colors hover:bg-[#f8f8f8] hover:text-[#bfa37c]">{copy.profile}</Link>
+
                     <button onClick={handleLogout} className="block w-full px-5 py-3 text-left text-sm text-[#7A5C49] transition-colors hover:bg-[#f8f8f8]">{copy.logout}</button>
                   </>
                 ) : isAuthPending ? (
@@ -289,6 +293,7 @@ export default function Header() {
           {isAccountReady ? (
             <>
               <Link to="/profile?tab=info" onClick={closeMobileMenu} className="block py-2 text-sm font-medium text-[#434343]">{copy.profile}</Link>
+
               {user.role === 'admin' || user.role === 'staff' ? (
                 <Link to="/admin/dashboard" onClick={closeMobileMenu} className="block py-2 text-sm font-medium text-[#434343]">{copy.admin}</Link>
               ) : null}

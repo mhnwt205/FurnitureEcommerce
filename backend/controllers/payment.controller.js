@@ -1,5 +1,14 @@
-import prisma from '../prismaClient.js';
-import { createVNPayUrl, verifyVNPaySignature } from '../config/vnpay.js';
+﻿import prisma from '../prismaClient.js';
+import { verifyVNPaySignature } from '../config/vnpay.js';
+import {
+  createVNPayPaymentUrlForOrder,
+  getRequestIpAddress,
+  toPublicPaymentOrderDto
+} from '../services/vnpayPayment.service.js';
+import {
+  finalizeSuccessfulVNPayPayment,
+  markVNPayPaymentFailed
+} from '../services/vnpayPaymentFinalization.service.js';
 
 export const createPaymentUrl = async (req, res) => {
   try {
@@ -11,7 +20,7 @@ export const createPaymentUrl = async (req, res) => {
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: parseInt(orderId) }
+      where: { id: parseInt(orderId, 10) }
     });
 
     if (!order) {
@@ -22,107 +31,88 @@ export const createPaymentUrl = async (req, res) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    if (order.paymentStatus === 'paid') {
-      return res.status(400).json({ message: 'Order is already paid' });
-    }
-
-    // Generate TxnRef
-    const txnRef = `VNP-${order.id}-${Date.now()}`;
-
-    // Save TxnRef to DB
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { vnpayTxnRef: txnRef }
+    const paymentUrl = await createVNPayPaymentUrlForOrder({
+      order,
+      ipAddr: getRequestIpAddress(req)
     });
-
-    // Create VNPay URL
-    const ipAddr = req.headers['x-forwarded-for'] ||
-        req.connection.remoteAddress ||
-        req.socket.remoteAddress ||
-        req.connection.socket.remoteAddress;
-
-    const paymentUrl = createVNPayUrl(
-      ipAddr,
-      txnRef,
-      order.totalAmount,
-      `Thanh toan don hang ${order.orderCode}`
-    );
 
     res.status(200).json({
       success: true,
       paymentUrl
     });
-
   } catch (error) {
-    console.error('Create VNPay URL error:', error);
+    if (error.code === 'ORDER_ALREADY_PAID') {
+      return res.status(400).json({ message: 'Order is already paid' });
+    }
+
+    if (error.code === 'VNPAY_PAYMENT_METHOD_REQUIRED') {
+      return res.status(400).json({ message: 'Order payment method is not VNPay' });
+    }
+
+    console.error('Create VNPay URL error:', { name: error?.name, code: error?.code });
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 export const vnpayIPN = async (req, res) => {
   try {
-    let vnp_Params = req.query;
-    
-    // Check signature
+    const vnp_Params = req.query;
     const isValidSignature = verifyVNPaySignature({ ...vnp_Params });
 
-    if (isValidSignature) {
-      const txnRef = vnp_Params['vnp_TxnRef'];
-      const responseCode = vnp_Params['vnp_ResponseCode'];
-      const transactionNo = vnp_Params['vnp_TransactionNo'];
-      const amount = Number(vnp_Params['vnp_Amount']) / 100; // VNPay amount is multiplied by 100
+    if (!isValidSignature) {
+      return res.status(200).json({ RspCode: '97', Message: 'Invalid signature' });
+    }
 
-      // Find order by TxnRef
-      const order = await prisma.order.findFirst({
-        where: { vnpayTxnRef: txnRef }
+    const txnRef = vnp_Params['vnp_TxnRef'];
+    const responseCode = vnp_Params['vnp_ResponseCode'];
+    const transactionNo = vnp_Params['vnp_TransactionNo'];
+    const amount = Number(vnp_Params['vnp_Amount']) / 100;
+
+    const order = await prisma.order.findFirst({
+      where: { vnpayTxnRef: txnRef }
+    });
+
+    if (!order) {
+      return res.status(200).json({ RspCode: '01', Message: 'Order not found' });
+    }
+
+    if (Math.round(order.totalAmount) !== Math.round(amount)) {
+      return res.status(200).json({ RspCode: '04', Message: 'Invalid amount' });
+    }
+
+    if (responseCode === '00') {
+      const wasPaid = order.paymentStatus === 'paid';
+      await finalizeSuccessfulVNPayPayment({
+        orderId: order.id,
+        transactionNo
       });
 
-      if (!order) {
-        return res.status(200).json({ RspCode: '01', Message: 'Order not found' });
-      }
-
-      if (Math.round(order.totalAmount) !== Math.round(amount)) {
-        return res.status(200).json({ RspCode: '04', Message: 'Invalid amount' });
-      }
-
-      if (order.paymentStatus === 'paid') {
+      if (wasPaid) {
         return res.status(200).json({ RspCode: '02', Message: 'Order already confirmed' });
       }
 
-      // 00 means success in VNPay
-      if (responseCode === '00') {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            paymentStatus: 'paid',
-            paidAt: new Date(),
-            vnpayTransactionNo: transactionNo
-          }
-        });
-      } else {
-        // Failed
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            paymentStatus: 'failed'
-          }
-        });
-      }
-
       return res.status(200).json({ RspCode: '00', Message: 'Confirm Success' });
-    } else {
-      return res.status(200).json({ RspCode: '97', Message: 'Invalid signature' });
     }
+
+    await markVNPayPaymentFailed({ orderId: order.id });
+    return res.status(200).json({ RspCode: '00', Message: 'Confirm Success' });
   } catch (error) {
-    console.error('VNPay IPN error:', error);
+    console.error('VNPay IPN error:', { name: error?.name, code: error?.code });
     res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
   }
 };
 
+const toVerifyPaymentResponse = ({ success, status, message, order }) => ({
+  success,
+  status,
+  orderId: order?.id,
+  order: order ? toPublicPaymentOrderDto(order) : undefined,
+  message
+});
+
 export const verifyPaymentResult = async (req, res) => {
   try {
-    let vnp_Params = req.query;
-    
+    const vnp_Params = req.query;
     const isValidSignature = verifyVNPaySignature({ ...vnp_Params });
     if (!isValidSignature) {
       return res.status(200).json({ success: false, status: 'invalid_signature', message: 'Invalid VNPay signature' });
@@ -142,36 +132,37 @@ export const verifyPaymentResult = async (req, res) => {
     }
 
     if (Math.round(order.totalAmount) !== Math.round(amount)) {
-      return res.status(200).json({ success: false, status: 'invalid_amount', message: 'Invalid amount' });
-    }
-
-    if (order.paymentStatus === 'paid') {
-      return res.status(200).json({ success: true, status: 'paid', orderId: order.id, message: 'Payment successful' });
+      return res.status(200).json(toVerifyPaymentResponse({
+        success: false,
+        status: 'invalid_amount',
+        order,
+        message: 'Invalid amount'
+      }));
     }
 
     if (responseCode === '00') {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          paymentStatus: 'paid',
-          paidAt: new Date(),
-          vnpayTransactionNo: transactionNo
-        }
+      const { order: finalizedOrder } = await finalizeSuccessfulVNPayPayment({
+        orderId: order.id,
+        transactionNo
       });
-      return res.status(200).json({ success: true, status: 'paid', orderId: order.id, message: 'Payment successful' });
-    } else {
-      if (order.paymentStatus !== 'failed') {
-         await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            paymentStatus: 'failed'
-          }
-        });
-      }
-      return res.status(200).json({ success: false, status: 'failed', orderId: order.id, message: 'Payment failed or cancelled' });
+
+      return res.status(200).json(toVerifyPaymentResponse({
+        success: true,
+        status: 'paid',
+        order: finalizedOrder,
+        message: 'Payment successful'
+      }));
     }
+
+    const failedOrder = await markVNPayPaymentFailed({ orderId: order.id });
+    return res.status(200).json(toVerifyPaymentResponse({
+      success: false,
+      status: 'failed',
+      order: failedOrder || order,
+      message: 'Payment failed or cancelled'
+    }));
   } catch (error) {
-    console.error('Verify payment result error:', error);
+    console.error('Verify payment result error:', { name: error?.name, code: error?.code });
     res.status(500).json({ success: false, status: 'error', message: 'Internal server error' });
   }
 };

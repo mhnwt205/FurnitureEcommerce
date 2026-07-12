@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { orderService } from '../../services/api/orderService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
@@ -19,18 +19,29 @@ export default function OrderHistory() {
     try {
       const data = await orderService.getMyOrders();
       setOrders(data);
-    } catch (error) { console.error(error); }
-    finally { setLoading(false); }
+    } catch (error) {
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) return <div className="space-y-4">{[0, 1, 2].map(item => <div key={item} className="ui-skeleton h-28 rounded-[12px]" />)}</div>;
 
   return (
     <>
-      <div className="border-b border-[#eeeeee] pb-6"><h2 className="text-2xl font-bold text-[#333333]">Lịch sử đơn hàng</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#777777]">Quản lý và theo dõi trạng thái các đơn hàng của bạn.</p></div>
+      <div className="border-b border-[#eeeeee] pb-6">
+        <h2 className="text-2xl font-bold text-[#333333]">Lịch sử đơn hàng</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#777777]">Quản lý và theo dõi trạng thái các đơn hàng của bạn.</p>
+      </div>
       <div className="pt-6">
         {orders.length === 0 ? (
-          <div className="ui-empty-state"><span className="material-symbols-outlined mb-3 block text-4xl text-[#999999]">receipt_long</span><h4 className="text-base font-bold text-[#333333]">Bạn chưa có đơn hàng nào</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#777777]">Khám phá các sản phẩm nội thất hiện có và quay lại đây để theo dõi đơn hàng.</p><Link to="/products" className="ui-button-primary mt-5 inline-flex px-5 py-2.5 text-sm">Mua sắm ngay</Link></div>
+          <div className="ui-empty-state">
+            <span className="material-symbols-outlined mb-3 block text-4xl text-[#999999]">receipt_long</span>
+            <h4 className="text-base font-bold text-[#333333]">Bạn chưa có đơn hàng nào</h4>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#777777]">Khám phá các sản phẩm nội thất hiện có và quay lại đây để theo dõi đơn hàng.</p>
+            <Link to="/products" className="ui-button-primary mt-5 inline-flex px-5 py-2.5 text-sm">Mua sắm ngay</Link>
+          </div>
         ) : (
           <div className="space-y-3">
             {orders.map(order => {
@@ -40,8 +51,21 @@ export default function OrderHistory() {
               return (
                 <Link key={order.id} to={`/profile/orders/${order.id}`} className="group block rounded-[12px] border border-[#e5e5e5] bg-white p-4 transition-colors duration-200 hover:border-[#bfa37c] hover:bg-[#fafaf8]">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex min-w-0 gap-4"><div className="h-20 w-20 shrink-0 overflow-hidden rounded-[10px] border border-[#eeeeee] bg-[#f6f6f4]"><OrderThumb src={imageUrl} alt={firstItem?.productName || 'Sản phẩm'} /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-bold text-[#333333]">#{order.orderCode || order.id}</p><span className={`inline-flex rounded-[6px] border px-2 py-1 text-[11px] font-bold ${getStatusColor(order.status)}`}>{getStatusText(order.status)}</span></div><p className="mt-2 text-sm text-[#777777]">Ngày đặt: <span className="font-medium text-[#434343]">{new Date(order.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></p><p className="mt-1 line-clamp-1 text-sm text-[#777777]">Sản phẩm: <span className="font-medium text-[#434343]">{firstItem?.productName || 'Sản phẩm'} {order.orderItems?.length > 1 ? `và ${order.orderItems.length - 1} sản phẩm khác` : ''}</span></p></div></div>
-                    <div className="flex items-end justify-between gap-4 border-t border-[#eeeeee] pt-4 md:block md:border-t-0 md:pt-0 md:text-right"><div><p className="text-xs font-semibold text-[#777777]">Tổng cộng</p><p className="mt-1 text-lg font-bold text-[#b94732]">{Number(order.totalAmount).toLocaleString('vi-VN')} đ</p></div><span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-[#333333] transition-colors group-hover:text-[#bfa37c]">Xem chi tiết <span className="material-symbols-outlined text-[16px]">arrow_forward</span></span></div>
+                    <div className="flex min-w-0 gap-4">
+                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[10px] border border-[#eeeeee] bg-[#f6f6f4]"><OrderThumb src={imageUrl} alt={firstItem?.productName || 'Sản phẩm'} /></div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-bold text-[#333333]">#{order.orderCode || order.id}</p>
+                          <span className={`inline-flex whitespace-nowrap rounded-[6px] border px-2 py-1 text-[11px] font-bold ${getStatusColor(order.status)}`}>{getStatusText(order.status)}</span>
+                        </div>
+                        <p className="mt-2 text-sm text-[#777777]">Ngày đặt: <span className="font-medium text-[#434343]">{new Date(order.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></p>
+                        <p className="mt-1 line-clamp-1 text-sm text-[#777777]">Sản phẩm: <span className="font-medium text-[#434343]">{firstItem?.productName || 'Sản phẩm'} {order.orderItems?.length > 1 ? `và ${order.orderItems.length - 1} sản phẩm khác` : ''}</span></p>
+                      </div>
+                    </div>
+                    <div className="flex items-end justify-between gap-4 border-t border-[#eeeeee] pt-4 md:block md:border-t-0 md:pt-0 md:text-right">
+                      <div><p className="text-xs font-semibold text-[#777777]">Tổng cộng</p><p className="mt-1 text-lg font-bold text-[#b94732]">{Number(order.totalAmount).toLocaleString('vi-VN')} đ</p></div>
+                      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-[#333333] transition-colors group-hover:text-[#bfa37c]">Xem chi tiết <span className="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+                    </div>
                   </div>
                 </Link>
               );
