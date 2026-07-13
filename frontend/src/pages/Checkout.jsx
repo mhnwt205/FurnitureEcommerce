@@ -225,8 +225,8 @@ export default function Checkout() {
             window.location.href = resultOrder.paymentUrl;
             return;
           }
-          const orderCode = resultOrder.order?.orderCode ? ` Ma don: ${resultOrder.order.orderCode}.` : '';
-          const message = `Don hang da duoc tao nhung chua the mo cong thanh toan.${orderCode}`;
+          const orderCode = resultOrder.order?.orderCode ? ` Mã đơn: ${resultOrder.order.orderCode}.` : '';
+          const message = `Đơn hàng đã được tạo nhưng chưa thể mở cổng thanh toán.${orderCode}`;
           setError(message);
           window.dispatchEvent(new CustomEvent('show-toast', { detail: { message } }));
           return;
@@ -266,7 +266,7 @@ export default function Checkout() {
           </div>
           <section className="mx-auto mt-20 w-full max-w-[460px] rounded-[12px] border border-[#e5e5e5] bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#dddddd] border-t-[#333333]" />
-            <p className="mt-5 text-[14px] font-semibold text-[#333333]">Dang xac minh phien dang nhap...</p>
+            <p className="mt-5 text-[14px] font-semibold text-[#333333]">Đang xác minh phiên đăng nhập...</p>
           </section>
         </div>
       </main>
@@ -340,9 +340,9 @@ export default function Checkout() {
                   {isGuestCheckout ? 'G' : getUserLabel(currentUser).charAt(0)}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold text-[#333333]">{isGuestCheckout ? 'Thanh toan voi tu cach khach' : getUserLabel(currentUser)}</p>
+                  <p className="truncate text-[14px] font-bold text-[#333333]">{isGuestCheckout ? 'Thanh toán với tư cách khách' : getUserLabel(currentUser)}</p>
                   {isGuestCheckout ? (
-                    <p className="text-[12px] leading-5 text-[#777777]">Ban khong can tao tai khoan. <Link to="/login" className="font-semibold text-[#333333] underline underline-offset-2">Dang nhap</Link> neu muon dung thong tin da luu.</p>
+                    <p className="text-[12px] leading-5 text-[#777777]">Bạn không cần tạo tài khoản. <Link to="/login" className="font-semibold text-[#333333] underline underline-offset-2">Đăng nhập</Link> nếu muốn dùng thông tin đã lưu.</p>
                   ) : currentUser?.email ? (
                     <p className="truncate text-[12px] text-[#777777]">{currentUser.email}</p>
                   ) : (
@@ -356,7 +356,7 @@ export default function Checkout() {
                 <Field label={copy.fullName} className="sm:col-span-2">
                   <input required name="fullName" value={formData.fullName} onChange={handleInputChange} className="h-11 w-full rounded-[7px] border border-[#dddddd] bg-white px-3 text-[13px] text-[#333333] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#333333]" placeholder={copy.fullNamePlaceholder} type="text" />
                 </Field>
-                <Field label={isLoggedInCheckout ? 'Email tai khoan' : copy.email}>
+                <Field label={isLoggedInCheckout ? 'Email tài khoản' : copy.email}>
                   <input required name="email" value={formData.email} onChange={handleInputChange} readOnly={isLoggedInCheckout} aria-readonly={isLoggedInCheckout} className={`h-11 w-full rounded-[7px] border border-[#dddddd] px-3 text-[13px] text-[#333333] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#333333] ${isLoggedInCheckout ? 'bg-[#f5f5f5] text-[#666666] cursor-not-allowed' : 'bg-white'}`} placeholder="example@gmail.com" type="email" />
                 </Field>
                 <Field label={copy.phone}>
