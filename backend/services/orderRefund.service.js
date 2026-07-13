@@ -230,6 +230,22 @@ const FINAL_REFUND_STATUSES = new Set([
   REFUND_STATUS.FAILED
 ]);
 
+const MANUAL_REFUND_ALLOWED_TRANSITIONS = Object.freeze({
+  [REFUND_STATUS.PENDING]: [REFUND_STATUS.PROCESSING],
+  [REFUND_STATUS.PROCESSING]: [
+    REFUND_STATUS.SUCCEEDED,
+    REFUND_STATUS.FAILED,
+    REFUND_STATUS.UNKNOWN
+  ],
+  [REFUND_STATUS.UNKNOWN]: [REFUND_STATUS.SUCCEEDED],
+  [REFUND_STATUS.SUCCEEDED]: [],
+  [REFUND_STATUS.FAILED]: []
+});
+
+const canResolveManualRefundTo = (currentStatus, result) => (
+  MANUAL_REFUND_ALLOWED_TRANSITIONS[currentStatus]?.includes(result) || false
+);
+
 const toAdminRefundDto = (refund) => {
   if (!refund) return null;
   const order = refund.order || null;
@@ -409,16 +425,19 @@ export const resolveManualRefund = async ({ requestId, result, adminUser, provid
     assertRefundOrderInvariant(refund);
 
     if (refund.status === result) return toAdminRefundDto(refund);
-    if (refund.status === REFUND_STATUS.SUCCEEDED) return toAdminRefundDto(refund);
+    if (refund.status === REFUND_STATUS.SUCCEEDED || refund.status === REFUND_STATUS.FAILED) {
+      throw new OrderRefundError(ORDER_REFUND_ERROR.NOT_REFUND_ELIGIBLE);
+    }
+
+    if (!canResolveManualRefundTo(refund.status, result)) {
+      throw new OrderRefundError(ORDER_REFUND_ERROR.NOT_REFUND_ELIGIBLE);
+    }
 
     if (result === REFUND_STATUS.SUCCEEDED) {
-      if (![REFUND_STATUS.PENDING, REFUND_STATUS.PROCESSING, REFUND_STATUS.UNKNOWN].includes(refund.status)) {
-        throw new OrderRefundError(ORDER_REFUND_ERROR.NOT_REFUND_ELIGIBLE);
-      }
       assertActiveRefundForManualAction(refund);
 
       const refundTransition = await tx.paymentRefund.updateMany({
-        where: { id: refund.id, status: { in: [REFUND_STATUS.PENDING, REFUND_STATUS.PROCESSING, REFUND_STATUS.UNKNOWN] } },
+        where: { id: refund.id, status: refund.status },
         data: buildManualRefundUpdate({ result, adminUser, providerTransactionId, providerResponseCode, adminNote, now })
       });
       if (refundTransition.count !== 1) {
@@ -472,12 +491,9 @@ export const resolveManualRefund = async ({ requestId, result, adminUser, provid
     }
 
     if (result === REFUND_STATUS.FAILED) {
-      if (![REFUND_STATUS.PENDING, REFUND_STATUS.PROCESSING, REFUND_STATUS.UNKNOWN].includes(refund.status)) {
-        throw new OrderRefundError(ORDER_REFUND_ERROR.NOT_REFUND_ELIGIBLE);
-      }
       assertActiveRefundForManualAction(refund);
       const refundTransition = await tx.paymentRefund.updateMany({
-        where: { id: refund.id, status: { in: [REFUND_STATUS.PENDING, REFUND_STATUS.PROCESSING, REFUND_STATUS.UNKNOWN] } },
+        where: { id: refund.id, status: refund.status },
         data: buildManualRefundUpdate({ result, adminUser, providerTransactionId, providerResponseCode, adminNote, now })
       });
       if (refundTransition.count !== 1) throw new OrderRefundError(ORDER_REFUND_ERROR.CLAIM_RACE_LOST);
@@ -490,12 +506,9 @@ export const resolveManualRefund = async ({ requestId, result, adminUser, provid
     }
 
     if (result === REFUND_STATUS.UNKNOWN) {
-      if (![REFUND_STATUS.PENDING, REFUND_STATUS.PROCESSING, REFUND_STATUS.UNKNOWN].includes(refund.status)) {
-        throw new OrderRefundError(ORDER_REFUND_ERROR.NOT_REFUND_ELIGIBLE);
-      }
       assertActiveRefundForManualAction(refund);
       const refundTransition = await tx.paymentRefund.updateMany({
-        where: { id: refund.id, status: { in: [REFUND_STATUS.PENDING, REFUND_STATUS.PROCESSING, REFUND_STATUS.UNKNOWN] } },
+        where: { id: refund.id, status: refund.status },
         data: buildManualRefundUpdate({ result, adminUser, providerTransactionId, providerResponseCode, adminNote, now })
       });
       if (refundTransition.count !== 1) throw new OrderRefundError(ORDER_REFUND_ERROR.CLAIM_RACE_LOST);

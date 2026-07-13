@@ -2,22 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { orderService } from '../services/api/orderService';
 import AdminLayout from '../layouts/AdminLayout';
 import AdminTable from '../components/admin/AdminTable';
+import RefundStatusWorkflow from '../components/admin/RefundStatusWorkflow';
+import OrderStatusWorkflow from '../components/admin/OrderStatusWorkflow';
 import { getStaticFileUrl } from '../utils/imageUtils';
 import { formatPrice } from '../utils/formatters';
 import {
-  ADMIN_ORDER_STATUS_CLASSES as statusColors,
   ADMIN_ORDER_STATUS_LABELS as statusLabels,
   getAdminPaymentStatusBadge as getPaymentStatusBadge
 } from '../utils/statusMaps';
 import { CANCELLATION_ACTOR_LABELS, CANCELLATION_REASON_LABELS } from '../utils/cancellationReasons';
 
-const ADMIN_ALLOWED_TRANSITIONS = {
-  pending: ['confirmed'],
-  confirmed: ['preparing'],
-  preparing: ['shipping'],
-  shipping: ['delivered'],
-  delivered: ['completed']
-};
 
 const REFUND_STATUS_LABELS = {
   pending: 'Chờ xử lý',
@@ -36,28 +30,16 @@ const REFUND_STATUS_CLASSES = {
 };
 
 const terminalStatuses = new Set(['completed', 'cancelled']);
-const getAdminTransitionOptions = (status) => [status, ...(ADMIN_ALLOWED_TRANSITIONS[status] || [])];
 const getCustomerTypeLabel = (order) => (order?.customerType === 'guest' || !order?.userId ? 'Guest' : 'Tài khoản');
-const getCustomerEmail = (order) => order?.customerEmail || order?.user?.email || '-';
 const getStatusLabel = (status) => statusLabels[status] || status || '-';
 
 function CustomerBlock({ order }) {
   return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="font-label-md text-[15px] text-primary">{order.fullName || '-'}</p>
-        <span className="rounded-full border border-outline-variant/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-          {getCustomerTypeLabel(order)}
-        </span>
-      </div>
-      <p className="flex items-center gap-1 truncate text-body-sm text-on-surface-variant">
-        <span className="material-symbols-outlined text-[14px]">mail</span>
-        {getCustomerEmail(order)}
-      </p>
-      <p className="flex items-center gap-1 truncate text-body-sm text-on-surface-variant">
-        <span className="material-symbols-outlined text-[14px]">call</span>
-        {order.phone || '-'}
-      </p>
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <p className="min-w-0 truncate font-label-md text-[15px] text-primary">{order.fullName || '-'}</p>
+      <span className="shrink-0 rounded-full border border-outline-variant/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+        {getCustomerTypeLabel(order)}
+      </span>
     </div>
   );
 }
@@ -82,27 +64,6 @@ function CancellationPanel({ cancellation }) {
       {cancellation.reasonText && <p>Ghi chú: {cancellation.reasonText}</p>}
       <p>Hoàn tồn kho: {cancellation.inventoryRestored ? 'Đã hoàn' : 'Chưa ghi nhận'}</p>
     </div>
-  );
-}
-
-function StatusSelect({ order, onChange, className = '' }) {
-  const options = getAdminTransitionOptions(order.status);
-  const disabled = terminalStatuses.has(order.status) || options.length <= 1 || order.refundPending;
-
-  return (
-    <select
-      value={order.status}
-      onChange={(event) => {
-        const nextStatus = event.target.value;
-        if (nextStatus !== order.status) onChange(nextStatus);
-      }}
-      disabled={disabled}
-      className={`${className} cursor-pointer rounded-full border border-transparent px-4 py-2 text-[11px] font-bold uppercase tracking-wider outline-none hover:border-outline-variant/30 focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-70 ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}
-    >
-      {options.map((status) => (
-        <option key={status} value={status}>{getStatusLabel(status)}</option>
-      ))}
-    </select>
   );
 }
 
@@ -183,8 +144,7 @@ export default function AdminOrders() {
     completed: orders.filter((order) => order.status === 'completed').length
   }), [orders, totalItems]);
 
-  const handleStatusChange = async (orderId, newStatus) => {
-    const note = window.prompt('Nhập ghi chú nội bộ (không bắt buộc):') || '';
+  const handleStatusChange = async (orderId, newStatus, note = '') => {
     try {
       setStatusUpdatingId(orderId);
       await orderService.updateOrderStatus(orderId, { status: newStatus, note });
@@ -193,6 +153,9 @@ export default function AdminOrders() {
         const freshDetail = await orderService.getAdminOrderById(orderId);
         setSelectedOrder(freshDetail);
       }
+      window.dispatchEvent(new CustomEvent('show-toast', {
+        detail: { message: 'Đã cập nhật trạng thái đơn hàng.', type: 'success' }
+      }));
     } catch (err) {
       window.alert(err.message || 'Lỗi khi cập nhật trạng thái');
       await fetchOrders();
@@ -208,39 +171,28 @@ export default function AdminOrders() {
     }
   };
 
-  const handleStartRefundProcessing = async (refund) => {
-    const adminNote = window.prompt('Ghi chú xử lý trên VNPay Merchant (không bắt buộc):') || '';
+  const handleRefundStatusUpdate = async (refund, nextStatus, form) => {
     try {
       setRefundActionId(refund.requestId);
-      await orderService.startAdminRefundProcessing(refund.requestId, { adminNote });
+      if (nextStatus === 'processing') {
+        await orderService.startAdminRefundProcessing(refund.requestId, { adminNote: form.adminNote });
+      } else {
+        await orderService.resolveAdminRefund(refund.requestId, {
+          result: nextStatus,
+          providerTransactionId: form.providerTransactionId,
+          providerResponseCode: form.providerResponseCode,
+          adminNote: form.adminNote
+        });
+      }
       await refreshAdminData();
       if (refund.order?.id) await refreshSelectedOrder(refund.order.id);
+      window.dispatchEvent(new CustomEvent('show-toast', {
+        detail: { message: 'Đã cập nhật trạng thái hoàn tiền.', type: 'success' }
+      }));
     } catch (err) {
-      window.alert(err.message || 'Lỗi khi bắt đầu xử lý hoàn tiền');
+      setRefundError(err.message || 'Lỗi khi cập nhật trạng thái hoàn tiền');
       await fetchRefunds();
-    } finally {
-      setRefundActionId(null);
-    }
-  };
-
-  const handleResolveRefund = async (refund, result) => {
-    if (result === 'succeeded') {
-      const ok = window.confirm('Chỉ xác nhận thành công sau khi bạn đã thực sự hoàn tiền cho giao dịch trên VNPay Merchant. Tiếp tục?');
-      if (!ok) return;
-    }
-
-    const providerTransactionId = result === 'succeeded' ? (window.prompt('Nhập mã tham chiếu hoàn tiền VNPay Merchant (nếu có):') || '') : '';
-    const providerResponseCode = window.prompt('Nhập mã kết quả/tham chiếu VNPay Merchant (nếu có):') || '';
-    const adminNote = window.prompt('Ghi chú nội bộ (không bắt buộc):') || '';
-
-    try {
-      setRefundActionId(refund.requestId);
-      await orderService.resolveAdminRefund(refund.requestId, { result, providerTransactionId, providerResponseCode, adminNote });
-      await refreshAdminData();
       if (refund.order?.id) await refreshSelectedOrder(refund.order.id);
-    } catch (err) {
-      window.alert(err.message || 'Lỗi khi cập nhật kết quả hoàn tiền');
-      await fetchRefunds();
     } finally {
       setRefundActionId(null);
     }
@@ -313,7 +265,7 @@ export default function AdminOrders() {
               <h2 className="font-label-lg uppercase tracking-widest text-primary">Yêu cầu hoàn tiền VNPay</h2>
               <p className="mt-1 text-sm text-on-surface-variant">Admin thực hiện hoàn tiền thủ công trên VNPay Merchant, sau đó ghi nhận kết quả tại đây.</p>
             </div>
-            <button onClick={fetchRefunds} disabled={refundLoading} className="rounded-commerce-control border border-outline-variant px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary transition-colors hover:bg-surface-beige disabled:opacity-60">Làm mới hoàn tiền</button>
+            <button onClick={fetchRefunds} disabled={refundLoading} className="inline-flex h-10 items-center justify-center rounded-commerce-control border border-outline-variant px-3.5 text-xs font-bold text-primary transition-colors hover:bg-surface-beige disabled:opacity-60">Làm mới hoàn tiền</button>
           </div>
 
           {refundError ? (
@@ -323,80 +275,76 @@ export default function AdminOrders() {
           ) : refunds.length === 0 ? (
             <div className="rounded-xl border border-dashed border-outline-variant/50 p-6 text-center text-sm text-on-surface-variant">Chưa có yêu cầu hoàn tiền VNPay.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px] table-fixed text-left text-sm">
-                <thead className="border-b border-surface-beige bg-surface-ivory text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  <tr>
-                    <th className="w-[210px] p-4">Request</th>
-                    <th className="p-4">Đơn hàng</th>
-                    <th className="p-4">Khách</th>
-                    <th className="p-4">Số tiền</th>
-                    <th className="p-4">Trạng thái</th>
-                    <th className="p-4">Lý do</th>
-                    <th className="p-4 text-right">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-beige">
-                  {refunds.map((refund) => (
-                    <tr key={refund.requestId} className="align-top hover:bg-surface-beige/30">
-                      <td className="p-4">
-                        <p className="max-w-[190px] break-words font-mono text-[12px] font-bold leading-5 text-primary">{refund.requestId}</p>
+            <div className="grid gap-3">
+              {refunds.map((refund) => (
+                <article key={refund.requestId} className="rounded-xl border border-surface-beige/90 bg-white px-4 py-3 shadow-[0_3px_14px_rgba(93,64,55,0.035)] transition-colors hover:bg-surface-beige/15">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(230px,0.85fr)] lg:items-start">
+                    <div className="min-w-0 space-y-2">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Request</p>
+                        <p title={refund.requestId} className="mt-1 truncate font-mono text-[12px] font-bold leading-5 text-primary">{refund.requestId}</p>
                         <p className="mt-1 text-xs text-on-surface-variant">{new Date(refund.requestedAt).toLocaleString('vi-VN')}</p>
-                      </td>
-                      <td className="p-4">
-                        <p className="break-words font-mono text-[12px] font-semibold leading-5 text-primary">{refund.order?.orderCode || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{'\u0110\u01a1n h\u00e0ng'}</p>
+                        <p title={refund.order?.orderCode || '-'} className="mt-1 truncate font-mono text-[12px] font-semibold leading-5 text-primary">{refund.order?.orderCode || '-'}</p>
                         <p className="text-xs text-on-surface-variant">{refund.order?.status || '-'} / {refund.order?.paymentStatus || '-'}</p>
-                      </td>
-                      <td className="p-4">
-                        <p className="font-semibold text-primary">{refund.order?.customerType === 'guest' ? 'Guest' : 'Tài khoản'}</p>
-                        <p className="text-xs text-on-surface-variant">{refund.order?.customerEmail || '-'}</p>
-                      </td>
-                      <td className="whitespace-nowrap p-4 font-bold text-accent-terracotta">{formatPrice(refund.amount)}</td>
-                      <td className="p-4">
-                        <span className={`inline-flex min-w-[112px] justify-center whitespace-nowrap rounded-commerce-control border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${REFUND_STATUS_CLASSES[refund.status] || REFUND_STATUS_CLASSES.unknown}`}>
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 space-y-2">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{'Kh\u00e1ch h\u00e0ng'}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-outline-variant/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">{refund.order?.customerType === 'guest' ? 'Guest' : 'T\u00e0i kho\u1ea3n'}</span>
+                        </div>
+                        <p title={refund.order?.customerEmail || '-'} className="mt-1 truncate text-xs text-on-surface-variant">{refund.order?.customerEmail || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{'S\u1ed1 ti\u1ec1n'}</p>
+                        <p className="mt-1 whitespace-nowrap text-base font-bold text-accent-terracotta">{formatPrice(refund.amount)}</p>
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{'L\u00fd do'}</p>
+                      <p title={CANCELLATION_REASON_LABELS[refund.reasonCode] || refund.reasonCode} className="mt-1 line-clamp-2 font-semibold text-primary">{CANCELLATION_REASON_LABELS[refund.reasonCode] || refund.reasonCode}</p>
+                      {refund.reasonText && <p title={refund.reasonText} className="mt-1 line-clamp-3 text-xs leading-5 text-on-surface-variant">{refund.reasonText}</p>}
+                      {refund.providerTransactionId && <p title={refund.providerTransactionId} className="mt-2 truncate text-xs text-on-surface-variant">Ref: {refund.providerTransactionId}</p>}
+                    </div>
+
+                    <div className="min-w-0 space-y-2 lg:border-l lg:border-surface-beige/70 lg:pl-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex whitespace-nowrap rounded-commerce-control border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${REFUND_STATUS_CLASSES[refund.status] || REFUND_STATUS_CLASSES.unknown}`}>
                           {REFUND_STATUS_LABELS[refund.status] || refund.status}
                         </span>
-                        {refund.status === 'processing' && <p className="mt-1 text-xs text-on-surface-variant">Th? c?ng tr?n VNPay Merchant</p>}
-                        {refund.providerTransactionId && <p className="mt-2 text-xs text-on-surface-variant">Ref: {refund.providerTransactionId}</p>}
-                      </td>
-                      <td className="p-4">
-                        <p className="font-semibold text-primary">{CANCELLATION_REASON_LABELS[refund.reasonCode] || refund.reasonCode}</p>
-                        {refund.reasonText && <p className="mt-1 max-w-[220px] break-words text-xs text-on-surface-variant">{refund.reasonText}</p>}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          {refund.status === 'pending' && (
-                            <button onClick={() => handleStartRefundProcessing(refund)} disabled={refundActionId === refund.requestId} className="rounded-commerce-control border border-sky-200 px-3 py-1.5 text-xs font-bold text-sky-700 transition-colors hover:bg-sky-50 disabled:opacity-60">Bắt đầu xử lý</button>
-                          )}
-                          {['pending', 'processing', 'unknown'].includes(refund.status) && (
-                            <>
-                              <button onClick={() => handleResolveRefund(refund, 'succeeded')} disabled={refundActionId === refund.requestId} className="rounded-commerce-control border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:opacity-60">Thành công</button>
-                              <button onClick={() => handleResolveRefund(refund, 'failed')} disabled={refundActionId === refund.requestId} className="rounded-commerce-control border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60">Thất bại</button>
-                              <button onClick={() => handleResolveRefund(refund, 'unknown')} disabled={refundActionId === refund.requestId} className="rounded-commerce-control border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60">Chưa rõ</button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <span className="text-[11px] font-medium text-on-surface-variant">{'X\u1eed l\u00fd th\u1ee7 c\u00f4ng tr\u00ean VNPay Merchant'}</span>
+                      </div>
+                      <RefundStatusWorkflow
+                        refund={refund}
+                        loading={refundActionId === refund.requestId}
+                        onUpdate={handleRefundStatusUpdate}
+                      />
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
 
-        <div className="flex flex-col gap-4 md:flex-row">
+        <div className="flex flex-col gap-3 rounded-xl border border-surface-beige bg-white p-3 shadow-[0_3px_14px_rgba(93,64,55,0.035)] md:flex-row md:items-center">
           <input
             type="text"
             placeholder="Tìm theo mã đơn, email, SĐT..."
             value={search}
             onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-            className="w-full rounded-lg border border-outline-variant/50 px-4 py-2 font-body-sm outline-none focus:border-primary md:w-1/3"
+            className="h-10 w-full flex-1 rounded-commerce-control border border-outline-variant/50 px-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10 md:min-w-[260px]"
           />
           <select
             value={statusFilter}
             onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
-            className="rounded-lg border border-outline-variant/50 px-4 py-2 font-body-sm outline-none focus:border-primary"
+            className="h-10 rounded-commerce-control border border-outline-variant/50 bg-white px-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="pending">Chờ xác nhận</option>
@@ -410,7 +358,7 @@ export default function AdminOrders() {
           <select
             value={limit}
             onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }}
-            className="rounded-lg border border-outline-variant/50 px-4 py-2 font-body-sm outline-none focus:border-primary"
+            className="h-10 rounded-commerce-control border border-outline-variant/50 bg-white px-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
           >
             <option value={10}>10 dòng / trang</option>
             <option value={20}>20 dòng / trang</option>
@@ -427,15 +375,23 @@ export default function AdminOrders() {
           </div>
         ) : (
           <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_4px_24px_rgba(93,64,55,0.05)]">
-            <AdminTable containerClassName="overflow-x-auto p-2" className="w-full text-left font-body-sm">
+            <AdminTable containerClassName="overflow-x-auto" className="w-full min-w-[1080px] table-fixed text-left font-body-sm">
+              <colgroup>
+                <col className="w-[17%]" />
+                <col className="w-[21%]" />
+                <col className="w-[13%]" />
+                <col className="w-[12%]" />
+                <col className="w-[28%]" />
+                <col className="w-[9%]" />
+              </colgroup>
               <thead className="border-b border-surface-beige bg-surface-ivory text-xs font-label-lg uppercase tracking-wider">
                 <tr>
-                  <th className="p-5 font-semibold text-on-surface-variant">Mã đơn / Ngày</th>
-                  <th className="p-5 font-semibold text-on-surface-variant">Khách hàng</th>
-                  <th className="p-5 font-semibold text-on-surface-variant">Tổng tiền</th>
-                  <th className="p-5 text-center font-semibold text-on-surface-variant">Thanh toán</th>
-                  <th className="p-5 text-center font-semibold text-on-surface-variant">Trạng thái</th>
-                  <th className="p-5 text-right font-semibold text-on-surface-variant">Thao tác</th>
+                  <th className="px-4 py-3 font-semibold text-on-surface-variant">Mã đơn / Ngày</th>
+                  <th className="px-4 py-3 font-semibold text-on-surface-variant">Khách hàng</th>
+                  <th className="px-4 py-3 font-semibold text-on-surface-variant">Tổng tiền</th>
+                  <th className="px-4 py-3 text-center font-semibold text-on-surface-variant">Thanh toán</th>
+                  <th className="px-4 py-3 text-center font-semibold text-on-surface-variant">Trạng thái</th>
+                  <th className="px-4 py-3 text-center font-semibold text-on-surface-variant">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-beige">
@@ -443,31 +399,35 @@ export default function AdminOrders() {
                   const payment = getPaymentStatusBadge(order.paymentStatus);
                   return (
                     <tr key={order.id} className="transition-colors hover:bg-surface-beige/30">
-                      <td className="p-5 align-top">
+                      <td className="px-4 py-3 align-middle">
                         <p className="text-[15px] font-label-lg text-primary">{order.orderCode || order.id}</p>
                         <p className="mt-1.5 flex items-center gap-1 text-body-sm text-on-surface-variant">
                           <span className="material-symbols-outlined text-[14px]">calendar_today</span>
                           {new Date(order.createdAt).toLocaleString('vi-VN')}
                         </p>
                       </td>
-                      <td className="max-w-[280px] p-5 align-top"><CustomerBlock order={order} /></td>
-                      <td className="p-5 align-top">
+                      <td className="max-w-[260px] px-4 py-3 align-middle"><CustomerBlock order={order} /></td>
+                      <td className="px-4 py-3 align-middle">
                         <p className="font-headline-sm text-[16px] text-accent-terracotta">{formatPrice(order.totalAmount)}</p>
                         <span className="mt-1 inline-block rounded-sm border border-outline-variant/30 bg-surface-container/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                           {order.paymentMethod}
                         </span>
-                        {order.refundPending && <p className="mt-2 text-xs font-semibold text-amber-700">Đang xử lý hoàn tiền{order.refundRequestId ? `: ${order.refundRequestId}` : ''}</p>}
-                        {order.requiresRefund && !order.refundPending && <p className="mt-2 text-xs font-semibold text-amber-700">Cần hoàn tiền</p>}
+                        {order.refundPending && <p className="mt-1 truncate text-xs font-semibold text-amber-700">Đang xử lý hoàn tiền{order.refundRequestId ? `: ${order.refundRequestId}` : ''}</p>}
+                        {order.requiresRefund && !order.refundPending && <p className="mt-1 truncate text-xs font-semibold text-amber-700">Cần hoàn tiền</p>}
                       </td>
-                      <td className="p-5 text-center align-top">
+                      <td className="px-4 py-3 text-center align-middle">
                         <span className={`inline-block rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${payment.color}`}>{payment.text}</span>
                       </td>
-                      <td className="p-5 text-center align-top">
-                        <StatusSelect order={order} onChange={(nextStatus) => handleStatusChange(order.id, nextStatus)} />
-                        {statusUpdatingId === order.id && <p className="mt-2 text-xs text-on-surface-variant">Đang cập nhật...</p>}
+                      <td className="px-4 py-3 text-center align-middle">
+                        <OrderStatusWorkflow
+                          className="mx-auto"
+                          order={order}
+                          loading={statusUpdatingId === order.id}
+                          onUpdate={(nextStatus, note) => handleStatusChange(order.id, nextStatus, note)}
+                        />
                       </td>
-                      <td className="p-5 text-right align-top">
-                        <button onClick={() => handleOpenDetail(order)} disabled={detailLoading} className="rounded-lg border border-outline-variant/50 px-4 py-2 font-label-md uppercase tracking-wider text-primary transition-colors hover:bg-surface-beige hover:text-accent-terracotta disabled:opacity-60">
+                      <td className="px-4 py-3 text-center align-middle">
+                        <button onClick={() => handleOpenDetail(order)} disabled={detailLoading} className="inline-flex h-9 w-[76px] items-center justify-center whitespace-nowrap rounded-commerce-control border border-outline-variant/50 px-3 text-xs font-bold text-primary transition-colors hover:bg-surface-beige hover:text-accent-terracotta disabled:opacity-60">
                           Chi tiết
                         </button>
                       </td>
@@ -527,7 +487,11 @@ export default function AdminOrders() {
                         <span className="material-symbols-outlined text-xl">update</span> Cập nhật trạng thái
                       </h3>
                       <label htmlFor="admin-order-status-detail" className="mb-2 block text-xs font-bold uppercase tracking-wider text-primary">Trạng thái hiện tại</label>
-                      <StatusSelect order={selectedOrder} onChange={(nextStatus) => handleStatusChange(selectedOrder.id, nextStatus)} className="w-full rounded-xl py-3 text-sm" />
+                      <OrderStatusWorkflow
+                        order={selectedOrder}
+                        loading={statusUpdatingId === selectedOrder.id}
+                        onUpdate={(nextStatus, note) => handleStatusChange(selectedOrder.id, nextStatus, note)}
+                      />
                       {terminalStatuses.has(selectedOrder.status) && <p className="mt-3 text-xs font-medium italic text-error">Đơn hàng đã ở trạng thái kết thúc, không thể chuyển tiếp.</p>}
                       {selectedOrder.refundPending && <p className="mt-3 text-xs font-medium italic text-amber-700">Đang có yêu cầu hoàn tiền, tạm dừng chuyển trạng thái.</p>}
                     </section>
