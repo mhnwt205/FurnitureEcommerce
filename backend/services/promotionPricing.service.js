@@ -226,11 +226,12 @@ const buildFinalPriceFilterSql = ({ minPrice, maxPrice }) => {
 };
 
 const buildPromotionAwareOrderSql = (sort) => {
-  if (sort === 'price_asc') return Prisma.sql`[finalPrice] ASC, [id] DESC`;
-  if (sort === 'price_desc') return Prisma.sql`[finalPrice] DESC, [id] DESC`;
-  if (sort === 'name_asc') return Prisma.sql`[name] ASC, [id] DESC`;
-  if (sort === 'popular') return Prisma.sql`[stock] DESC, [id] DESC`;
-  return Prisma.sql`[createdAt] DESC, [id] DESC`;
+  const availabilityRank = Prisma.sql`CASE WHEN [stock] > 0 THEN 0 ELSE 1 END ASC`;
+  if (sort === 'price_asc') return Prisma.sql`${availabilityRank}, [finalPrice] ASC, [id] DESC`;
+  if (sort === 'price_desc') return Prisma.sql`${availabilityRank}, [finalPrice] DESC, [id] DESC`;
+  if (sort === 'name_asc') return Prisma.sql`${availabilityRank}, [name] ASC, [id] DESC`;
+  if (sort === 'popular') return Prisma.sql`${availabilityRank}, [stock] DESC, [id] DESC`;
+  return Prisma.sql`${availabilityRank}, [createdAt] DESC, [id] DESC`;
 };
 
 const promotionAwareProductCte = (filters) => Prisma.sql`

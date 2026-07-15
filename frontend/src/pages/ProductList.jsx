@@ -12,6 +12,7 @@ import WishlistButton from '../components/common/WishlistButton';
 import ProductImage from '../components/product/ProductImage';
 import ProductBadge from '../components/product/ProductBadge';
 import ProductPriceBlock from '../components/product/ProductPriceBlock';
+import { isOutOfStock } from '../utils/stockUtils';
 
 const categories = [
   { name: 'Tất cả', slug: 'ALL' },
@@ -40,12 +41,21 @@ function ProductImagePlaceholder({ productName }) {
   );
 }
 
+function SoldOutBadge({ className = '' }) {
+  return (
+    <span className={`pointer-events-none inline-flex items-center rounded-[6px] bg-red-600 px-2.5 py-1 text-[11px] font-semibold leading-none text-white ${className}`}>
+      Hết hàng
+    </span>
+  );
+}
+
 function CollectionProductCard({ product, isWishlisted }) {
   const productImages = getProductImages(product);
   const primaryImage = productImages[0];
   const hoverImage = productImages[1];
   const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
   const discountPercent = Number(product.discountPercent || 0);
+  const outOfStock = isOutOfStock(product);
 
   return (
     <article className="group h-full bg-white text-[#252a2b]">
@@ -55,7 +65,7 @@ function CollectionProductCard({ product, isWishlisted }) {
             <ProductImage
               src={primaryImage}
               alt={product.name}
-              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${hoverImage ? 'group-hover:opacity-0' : ''}`}
+              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${outOfStock ? 'opacity-70 saturate-[0.85]' : ''} ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             />
           ) : (
             <ProductImagePlaceholder productName={product.name} />
@@ -65,15 +75,16 @@ function CollectionProductCard({ product, isWishlisted }) {
               src={hoverImage}
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100"
+              className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100 ${outOfStock ? 'saturate-[0.85]' : ''}`}
             />
           )}
         </Link>
 
+        {outOfStock && <SoldOutBadge className="absolute left-[10px] top-[10px] z-20" />}
         <ProductBadge
           product={product}
           discountPercent={discountPercent}
-          className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white"
+          className={`absolute left-[10px] ${outOfStock ? 'top-[42px]' : 'top-[10px]'} z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white`}
         />
 
         <WishlistButton
@@ -115,6 +126,7 @@ function ProductListRow({ product, isWishlisted, onAddToCart }) {
   const hoverImage = productImages[1];
   const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
   const discountPercent = Number(product.discountPercent || 0);
+  const outOfStock = isOutOfStock(product);
 
   return (
     <article className="group grid gap-5 border-b border-[#e5e5e5] pb-6 text-[#252a2b] last:border-b-0 sm:grid-cols-[190px_1fr] lg:grid-cols-[220px_1fr]">
@@ -124,7 +136,7 @@ function ProductListRow({ product, isWishlisted, onAddToCart }) {
             <ProductImage
               src={primaryImage}
               alt={product.name}
-              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${hoverImage ? 'group-hover:opacity-0' : ''}`}
+              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${outOfStock ? 'opacity-70 saturate-[0.85]' : ''} ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             />
           ) : (
             <ProductImagePlaceholder productName={product.name} />
@@ -134,14 +146,15 @@ function ProductListRow({ product, isWishlisted, onAddToCart }) {
               src={hoverImage}
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100"
+              className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100 ${outOfStock ? 'saturate-[0.85]' : ''}`}
             />
           )}
         </Link>
+        {outOfStock && <SoldOutBadge className="absolute left-[10px] top-[10px] z-20" />}
         <ProductBadge
           product={product}
           discountPercent={discountPercent}
-          className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white"
+          className={`absolute left-[10px] ${outOfStock ? 'top-[42px]' : 'top-[10px]'} z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white`}
         />
         <WishlistButton
           productId={product.id}
@@ -162,7 +175,11 @@ function ProductListRow({ product, isWishlisted, onAddToCart }) {
           {product.description && (
             <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-[#777777]">{product.description}</p>
           )}
-          {soldCount > 0 && <p className="mt-3 text-xs text-[#777777]">Đã bán {soldCount}</p>}
+          {(outOfStock || soldCount > 0) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {soldCount > 0 && <p className="text-xs text-[#777777]">Đã bán {soldCount}</p>}
+            </div>
+          )}
         </div>
 
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -178,11 +195,17 @@ function ProductListRow({ product, isWishlisted, onAddToCart }) {
             type="button"
             onClick={(event) => {
               event.preventDefault();
+              if (outOfStock) {
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Sản phẩm đã hết hàng.' } }));
+                return;
+              }
               onAddToCart(product);
             }}
-            className="inline-flex h-[38px] items-center justify-center border border-[#252a2b] bg-white px-5 text-[13px] font-semibold text-[#252a2b] transition-all duration-300 ease-commerce hover:border-[#bfa37c] hover:text-[#bfa37c] active:scale-[0.98]"
+            disabled={outOfStock}
+            title={outOfStock ? 'Sản phẩm đã hết hàng.' : undefined}
+            className="inline-flex h-[38px] min-w-[118px] items-center justify-center border border-[#252a2b] bg-white px-5 text-[13px] font-semibold text-[#252a2b] transition-all duration-300 ease-commerce hover:border-[#bfa37c] hover:text-[#bfa37c] active:scale-[0.98] disabled:cursor-not-allowed disabled:border-[#d7d1c8] disabled:bg-[#f4f1ec] disabled:text-[#7a6f66] disabled:hover:border-[#d7d1c8] disabled:hover:text-[#7a6f66]"
           >
-            Thêm vào giỏ
+            {outOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
           </button>
         </div>
       </div>

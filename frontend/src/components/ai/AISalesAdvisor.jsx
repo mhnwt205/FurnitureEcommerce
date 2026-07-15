@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { aiAdvisorService } from '../../services/api/aiAdvisorService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
 import PriceDisplay from '../common/PriceDisplay';
+import { isOutOfStock } from '../../utils/stockUtils';
 
 const INITIAL_MESSAGE = 'Xin chào! Mình có thể giúp bạn chọn nội thất theo nhu cầu, ngân sách hoặc không gian.';
 const MAX_MESSAGE_LENGTH = 1000;
@@ -26,19 +27,22 @@ function ProductImage({ src, alt }) {
 
 function RecommendationCard({ product }) {
   const imageUrl = product.imageUrl ? getStaticFileUrl(product.imageUrl) : '';
+  const outOfStock = isOutOfStock(product);
 
   return (
     <article className="group rounded-[10px] border border-[#e5e5e5] bg-white p-3 transition-colors hover:border-[#bfa37c]">
       <div className="flex gap-3">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[8px] border border-[#eeeeee] bg-[#f6f6f4]">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[8px] border border-[#eeeeee] bg-[#f6f6f4]">
           <ProductImage src={imageUrl} alt={product.name} />
+          {outOfStock && <span className="absolute inset-0 bg-white/20" aria-hidden="true" />}
+          {outOfStock && <span className="pointer-events-none absolute left-1 top-1 rounded-[5px] bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">Hết hàng</span>}
         </div>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#333333]">{product.name}</p>
           <PriceDisplay {...product} size="small" showBadge showSavings className="mt-1" />
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#777777]">
             {product.category && <span>{product.category}</span>}
-            <span>{product.stock > 0 ? `Còn ${product.stock}` : 'Tạm hết hàng'}</span>
+            <span>{outOfStock ? 'Hết hàng' : `Còn ${product.stock}`}</span>
             {product.averageRating > 0 && (
               <span className="inline-flex items-center gap-0.5 text-[#bfa37c]">
                 <span className="material-symbols-outlined text-[14px]">star</span>

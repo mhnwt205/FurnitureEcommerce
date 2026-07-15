@@ -11,6 +11,7 @@ import { wishlistService } from '../services/api/wishlistService';
 import { useAuth } from '../context/AuthContext';
 import { reviewService } from '../services/api/reviewService';
 import PriceDisplay from '../components/common/PriceDisplay';
+import { canPurchaseQuantity, getAvailableStock, isOutOfStock } from '../utils/stockUtils';
 
 const hasSpecValue = (value) => value !== null && value !== undefined && String(value).trim() !== '';
 
@@ -66,6 +67,14 @@ function ProductDetailSkeleton() {
   );
 }
 
+function RelatedSoldOutBadge({ className = '' }) {
+  return (
+    <span className={`pointer-events-none inline-flex items-center rounded-[6px] bg-red-600 px-2.5 py-1 text-[11px] font-semibold leading-none text-white ${className}`}>
+      Hết hàng
+    </span>
+  );
+}
+
 function RelatedProductCard({ product, isWishlisted }) {
   const productImages = collectProductImages(product);
   const primaryImage = productImages[0];
@@ -73,6 +82,7 @@ function RelatedProductCard({ product, isWishlisted }) {
   const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
   const discountPercent = Number(product.discountPercent || 0);
   const hasPromotion = Boolean(product.hasPromotion && discountPercent > 0);
+  const outOfStock = isOutOfStock(product);
 
   return (
     <article className="group h-full bg-white text-[#252a2b]">
@@ -84,7 +94,7 @@ function RelatedProductCard({ product, isWishlisted }) {
               alt={product.name}
               loading="lazy"
               decoding="async"
-              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${hoverImage ? 'group-hover:opacity-0' : ''}`}
+              className={`h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.035] ${outOfStock ? 'opacity-70 saturate-[0.85]' : ''} ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             />
           ) : (
             <ProductImagePlaceholder productName={product.name} />
@@ -96,12 +106,13 @@ function RelatedProductCard({ product, isWishlisted }) {
               loading="lazy"
               decoding="async"
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100"
+              className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100 ${outOfStock ? 'saturate-[0.85]' : ''}`}
             />
           )}
         </Link>
+        {outOfStock && <RelatedSoldOutBadge className="absolute left-[10px] top-[10px] z-20" />}
         {hasPromotion && (
-          <span className="absolute left-[10px] top-[10px] z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white">-{discountPercent}%</span>
+          <span className={`absolute left-[10px] ${outOfStock ? 'top-[42px]' : 'top-[10px]'} z-10 bg-[#f41919] px-[9px] py-[5px] text-[12px] font-semibold leading-none text-white`}>-{discountPercent}%</span>
         )}
         <WishlistButton
           productId={product.id}
@@ -118,7 +129,11 @@ function RelatedProductCard({ product, isWishlisted }) {
         <div className="mt-[6px]">
           <PriceDisplay {...product} size="normal" variant="compact" showBadge={false} showSavings={false} showPromotionName={false} />
         </div>
-        {soldCount > 0 && <p className="mt-2 text-xs leading-5 text-[#777777]">Đã bán {soldCount}</p>}
+        {(outOfStock || soldCount > 0) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {soldCount > 0 && <p className="text-xs leading-5 text-[#777777]">Đã bán {soldCount}</p>}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -262,13 +277,49 @@ export default function ProductDetail() {
     ].filter((spec) => hasSpecValue(spec.value));
   };
 
+  const notifyPurchaseIssue = (message) => {
+    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message } }));
+  };
+
+  const getPurchaseValidationMessage = () => {
+    if (!product || product.isActive === false) return 'Sản phẩm hiện không còn khả dụng.';
+    if (isOutOfStock(product)) return 'Sản phẩm đã hết hàng.';
+    if (!canPurchaseQuantity(product, quantity)) return 'Số lượng yêu cầu vượt quá tồn kho hiện có.';
+    return '';
+  };
+
+  const handleAddToCart = () => {
+    const validationMessage = getPurchaseValidationMessage();
+    if (validationMessage) {
+      notifyPurchaseIssue(validationMessage);
+      return;
+    }
+
+    addToCart(product, quantity);
+  };
+
+  const handleBuyNow = () => {
+    const validationMessage = getPurchaseValidationMessage();
+    if (validationMessage) {
+      notifyPurchaseIssue(validationMessage);
+      return;
+    }
+
+    const result = addToCart(product, quantity);
+    if (!result?.success) return;
+
+    navigate('/checkout');
+  };
+
   const adjustQty = (delta) => {
+    if (!product || product.isActive === false || isOutOfStock(product)) return;
+
+    const maxStock = getAvailableStock(product);
     setQuantity(prev => {
-      const next = prev + delta;
-      if (next < 1) return 1;
-      const maxStock = product?.stockQuantity != null ? product.stockQuantity : Infinity;
-      if (maxStock > 0 && next > maxStock) return maxStock;
-      return next;
+      const current = Number(prev);
+      const safeCurrent = Number.isInteger(current) && current > 0 ? current : 1;
+      const next = safeCurrent + delta;
+      return Math.min(maxStock, Math.max(1, next));
     });
   };
 
@@ -309,8 +360,17 @@ export default function ProductDetail() {
   const ratingValue = Number(reviewSummary.averageRating || product.averageRating || 0);
   const reviewCount = Number(reviewSummary.reviewCount || product.reviewCount || 0);
   const soldCount = Number(product.soldCount ?? product.sold ?? product.totalSold ?? 0);
-  const stockKnown = product.stockQuantity !== null && product.stockQuantity !== undefined;
-  const inStock = !stockKnown || Number(product.stockQuantity) > 0;
+  const availableStock = getAvailableStock(product);
+  const productUnavailable = product.isActive === false;
+  const inStock = !productUnavailable && !isOutOfStock(product);
+  const canPurchase = inStock && canPurchaseQuantity(product, quantity);
+  const canDecreaseQuantity = inStock && quantity > 1;
+  const canIncreaseQuantity = inStock && quantity < availableStock;
+  const stockStatusText = inStock
+    ? availableStock <= 3
+      ? `Chỉ còn ${availableStock} sản phẩm`
+      : `Còn hàng (${availableStock})`
+    : '';
   const sku = product.sku || product.slug || (product.id ? String(product.id).slice(0, 8).toUpperCase() : '');
 
   return (
@@ -404,30 +464,37 @@ export default function ProductDetail() {
                 </div>
 
                 <div className="border-b border-dotted border-[#dfe0e1] py-[12px] text-[13px] leading-6 text-[#434343]">
-                  {stockKnown && (
-                    <p>
-                      <span className="font-semibold">Tình trạng:</span>{' '}
-                      <span className={inStock ? 'text-[#2f7d32]' : 'text-[#b94732]'}>{inStock ? `Còn hàng${product.stockQuantity ? ` (${product.stockQuantity})` : ''}` : 'Hết hàng'}</span>
-                    </p>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">Tình trạng:</span>
+                    {inStock && (
+                      <span className="text-[#2f7d32]">{stockStatusText}</span>
+                    )}
+                    {!inStock && (
+                      <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
+                        Hết hàng
+                      </span>
+                    )}
+                  </div>
                   {product.category?.name && <p><span className="font-semibold">Danh mục:</span> {product.category.name}</p>}
                 </div>
 
                 <div className="mt-[15px]">
                   <div className="mb-[15px] flex">
                     <button
-                      className="grid size-8 place-items-center border border-[#f5f5f5] bg-[#f5f5f5] text-base font-semibold transition-colors hover:bg-[#ededed]"
+                      className="grid size-8 place-items-center border border-[#f5f5f5] bg-[#f5f5f5] text-base font-semibold transition-colors hover:bg-[#ededed] disabled:cursor-not-allowed disabled:text-[#b8b8b8] disabled:hover:bg-[#f5f5f5]"
                       type="button"
                       onClick={() => adjustQty(-1)}
+                      disabled={!canDecreaseQuantity}
                       aria-label="Giảm số lượng"
                     >
                       <span className="material-symbols-outlined text-[17px]">remove</span>
                     </button>
                     <span className="grid h-8 w-[70px] place-items-center border-y border-[#f5f5f5] bg-white text-sm font-semibold">{quantity}</span>
                     <button
-                      className="grid size-8 place-items-center border border-[#f5f5f5] bg-[#f5f5f5] text-base font-semibold transition-colors hover:bg-[#ededed]"
+                      className="grid size-8 place-items-center border border-[#f5f5f5] bg-[#f5f5f5] text-base font-semibold transition-colors hover:bg-[#ededed] disabled:cursor-not-allowed disabled:text-[#b8b8b8] disabled:hover:bg-[#f5f5f5]"
                       type="button"
                       onClick={() => adjustQty(1)}
+                      disabled={!canIncreaseQuantity}
                       aria-label="Tăng số lượng"
                     >
                       <span className="material-symbols-outlined text-[17px]">add</span>
@@ -437,17 +504,19 @@ export default function ProductDetail() {
                   <div className="grid gap-[8px] sm:grid-cols-[1fr_1fr_auto]">
                     <button
                       type="button"
-                      onClick={() => addToCart(product, quantity)}
-                      disabled={!inStock}
-                      className="flex min-h-[50px] items-center justify-center bg-[#333333] px-4 py-[14px] text-center text-xs font-bold uppercase leading-[22px] text-white transition-colors hover:bg-[#4A3A31] disabled:cursor-not-allowed disabled:bg-[#cfcfcf]"
+                      onClick={handleAddToCart}
+                      disabled={!canPurchase}
+                      title={!inStock ? 'Sản phẩm đã hết hàng.' : !canPurchase ? 'Số lượng yêu cầu vượt quá tồn kho hiện có.' : undefined}
+                      className="flex min-h-[50px] items-center justify-center bg-[#333333] px-4 py-[14px] text-center text-xs font-bold uppercase leading-[22px] text-white transition-colors hover:bg-[#4A3A31] disabled:cursor-not-allowed disabled:bg-[#333333] disabled:text-white disabled:opacity-70 disabled:hover:bg-[#333333]"
                     >
-                      Thêm vào giỏ
+                      {inStock ? 'Thêm vào giỏ' : 'Hết hàng'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => { addToCart(product, quantity); navigate('/checkout'); }}
-                      disabled={!inStock}
-                      className="flex min-h-[50px] items-center justify-center border border-[#333333] bg-white px-4 py-[14px] text-center text-xs font-bold uppercase leading-[22px] text-[#333333] transition-colors hover:border-[#4A3A31] hover:bg-[#FAFAF8] disabled:cursor-not-allowed disabled:border-[#d7d7d7] disabled:text-[#999999]"
+                      onClick={handleBuyNow}
+                      disabled={!canPurchase}
+                      title={!inStock ? 'Sản phẩm đã hết hàng.' : !canPurchase ? 'Số lượng yêu cầu vượt quá tồn kho hiện có.' : undefined}
+                      className="flex min-h-[50px] items-center justify-center border border-[#333333] bg-white px-4 py-[14px] text-center text-xs font-bold uppercase leading-[22px] text-[#333333] transition-colors hover:border-[#4A3A31] hover:bg-[#FAFAF8] disabled:cursor-not-allowed disabled:border-[#d7d7d7] disabled:text-[#999999] disabled:hover:bg-white"
                     >
                       Mua ngay
                     </button>

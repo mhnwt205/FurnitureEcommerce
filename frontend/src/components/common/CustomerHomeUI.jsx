@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import PriceDisplay from './PriceDisplay';
 import WishlistButton from './WishlistButton';
 import { getProductImages } from '../../utils/imageUtils';
+import { isOutOfStock } from '../../utils/stockUtils';
 
 export const customerHomeTokens = {
   container: 'mx-auto w-full max-w-container-max',
@@ -44,7 +45,8 @@ const productCardTokens = {
   imageFrame: `relative overflow-hidden rounded-commerce-card bg-commerce-surface-muted`,
   image: 'h-full w-full object-cover transition-all duration-500 ease-commerce group-hover:scale-[1.025]',
   hoverImage: 'absolute inset-0 h-full w-full scale-[1.015] object-cover opacity-0 transition-all duration-500 ease-commerce group-hover:scale-[1.035] group-hover:opacity-100',
-  badge: 'inline-flex items-center rounded-commerce-control border border-commerce-sale/10 bg-commerce-sale-soft px-2 py-1 text-[11px] font-semibold leading-none text-commerce-sale',
+  badge: 'pointer-events-none inline-flex items-center rounded-commerce-control border border-commerce-sale/10 bg-commerce-sale-soft px-2 py-1 text-[11px] font-semibold leading-none text-commerce-sale',
+  soldOutBadge: 'pointer-events-none inline-flex items-center rounded-commerce-control bg-red-600 px-2.5 py-1 text-[11px] font-semibold leading-none text-white',
   wishlist: 'absolute right-2 top-2 h-8 w-8 rounded-commerce-control border border-commerce-border/90 bg-white/95 text-commerce-text opacity-95 shadow-none transition-all duration-300 ease-commerce hover:border-commerce-secondary hover:text-commerce-secondary md:opacity-0 md:group-hover:opacity-100',
   compactWishlist: 'absolute right-1.5 top-1.5 h-7 w-7 rounded-commerce-control border border-commerce-border/90 bg-white/95 text-commerce-text shadow-none transition-all duration-300 ease-commerce hover:border-commerce-secondary hover:text-commerce-secondary',
   cta: 'absolute inset-x-2 bottom-2 hidden translate-y-2 items-center justify-center rounded-commerce-control bg-commerce-primary/95 px-3 py-2 text-[12px] font-semibold text-white opacity-0 transition-all duration-300 ease-commerce group-hover:translate-y-0 group-hover:opacity-100 sm:flex',
@@ -124,7 +126,7 @@ export function SecondaryButton({ to, children, className = '' }) {
 
 export function SoftBadge({ children, className = '' }) {
   return (
-    <span className={`inline-flex items-center rounded-commerce-control border border-commerce-border bg-white px-3 py-1 text-xs font-semibold text-commerce-secondary ${className}`}>
+    <span className={`pointer-events-none inline-flex items-center rounded-commerce-control border border-commerce-border bg-white px-3 py-1 text-xs font-semibold text-commerce-secondary ${className}`}>
       {children}
     </span>
   );
@@ -140,12 +142,14 @@ function ProductImagePlaceholder({ productName }) {
 }
 
 function ProductMedia({ product, primaryImage, hoverImage, compact = false }) {
+  const outOfStock = isOutOfStock(product);
+
   return (
     <div className={productCardTokens.imageFrame}>
       <Link to={`/products/${product.id}`} className="relative block aspect-square overflow-hidden">
         {primaryImage ? (
           <img
-            className={`${productCardTokens.image} ${hoverImage ? 'group-hover:opacity-0' : ''}`}
+            className={`${productCardTokens.image} ${outOfStock ? 'opacity-70 saturate-[0.85]' : ''} ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             src={primaryImage}
             alt={product.name}
             loading="lazy"
@@ -156,7 +160,7 @@ function ProductMedia({ product, primaryImage, hoverImage, compact = false }) {
         )}
         {hoverImage && (
           <img
-            className={productCardTokens.hoverImage}
+            className={`${productCardTokens.hoverImage} ${outOfStock ? 'saturate-[0.85]' : ''}`}
             src={hoverImage}
             alt=""
             loading="lazy"
@@ -165,6 +169,7 @@ function ProductMedia({ product, primaryImage, hoverImage, compact = false }) {
           />
         )}
       </Link>
+      <ProductAvailabilityBadge product={product} />
       <ProductPromotionBadge product={product} />
       <WishlistButton
         productId={product.id}
@@ -182,14 +187,25 @@ function ProductMedia({ product, primaryImage, hoverImage, compact = false }) {
   );
 }
 
+function ProductAvailabilityBadge({ product }) {
+  if (!isOutOfStock(product)) return null;
+
+  return (
+    <div className="absolute left-2 top-2 z-20">
+      <span className={productCardTokens.soldOutBadge}>Hết hàng</span>
+    </div>
+  );
+}
+
 function ProductPromotionBadge({ product }) {
   const discountPercent = Number(product?.discountPercent || 0);
   const hasPromotion = Boolean(product?.hasPromotion && discountPercent > 0);
+  const outOfStock = isOutOfStock(product);
 
   if (!hasPromotion) return null;
 
   return (
-    <div className="absolute left-2 top-2 z-10">
+    <div className={`absolute left-2 ${outOfStock ? 'top-9' : 'top-2'} z-10`}>
       <span className={productCardTokens.badge}>-{discountPercent}%</span>
     </div>
   );
