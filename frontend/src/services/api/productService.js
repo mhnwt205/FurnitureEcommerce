@@ -6,8 +6,10 @@ export const productService = {
     const url = query ? `/products?${query}` : '/products';
     return await apiClient(url, { method: 'GET' });
   },
-  getProductById: async (id) => {
-    return await apiClient(`/products/${id}`, { method: 'GET' });
+  getProductById: async (id, params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const url = query ? `/products/${id}?${query}` : `/products/${id}`;
+    return await apiClient(url, { method: 'GET' });
   },
   createProduct: async (data) => {
     return await apiClient('/products', {

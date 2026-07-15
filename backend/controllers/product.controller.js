@@ -152,14 +152,15 @@ export const getProducts = async (req, res) => {
     const limitNum = parseInt(limit) || 0;
 
     let products;
-    const shouldUseFinalPriceQuery = Boolean(
+    const shouldUsePromotionAwareQuery = Boolean(
+      includeInactive !== 'true' ||
       (minPrice !== undefined && minPrice !== '') ||
       (maxPrice !== undefined && maxPrice !== '') ||
       sort === 'price_asc' ||
       sort === 'price_desc'
     );
 
-    if (shouldUseFinalPriceQuery) {
+    if (shouldUsePromotionAwareQuery) {
       const { ids, total } = await getPromotionAwareProductPage({
         filters: {
           includeInactive: includeInactive === 'true',

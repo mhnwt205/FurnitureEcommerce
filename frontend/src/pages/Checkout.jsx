@@ -3,7 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { orderService } from '../services/api/orderService';
 import { paymentService } from '../services/api/paymentService';
+import { productService } from '../services/api/productService';
 import { getProductImage } from '../utils/imageUtils';
+import { getAvailableStock } from '../utils/stockUtils';
 import { formatPrice } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 
@@ -65,6 +67,63 @@ const copy = {
 const getCartImageUrl = (item) => getProductImage(item, null);
 
 const getUserLabel = (user) => user?.fullName || user?.name || user?.email || copy.signedIn;
+
+const AVAILABILITY_STATUS = {
+  AVAILABLE: 'AVAILABLE',
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+  INSUFFICIENT_STOCK: 'INSUFFICIENT_STOCK',
+  PRODUCT_UNAVAILABLE: 'PRODUCT_UNAVAILABLE',
+  PRODUCT_NOT_FOUND: 'PRODUCT_NOT_FOUND',
+  VALIDATION_UNAVAILABLE: 'VALIDATION_UNAVAILABLE'
+};
+
+const BLOCKING_AVAILABILITY_STATUSES = new Set([
+  AVAILABILITY_STATUS.OUT_OF_STOCK,
+  AVAILABILITY_STATUS.INSUFFICIENT_STOCK,
+  AVAILABILITY_STATUS.PRODUCT_UNAVAILABLE,
+  AVAILABILITY_STATUS.PRODUCT_NOT_FOUND,
+  AVAILABILITY_STATUS.VALIDATION_UNAVAILABLE
+]);
+
+const getCartItemQuantity = (item) => {
+  const quantity = Number(item?.quantity);
+  return Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
+};
+
+const getAvailabilityMessage = (validationItem) => {
+  if (!validationItem) return '';
+
+  switch (validationItem.status) {
+    case AVAILABILITY_STATUS.OUT_OF_STOCK:
+      return 'Sản phẩm này hiện đã hết hàng. Vui lòng xóa sản phẩm khỏi giỏ để tiếp tục thanh toán.';
+    case AVAILABILITY_STATUS.INSUFFICIENT_STOCK:
+      return 'Chỉ còn ' + validationItem.availableStock + ' sản phẩm trong kho. Vui lòng giảm số lượng để tiếp tục thanh toán.';
+    case AVAILABILITY_STATUS.PRODUCT_UNAVAILABLE:
+      return 'Sản phẩm hiện không còn khả dụng.';
+    case AVAILABILITY_STATUS.PRODUCT_NOT_FOUND:
+      return 'Sản phẩm không còn tồn tại hoặc đã được gỡ khỏi cửa hàng.';
+    case AVAILABILITY_STATUS.VALIDATION_UNAVAILABLE:
+      return 'Không thể kiểm tra tồn kho lúc này. Vui lòng thử lại.';
+    default:
+      return '';
+  }
+};
+
+const getAvailabilitySummaryMessage = (items = []) => {
+  if (items.some((item) => item.status === AVAILABILITY_STATUS.VALIDATION_UNAVAILABLE)) {
+    return 'Không thể kiểm tra tồn kho lúc này. Vui lòng thử lại.';
+  }
+  if (items.some((item) => item.status === AVAILABILITY_STATUS.INSUFFICIENT_STOCK)) {
+    return 'Tồn kho đã thay đổi. Vui lòng kiểm tra lại giỏ hàng.';
+  }
+  if (items.some((item) => item.status === AVAILABILITY_STATUS.OUT_OF_STOCK)) {
+    return 'Một số sản phẩm trong giỏ đã hết hàng. Vui lòng xóa sản phẩm để tiếp tục thanh toán.';
+  }
+  if (items.some((item) => item.status === AVAILABILITY_STATUS.PRODUCT_UNAVAILABLE || item.status === AVAILABILITY_STATUS.PRODUCT_NOT_FOUND)) {
+    return 'Một số sản phẩm trong giỏ hiện không còn khả dụng.';
+  }
+  return '';
+};
 
 function CartImage({ item, className = '' }) {
   const imageUrl = getCartImageUrl(item);
@@ -132,6 +191,13 @@ export default function Checkout() {
   const [error, setError] = useState(null);
   const [refreshingPricing, setRefreshingPricing] = useState(false);
   const [pricingWarning, setPricingWarning] = useState(null);
+  const [validatingAvailability, setValidatingAvailability] = useState(false);
+  const [availabilityValidation, setAvailabilityValidation] = useState({
+    status: 'idle',
+    items: [],
+    hasBlockingIssues: false,
+    message: ''
+  });
 
   const isGuestCheckout = authStatus === 'unauthenticated';
   const isLoggedInCheckout = isAuthenticated && authStatus === 'authenticated';
@@ -141,6 +207,86 @@ export default function Checkout() {
     const unitPrice = getCartItemUnitPrice(item);
     return Boolean(item.hasPromotion || Number(item.discountAmount || 0) > 0 || (basePrice > 0 && unitPrice > 0 && unitPrice < basePrice));
   });
+
+  const validationByProductId = new Map(availabilityValidation.items.map((item) => [item.productId, item]));
+  const cartValidationKey = cartItems.map((item) => String(item.id) + ':' + String(item.quantity)).join('|');
+  const hasBlockingAvailabilityIssues = availabilityValidation.hasBlockingIssues;
+  const isAvailabilityReady = availabilityValidation.status === 'success';
+  const isSubmitDisabled = (
+    loading ||
+    refreshingPricing ||
+    validatingAvailability ||
+    cartItems.length === 0 ||
+    authStatus === 'initializing' ||
+    !isAvailabilityReady ||
+    hasBlockingAvailabilityIssues
+  );
+
+  const classifyAvailability = (item, freshProduct) => {
+    const requestedQuantity = getCartItemQuantity(item);
+    const availableStock = getAvailableStock(freshProduct);
+    const productId = item.id;
+
+    if (freshProduct.isActive === false) {
+      const validationItem = { productId, status: AVAILABILITY_STATUS.PRODUCT_UNAVAILABLE, requestedQuantity, availableStock, product: freshProduct };
+      return { ...validationItem, message: getAvailabilityMessage(validationItem) };
+    }
+
+    if (availableStock <= 0) {
+      const validationItem = { productId, status: AVAILABILITY_STATUS.OUT_OF_STOCK, requestedQuantity, availableStock, product: freshProduct };
+      return { ...validationItem, message: getAvailabilityMessage(validationItem) };
+    }
+
+    if (requestedQuantity < 1 || requestedQuantity > availableStock) {
+      const validationItem = { productId, status: AVAILABILITY_STATUS.INSUFFICIENT_STOCK, requestedQuantity, availableStock, product: freshProduct };
+      return { ...validationItem, message: getAvailabilityMessage(validationItem) };
+    }
+
+    return { productId, status: AVAILABILITY_STATUS.AVAILABLE, requestedQuantity, availableStock, product: freshProduct, message: '' };
+  };
+
+  const validateCartAvailability = async (items = cartItems, { updateState = true } = {}) => {
+    const sourceItems = Array.isArray(items) ? items : [];
+
+    if (sourceItems.length === 0) {
+      const emptyResult = { status: 'success', items: [], hasBlockingIssues: false, message: '' };
+      if (updateState) setAvailabilityValidation(emptyResult);
+      return emptyResult;
+    }
+
+    if (updateState) setValidatingAvailability(true);
+
+    const validationItems = await Promise.all(sourceItems.map(async (item) => {
+      const requestedQuantity = getCartItemQuantity(item);
+      try {
+        const freshProduct = await productService.getProductById(item.id, { includeInactive: 'true' });
+        return classifyAvailability(item, freshProduct);
+      } catch (validationError) {
+        const status = validationError?.status === 404 ? AVAILABILITY_STATUS.PRODUCT_NOT_FOUND : AVAILABILITY_STATUS.VALIDATION_UNAVAILABLE;
+        const validationItem = { productId: item.id, status, requestedQuantity, availableStock: 0, product: item };
+        return { ...validationItem, message: getAvailabilityMessage(validationItem) };
+      }
+    }));
+
+    const hasBlockingIssues = validationItems.some((item) => BLOCKING_AVAILABILITY_STATUSES.has(item.status));
+    const result = {
+      status: 'success',
+      items: validationItems,
+      hasBlockingIssues,
+      message: hasBlockingIssues ? getAvailabilitySummaryMessage(validationItems) : ''
+    };
+
+    if (updateState) {
+      setAvailabilityValidation(result);
+      setValidatingAvailability(false);
+    }
+
+    return result;
+  };
+
+  const retryAvailabilityValidation = () => {
+    validateCartAvailability(cartItems, { updateState: true });
+  };
 
   useEffect(() => {
     if (authStatus === 'initializing' || authStatus === 'unavailable') return;
@@ -168,6 +314,12 @@ export default function Checkout() {
       }));
     }
   }, [authStatus, isLoggedInCheckout, currentUser]);
+
+  useEffect(() => {
+    if (authStatus === 'initializing' || authStatus === 'unavailable') return;
+    validateCartAvailability(cartItems, { updateState: true });
+  }, [authStatus, cartValidationKey]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -178,7 +330,7 @@ export default function Checkout() {
     if (cartItems.length === 0 || loading || authStatus === 'initializing') return;
 
     if (authStatus === 'unavailable') {
-      setError('Khong the xac minh trang thai phien. Vui long thu lai khi ket noi on dinh.');
+      setError('Không thể xác minh trạng thái phiên. Vui lòng thử lại khi kết nối ổn định.');
       return;
     }
 
@@ -186,14 +338,23 @@ export default function Checkout() {
     setError(null);
 
     try {
+      let latestCartItems = cartItems;
       try {
         setRefreshingPricing(true);
         setPricingWarning(null);
-        await refreshCartPricing();
+        latestCartItems = await refreshCartPricing();
       } catch (refreshError) {
         setPricingWarning(copy.priceWarningSubmit);
       } finally {
         setRefreshingPricing(false);
+      }
+
+      const availabilityResult = await validateCartAvailability(latestCartItems, { updateState: true });
+      if (availabilityResult.hasBlockingIssues) {
+        const message = availabilityResult.message || 'Tồn kho đã thay đổi. Vui lòng kiểm tra lại giỏ hàng.';
+        setError(message);
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message } }));
+        return;
       }
 
       const orderPayload = {
@@ -202,7 +363,7 @@ export default function Checkout() {
         address: formData.address.trim(),
         note: formData.note.trim(),
         paymentMethod: paymentMethod,
-        items: cartItems.map(item => ({
+        items: latestCartItems.map(item => ({
           productId: parseInt(item.id, 10),
           quantity: parseInt(item.quantity, 10)
         }))
@@ -251,7 +412,12 @@ export default function Checkout() {
         }
       });
     } catch (err) {
-      setError(err.message || copy.orderError);
+      const stockChanged = /not have enough stock|not available|not found/i.test(err?.message || '');
+      const message = stockChanged ? 'Tồn kho đã thay đổi. Vui lòng kiểm tra lại giỏ hàng.' : (err.message || copy.orderError);
+      setError(message);
+      if (stockChanged) {
+        await validateCartAvailability(cartItems, { updateState: true });
+      }
     } finally {
       setLoading(false);
     }
@@ -283,10 +449,10 @@ export default function Checkout() {
           </div>
           <section className="mx-auto mt-20 w-full max-w-[460px] rounded-[12px] border border-[#e5e5e5] bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <span className="material-symbols-outlined text-[40px] text-[#999999]">cloud_off</span>
-            <h1 className="mt-5 text-[20px] font-bold text-[#333333]">Khong the xac minh phien</h1>
-            <p className="mt-2 text-[13px] leading-6 text-[#777777]">Vui long thu lai khi ket noi toi may chu on dinh.</p>
+            <h1 className="mt-5 text-[20px] font-bold text-[#333333]">Không thể xác minh phiên</h1>
+            <p className="mt-2 text-[13px] leading-6 text-[#777777]">Vui lòng thử lại khi kết nối tới máy chủ ổn định.</p>
             <button type="button" onClick={refreshSession} className="mt-6 inline-flex h-10 items-center justify-center rounded-[6px] bg-[#333333] px-5 text-[13px] font-bold text-white hover:bg-[#111111]">
-              Thu lai
+              Thử lại
             </button>
           </section>
         </div>
@@ -390,25 +556,37 @@ export default function Checkout() {
               <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
                 {cartItems.map(item => {
                   const unitPrice = getCartItemUnitPrice(item);
+                  const itemValidation = validationByProductId.get(item.id);
+                  const itemHasIssue = Boolean(itemValidation && itemValidation.status !== AVAILABILITY_STATUS.AVAILABLE);
+                  const itemMessage = itemValidation?.message || '';
+                  const itemQuantity = getCartItemQuantity(item);
+                  const canIncreaseQuantity = itemValidation?.status === AVAILABILITY_STATUS.AVAILABLE && itemQuantity < itemValidation.availableStock;
+                  const canDecreaseQuantity = itemQuantity > 1;
                   return (
-                    <article key={item.id} className="grid grid-cols-[64px_1fr] gap-3 rounded-[8px] border border-[#eeeeee] p-2.5">
+                    <article key={item.id} className={'grid grid-cols-[64px_1fr] gap-3 rounded-[8px] border p-2.5 ' + (itemHasIssue ? 'border-[#efd8cb] bg-[#fffaf7]' : 'border-[#eeeeee]')}>
                       <Link to={`/products/${item.id}`} className="relative aspect-square overflow-hidden rounded-[6px] bg-[#f7f7f7]">
                         <CartImage item={item} className="h-full w-full" />
                         <span className="absolute right-1 top-1 grid h-5 min-w-5 place-items-center rounded-[5px] bg-[#333333] px-1 text-[11px] font-bold text-white">{item.quantity}</span>
+                        {itemValidation?.status === AVAILABILITY_STATUS.OUT_OF_STOCK && (
+                          <span className="absolute left-1 top-1 rounded-[5px] bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Hết hàng</span>
+                        )}
                       </Link>
                       <div className="min-w-0">
                         <Link to={`/products/${item.id}`} className="line-clamp-2 text-[13px] font-bold leading-5 text-[#333333] transition-colors hover:text-[#111111]">{item.name}</Link>
                         {item.category?.name && <p className="mt-0.5 truncate text-[12px] text-[#777777]">{item.category.name}</p>}
+                        {itemHasIssue && itemMessage && (
+                          <p className="mt-1.5 rounded-[6px] border border-[#efd8cb] bg-[#fff6f1] px-2 py-1.5 text-[11px] leading-4 text-[#9c4f2b]">{itemMessage}</p>
+                        )}
                         <div className="mt-2 flex items-center justify-between gap-2">
                           <span className="text-[13px] font-bold text-[#333333]">{formatPrice(unitPrice * item.quantity)}</span>
                           <button type="button" onClick={() => removeFromCart(item.id)} className="text-[12px] font-semibold text-[#888888] transition-colors hover:text-[#c33924]">{copy.remove}</button>
                         </div>
                         <div className="mt-2 inline-flex h-8 items-center rounded-[6px] border border-[#dddddd] bg-white">
-                          <button type="button" onClick={() => updateQuantity(item.id, -1)} aria-label={`${copy.decrease} ${item.name}`} className="grid h-full w-8 place-items-center text-[#555555] hover:bg-[#f6f6f6]">
+                          <button type="button" onClick={() => updateQuantity(item.id, -1)} disabled={!canDecreaseQuantity} aria-label={copy.decrease + ' ' + item.name} className="grid h-full w-8 place-items-center text-[#555555] hover:bg-[#f6f6f6] disabled:cursor-not-allowed disabled:text-[#bbbbbb] disabled:hover:bg-white">
                             <span className="material-symbols-outlined text-[16px]" aria-hidden="true">remove</span>
                           </button>
                           <span className="grid h-full min-w-[34px] place-items-center border-x border-[#dddddd] px-2 text-[12px] font-bold text-[#333333]">{item.quantity}</span>
-                          <button type="button" onClick={() => updateQuantity(item.id, 1)} aria-label={`${copy.increase} ${item.name}`} className="grid h-full w-8 place-items-center text-[#555555] hover:bg-[#f6f6f6]">
+                          <button type="button" onClick={() => updateQuantity(item.id, 1)} disabled={!canIncreaseQuantity} aria-label={copy.increase + ' ' + item.name} className="grid h-full w-8 place-items-center text-[#555555] hover:bg-[#f6f6f6] disabled:cursor-not-allowed disabled:text-[#bbbbbb] disabled:hover:bg-white">
                             <span className="material-symbols-outlined text-[16px]" aria-hidden="true">add</span>
                           </button>
                         </div>
@@ -444,13 +622,21 @@ export default function Checkout() {
               </div>
 
               <div className="mt-4 space-y-2.5">
-                {refreshingPricing && <p className="rounded-[8px] border border-[#eeeeee] bg-[#fafafa] px-3 py-2 text-[12px] text-[#777777]">{copy.updatingPrice}</p>}
+                {(refreshingPricing || validatingAvailability) && <p className="rounded-[8px] border border-[#eeeeee] bg-[#fafafa] px-3 py-2 text-[12px] text-[#777777]">{validatingAvailability ? 'Đang kiểm tra tồn kho...' : copy.updatingPrice}</p>}
                 {pricingWarning && <p className="rounded-[8px] border border-[#ecd7c9] bg-[#fff8f4] px-3 py-2 text-[12px] text-[#9c4f2b]">{pricingWarning}</p>}
+                {hasBlockingAvailabilityIssues && availabilityValidation.message && (
+                  <div className="rounded-[8px] border border-[#ecd7c9] bg-[#fff8f4] px-3 py-2 text-[12px] leading-5 text-[#9c4f2b]">
+                    <p>{availabilityValidation.message}</p>
+                    <button type="button" onClick={retryAvailabilityValidation} disabled={validatingAvailability} className="mt-2 h-8 rounded-[6px] border border-[#d8b8a6] bg-white px-3 text-[12px] font-bold text-[#7a432b] transition-colors hover:border-[#9c4f2b] disabled:cursor-not-allowed disabled:opacity-60">
+                      Kiểm tra lại
+                    </button>
+                  </div>
+                )}
                 {error && <p className="rounded-[8px] border border-[#f0d1cb] bg-[#fff6f4] px-3 py-2 text-[12px] text-[#c33924]">{error}</p>}
               </div>
 
-              <button form="checkout-form" type="submit" disabled={loading} className="mt-4 flex h-11 w-full items-center justify-center rounded-[6px] bg-[#333333] px-5 text-[13px] font-bold text-white transition-all duration-200 hover:bg-[#111111] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70">
-                {loading ? copy.processing : paymentMethod === 'VNPAY' ? copy.payVnpay : copy.placeOrder}
+              <button form="checkout-form" type="submit" disabled={isSubmitDisabled} className="mt-4 flex h-11 w-full items-center justify-center rounded-[6px] bg-[#333333] px-5 text-[13px] font-bold text-white transition-all duration-200 hover:bg-[#111111] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70">
+                {loading ? copy.processing : validatingAvailability ? 'Đang kiểm tra tồn kho...' : paymentMethod === 'VNPAY' ? copy.payVnpay : copy.placeOrder}
               </button>
 
               <div className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-[#777777]">
