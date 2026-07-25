@@ -1,0 +1,12 @@
+import express from 'express';
+import * as controller from '../controllers/voucher.controller.js';
+import { verifyToken } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/permission.middleware.js';
+const router=express.Router(); const admin=[verifyToken];
+router.get('/',...admin,requirePermission('voucher_definition.view'),controller.listDefinitions);
+router.get('/:id',...admin,requirePermission('voucher_definition.view'),controller.getDefinition);
+router.post('/',...admin,requirePermission('voucher_definition.create'),controller.createDefinition);
+router.patch('/:id',...admin,requirePermission('voucher_definition.update'),controller.updateDefinition);
+router.patch('/:id/disable',...admin,requirePermission('voucher_definition.disable'),controller.disableDefinition);
+router.patch('/:id/enable',...admin,requirePermission('voucher_definition.update'),controller.enableDefinition);
+export default router;

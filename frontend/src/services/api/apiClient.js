@@ -118,7 +118,7 @@ const apiClient = async (endpoint, options = {}, hasRetried = false) => {
   }
 
   if (!response.ok) {
-    throw createApiError(data?.message || response.statusText || 'An error occurred', response.status, data);
+    throw createApiError(data?.error?.message || data?.message || response.statusText || 'An error occurred', response.status, data);
   }
 
   return data;

@@ -2,6 +2,7 @@
 import { verifyVNPaySignature } from '../config/vnpay.js';
 import {
   createVNPayPaymentUrlForOrder,
+  getCanonicalPayableAmount,
   getRequestIpAddress,
   toPublicPaymentOrderDto
 } from '../services/vnpayPayment.service.js';
@@ -76,7 +77,7 @@ export const vnpayIPN = async (req, res) => {
       return res.status(200).json({ RspCode: '01', Message: 'Order not found' });
     }
 
-    if (Math.round(order.totalAmount) !== Math.round(amount)) {
+    if (Math.round(getCanonicalPayableAmount(order)) !== Math.round(amount)) {
       return res.status(200).json({ RspCode: '04', Message: 'Invalid amount' });
     }
 
@@ -131,7 +132,7 @@ export const verifyPaymentResult = async (req, res) => {
       return res.status(200).json({ success: false, status: 'order_not_found', message: 'Order not found' });
     }
 
-    if (Math.round(order.totalAmount) !== Math.round(amount)) {
+    if (Math.round(getCanonicalPayableAmount(order)) !== Math.round(amount)) {
       return res.status(200).json(toVerifyPaymentResponse({
         success: false,
         status: 'invalid_amount',

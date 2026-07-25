@@ -172,6 +172,7 @@ export default function AdminLayout({ children }) {
       { name: 'Quản lý Danh mục', path: '/admin/categories', icon: 'category' },
       { name: 'Quản lý yêu cầu tư vấn', path: '/admin/consultation-requests', icon: 'support_agent' },
       { name: 'Quản lý khuyến mãi', path: '/admin/promotions', icon: 'sell' },
+      { name: 'Voucher', path: '/admin/voucher-definitions', icon: 'card_giftcard' },
       { name: 'Khách hàng', path: '/admin/customers', icon: 'group' },
       { name: 'Tài khoản quản trị', path: '/admin/accounts', icon: 'manage_accounts' }
     );
@@ -198,6 +199,7 @@ export default function AdminLayout({ children }) {
     if (perms.includes('promotion.view')) {
       menuItems.push({ name: 'Quản lý khuyến mãi', path: '/admin/promotions', icon: 'sell' });
     }
+    if (perms.includes('voucher_definition.view')) menuItems.push({ name: 'Voucher', path: '/admin/voucher-definitions', icon: 'card_giftcard' });
     if (perms.includes('customer.view')) {
       menuItems.push({ name: 'Khách hàng', path: '/admin/customers', icon: 'group' });
     }

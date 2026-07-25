@@ -107,6 +107,8 @@ export default function PaymentResult() {
   }
 
   const order = resultData?.order || null;
+  const hasAuthoritativePricing = order?.merchandiseOriginalSubtotalVnd !== undefined && order?.merchandiseOriginalSubtotalVnd !== null;
+  const payableAmount = order?.payableAmountVnd ?? order?.totalAmount;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -132,9 +134,17 @@ export default function PaymentResult() {
                 <span className="text-on-surface-variant">Trạng thái thanh toán:</span>
                 <span className="font-bold uppercase text-primary">{order.paymentStatus || resultData.status}</span>
               </div>
+              {hasAuthoritativePricing && <>
+                <div className="mt-3 flex justify-between gap-4"><span className="text-on-surface-variant">Tiền hàng ban đầu:</span><span>{formatPrice(order.merchandiseOriginalSubtotalVnd)}</span></div>
+                <div className="mt-3 flex justify-between gap-4"><span className="text-on-surface-variant">Giảm khuyến mãi:</span><span>-{formatPrice(order.promotionDiscountTotalVnd)}</span></div>
+                <div className="mt-3 flex justify-between gap-4"><span className="text-on-surface-variant">Sau khuyến mãi:</span><span>{formatPrice(order.merchandiseAfterPromotionVnd)}</span></div>
+                <div className="mt-3 flex justify-between gap-4"><span className="text-on-surface-variant">Giảm Voucher:</span><span>-{formatPrice(order.voucherDiscountVnd)}</span></div>
+                <div className="mt-3 flex justify-between gap-4"><span className="text-on-surface-variant">Sau Voucher:</span><span>{formatPrice(order.merchandiseAfterVoucherVnd)}</span></div>
+                <div className="mt-3 flex justify-between gap-4"><span className="text-on-surface-variant">Phí giao hàng:</span><span>{formatPrice(order.shippingAmountVnd)}</span></div>
+              </>}
               <div className="mt-3 flex justify-between gap-4">
-                <span className="text-on-surface-variant">Tổng tiền:</span>
-                <span className="font-bold text-accent-terracotta">{order.totalAmount ? formatPrice(order.totalAmount) : 'N/A'}</span>
+                <span className="text-on-surface-variant">Tổng thanh toán:</span>
+                <span className="font-bold text-accent-terracotta">{payableAmount !== undefined && payableAmount !== null ? formatPrice(payableAmount) : 'N/A'}</span>
               </div>
             </div>
           )}

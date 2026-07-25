@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import prisma from '../prismaClient.js';
+import { restoreVoucherForOrder } from './checkoutVoucher.service.js';
 
 export const REFUND_PROVIDER = Object.freeze({
   VNPAY: 'VNPAY'
@@ -163,7 +164,7 @@ const createPaidVNPayCancellationRefundClaimTransaction = async ({
         requestId,
         provider: REFUND_PROVIDER.VNPAY,
         environment: getRefundEnvironment(),
-        amount: order.totalAmount,
+        amount: order.payableAmountVnd ?? order.totalAmount,
         status: REFUND_STATUS.PENDING,
         actorType,
         actorUserId,
@@ -469,6 +470,12 @@ export const resolveManualRefund = async ({ requestId, result, adminUser, provid
         }
       });
       if (orderTransition.count !== 1) throw new OrderRefundError(ORDER_REFUND_ERROR.CLAIM_RACE_LOST);
+
+      await restoreVoucherForOrder(tx, {
+        orderId: refund.orderId,
+        trigger: 'COMPLETED_ORDER_REFUNDED',
+        now
+      });
 
       for (const item of refund.order.orderItems || []) {
         await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } });

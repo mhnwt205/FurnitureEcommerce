@@ -25,6 +25,8 @@ import DesignServices from './pages/DesignServices';
 
 import CustomerProfile from './pages/profile/CustomerProfile';
 import CustomerOrderPage from './pages/profile/CustomerOrderPage';
+import VoucherDetail from './pages/profile/VoucherDetail';
+import RewardCatalog from './pages/profile/RewardCatalog';
 import FloatingButtons from './components/common/FloatingButtons';
 import AISalesAdvisor from './components/ai/AISalesAdvisor';
 import AdminRoute from './components/common/AdminRoute';
@@ -37,6 +39,7 @@ const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
 const AdminConsultationRequests = lazy(() => import('./pages/AdminConsultationRequests'));
 const AdminPromotions = lazy(() => import('./pages/AdminPromotions'));
+const AdminVouchers = lazy(() => import('./pages/AdminVouchers'));
 const StoreSystem = lazy(() => import('./pages/StoreSystem'));
 const SpaceInspiration = lazy(() => import('./pages/SpaceInspiration'));
 const FeaturedProjects = lazy(() => import('./pages/FeaturedProjects'));
@@ -99,6 +102,8 @@ function AppContent() {
         <Route path="/admin/consultation-requests" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="consultation.view"><AdminConsultationRequests /></AdminRoute>} />
         <Route path="/admin/accounts" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="admin_account.view"><AdminAccounts /></AdminRoute>} />
         <Route path="/admin/promotions" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="promotion.view"><AdminPromotions /></AdminRoute>} />
+        <Route path="/admin/voucher-definitions" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="voucher_definition.view"><AdminVouchers /></AdminRoute>} />
+        <Route path="/admin/vouchers" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="voucher_definition.view"><AdminVouchers /></AdminRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -114,6 +119,13 @@ function AppContent() {
         <Route path="/profile" element={<CustomerProfile />} />
         <Route path="/profile/orders" element={<CustomerProfile />} />
         <Route path="/profile/orders/:id" element={<CustomerOrderPage />} />
+        <Route path="/profile/vouchers" element={<CustomerProfile />} />
+        <Route path="/profile/vouchers/:id" element={<VoucherDetail />} />
+        <Route path="/profile/rewards" element={<CustomerProfile />} />
+        <Route path="/profile/tier" element={<CustomerProfile />} />
+        <Route path="/profile/tier-benefits" element={<CustomerProfile />} />
+        <Route path="/profile/reward-catalog" element={<RewardCatalog />} />
+        <Route path="/profile/public-vouchers" element={<CustomerProfile />} />
         </Routes>
       </Suspense>
       {!isAdminRoute && (

@@ -1,5 +1,13 @@
+import crypto from 'crypto';
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
+import {
+  CheckoutVoucherError,
+  buildCanonicalPricing,
+  consumeCheckoutVoucher,
+  createVoucherApplication,
+  resolveCheckoutVoucher
+} from '../services/checkoutVoucher.service.js';
 import { attachPricingToProducts } from '../services/promotionPricing.service.js';
 import { generateUniqueGuestOrderManagementToken } from '../services/guestOrderToken.service.js';
 import { deliverOrderConfirmationEmail } from '../services/orderConfirmationEmail.service.js';
@@ -28,12 +36,49 @@ import {
   startManualRefundProcessing,
   toRefundAwareOrderFlags
 } from '../services/orderRefund.service.js';
+import { awardPointsForCompletedOrder, RewardPointsError } from '../services/rewardPoints.service.js';
+import { evaluateTierForCompletedOrder } from '../services/tier.service.js';
 import {
   createVNPayPaymentUrlForOrder,
   getRequestIpAddress
 } from '../services/vnpayPayment.service.js';
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const RETRIABLE_TRANSACTION_CODES = new Set(['P2034', 'P2028']);
+const COMPLETION_TRANSACTION_RETRIES = 8;
+const waitForTransactionRetry = (attempt) => new Promise((resolve) => {
+  const exponentialDelay = 50 * (2 ** attempt);
+  const jitter = Math.floor(Math.random() * 50);
+  setTimeout(resolve, exponentialDelay + jitter);
+});
+const isRetriableCompletionTransactionError = (error) => (
+  RETRIABLE_TRANSACTION_CODES.has(error?.code)
+  || (error?.code === 'P2010' && error?.meta?.code === '1205')
+);
+
+const runCompletionTransaction = async (callback) => {
+  let lastError;
+  for (let attempt = 0; attempt < COMPLETION_TRANSACTION_RETRIES; attempt += 1) {
+    try {
+      return await prisma.$transaction(callback, { maxWait: 20_000, timeout: 30_000 });
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableCompletionTransactionError(error) || attempt === COMPLETION_TRANSACTION_RETRIES - 1) throw error;
+      await waitForTransactionRetry(attempt);
+    }
+  }
+  throw lastError;
+};
+const lockCustomerLoyalty = (tx, userId) => tx.$queryRaw`
+  SELECT [id]
+  FROM [dbo].[User] WITH (UPDLOCK, HOLDLOCK)
+  WHERE [id] = ${userId}
+`;
+const createRequestId = (req) => (
+  typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
+    ? req.headers['x-request-id']
+    : crypto.randomUUID()
+);
 
 const optionalEmailSchema = z.preprocess(
   (value) => {
@@ -45,9 +90,9 @@ const optionalEmailSchema = z.preprocess(
 );
 
 const orderItemSchema = z.object({
-  productId: z.number().int().positive(),
+  productId: z.number().int().positive().max(2_147_483_647),
   quantity: z.number().int().min(1)
-});
+}).strict();
 
 const createOrderSchema = z.object({
   fullName: z.string().trim().min(1),
@@ -56,8 +101,9 @@ const createOrderSchema = z.object({
   address: z.string().trim().min(1),
   note: z.string().trim().optional(),
   paymentMethod: z.string().trim().min(1),
-  items: z.array(orderItemSchema).min(1)
-});
+  items: z.array(orderItemSchema).min(1),
+  voucherId: z.number().int().positive().max(2_147_483_647).optional()
+}).strict();
 
 const lookupOrderSchema = z.object({
   orderCode: z.string().trim().min(3).max(50).regex(/^[A-Za-z0-9._:-]+$/),
@@ -326,15 +372,12 @@ export const createOrder = async (req, res) => {
       }
     }
 
-    let totalAmount = 0;
     const orderItemsData = validatedData.items.map((item) => {
       const product = productMap.get(item.productId);
       const originalPrice = Number(product.price);
       const finalPrice = Number(product.finalPrice ?? product.displayPrice ?? product.price);
       const discountAmount = Number(product.discountAmount ?? Math.max(originalPrice - finalPrice, 0));
       const subtotal = Number((finalPrice * item.quantity).toFixed(2));
-
-      totalAmount = Number((totalAmount + subtotal).toFixed(2));
 
       return {
         productId: product.id,
@@ -350,6 +393,8 @@ export const createOrder = async (req, res) => {
       };
     });
 
+    const basePricing = buildCanonicalPricing(orderItemsData);
+
     const orderCode = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     let rawManagementToken = null;
 
@@ -359,6 +404,18 @@ export const createOrder = async (req, res) => {
         guestManagementToken = await generateUniqueGuestOrderManagementToken(tx);
         rawManagementToken = guestManagementToken.rawToken;
       }
+
+      const voucherResolution = await resolveCheckoutVoucher(tx, {
+        voucherId: validatedData.voucherId,
+        userId: customerContext.userId,
+        merchandiseAfterPromotionVnd: basePricing.merchandiseAfterPromotionVnd
+      });
+      const pricing = {
+        ...basePricing,
+        voucherDiscountVnd: voucherResolution.voucherDiscountVnd,
+        merchandiseAfterVoucherVnd: basePricing.merchandiseAfterPromotionVnd.minus(voucherResolution.voucherDiscountVnd),
+        payableAmountVnd: basePricing.merchandiseAfterPromotionVnd.minus(voucherResolution.voucherDiscountVnd).plus(basePricing.shippingAmountVnd)
+      };
 
       for (const [productId, quantity] of quantityByProductId.entries()) {
         const stockUpdate = await tx.product.updateMany({
@@ -376,7 +433,7 @@ export const createOrder = async (req, res) => {
         }
       }
 
-      return tx.order.create({
+      const createdOrder = await tx.order.create({
         data: {
           orderCode,
           userId: customerContext.userId,
@@ -386,7 +443,16 @@ export const createOrder = async (req, res) => {
           address: validatedData.address,
           note: validatedData.note,
           paymentMethod: validatedData.paymentMethod,
-          totalAmount,
+          // totalAmount remains the legacy Float compatibility mirror. The Decimal
+          // payableAmountVnd below is the authoritative amount for new orders.
+          totalAmount: Number(pricing.payableAmountVnd.toString()),
+          merchandiseOriginalSubtotalVnd: pricing.merchandiseOriginalSubtotalVnd,
+          promotionDiscountTotalVnd: pricing.promotionDiscountTotalVnd,
+          merchandiseAfterPromotionVnd: pricing.merchandiseAfterPromotionVnd,
+          voucherDiscountVnd: pricing.voucherDiscountVnd,
+          merchandiseAfterVoucherVnd: pricing.merchandiseAfterVoucherVnd,
+          shippingAmountVnd: pricing.shippingAmountVnd,
+          payableAmountVnd: pricing.payableAmountVnd,
           status: 'pending',
           confirmationEmailStatus: 'pending',
           managementTokenHash: guestManagementToken?.tokenHash ?? null,
@@ -410,6 +476,20 @@ export const createOrder = async (req, res) => {
           orderItems: true
         }
       });
+
+      await consumeCheckoutVoucher(tx, {
+        voucher: voucherResolution.voucher,
+        userId: customerContext.userId,
+        orderId: createdOrder.id
+      });
+      await createVoucherApplication(tx, {
+        orderId: createdOrder.id,
+        userId: customerContext.userId,
+        voucher: voucherResolution.voucher,
+        pricing,
+        voucherDiscountVnd: voucherResolution.voucherDiscountVnd
+      });
+      return createdOrder;
     });
 
     const responseBody = {
@@ -457,6 +537,13 @@ export const createOrder = async (req, res) => {
 
     if (error.message === 'AUTHENTICATED_USER_EMAIL_MISSING') {
       return res.status(400).json({ message: 'Authenticated user email is required' });
+    }
+
+    if (error instanceof CheckoutVoucherError) {
+      return res.status(error.status).json({
+        error: { code: error.code, message: error.message },
+        requestId: createRequestId(req)
+      });
     }
 
     if (error.message?.startsWith('INSUFFICIENT_STOCK:')) {
@@ -876,7 +963,10 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid ID or status' });
     }
 
-    const order = await prisma.order.findUnique({ where: { id } });
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { user: { select: { role: true } } }
+    });
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
@@ -925,7 +1015,7 @@ export const updateOrderStatus = async (req, res) => {
       }
     }
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
+    const updatedOrder = await runCompletionTransaction(async (tx) => {
       const transition = await tx.order.updateMany({
         where: { id, status: currentStatus, activeRefundRequestId: null },
         data: updateData
@@ -945,6 +1035,12 @@ export const updateOrderStatus = async (req, res) => {
         }
       });
 
+      if (status === 'completed' && order.userId && order.user?.role === 'customer') {
+        await lockCustomerLoyalty(tx, order.userId);
+        await awardPointsForCompletedOrder(tx, { orderId: id });
+        await evaluateTierForCompletedOrder(tx, { orderId: id });
+      }
+
       return tx.order.findUnique({
         where: { id },
         include: {
@@ -963,6 +1059,12 @@ export const updateOrderStatus = async (req, res) => {
 
     res.status(200).json({ message: 'Order status updated', order: updatedOrder });
   } catch (error) {
+    if (error instanceof RewardPointsError) {
+      return res.status(error.status).json({
+        error: { code: error.code, message: error.message },
+        requestId: createRequestId(req)
+      });
+    }
     console.error('Update order status error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
