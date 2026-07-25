@@ -40,6 +40,11 @@ async function main() {
     { key: 'promotion.create', name: 'Thêm khuyến mãi', group: 'Promotions', description: 'Cho phép tạo khuyến mãi mới' },
     { key: 'promotion.update', name: 'Sửa khuyến mãi', group: 'Promotions', description: 'Cho phép cập nhật thông tin khuyến mãi' },
     { key: 'promotion.delete', name: 'Xóa khuyến mãi', group: 'Promotions', description: 'Cho phép xóa hoặc vô hiệu hóa khuyến mãi' },
+    { key: 'voucher_definition.view', name: 'Xem Voucher', group: 'Vouchers', description: 'Cho phép xem danh sách Voucher Definition' },
+    { key: 'voucher_definition.create', name: 'Tạo Voucher', group: 'Vouchers', description: 'Cho phép tạo Voucher Definition' },
+    { key: 'voucher_definition.update', name: 'Sửa Voucher', group: 'Vouchers', description: 'Cho phép cập nhật Voucher Definition' },
+    { key: 'voucher_definition.disable', name: 'Tắt Voucher', group: 'Vouchers', description: 'Cho phép vô hiệu hóa Voucher Definition' },
+    { key: 'voucher_assignment.create', name: 'Cấp Voucher', group: 'Vouchers', description: 'Cho phép cấp Voucher cho khách hàng' },
   ];
 
   for (const perm of defaultPermissions) {

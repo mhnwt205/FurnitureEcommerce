@@ -1,4 +1,5 @@
 import prisma from '../prismaClient.js';
+import { restoreVoucherForOrder } from './checkoutVoucher.service.js';
 import {
   ORDER_REFUND_ERROR,
   OrderRefundError,
@@ -166,6 +167,12 @@ const cancelOrderWithOwnership = async ({
       if (isRefundRequiredForCancellation(latest) || latest.activeRefundRequestId) throw new OrderCancellationError(ORDER_CANCELLATION_ERROR.REFUND_REQUIRED);
       throw new OrderCancellationError(ORDER_CANCELLATION_ERROR.NOT_CANCELLABLE);
     }
+
+    await restoreVoucherForOrder(tx, {
+      orderId: order.id,
+      trigger: 'ORDER_CANCELLED',
+      now
+    });
 
     for (const item of order.orderItems) {
       await tx.product.update({

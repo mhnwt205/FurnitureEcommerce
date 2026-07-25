@@ -39,6 +39,18 @@ model User {
   actorNotifications       Notification[]        @relation("ActorNotifications")
   createdPromotions        Promotion[]           @relation("PromotionCreatedBy")
   refreshSessions          RefreshSession[]
+  createdVoucherDefinitions VoucherDefinition[]   @relation("VoucherDefinitionCreatedBy")
+  ownedVouchers            UserVoucher[]         @relation("UserVouchers")
+  publicVoucherClaims      PublicVoucherClaim[]
+  voucherAssignments       VoucherAssignment[]   @relation("VoucherAssignmentActor")
+  voucherAssignmentRecipients VoucherAssignmentRecipient[] @relation("VoucherAssignmentRecipientUser")
+  voucherApplications       VoucherApplication[]
+  loyaltyAccount            LoyaltyAccount?
+  pointLedgerEntries        PointLedger[]
+  loyaltyOrderProcessings   LoyaltyOrderProcessing[]
+  tierAchievements          UserTierAchievement[]
+  tierVoucherClaims         TierVoucherClaim[]
+  rewardRedemptions         RewardRedemption[]
 }
 
 model RefreshSession {
@@ -178,12 +190,23 @@ model Order {
   paymentStatus                  String               @default("unpaid") @db.VarChar(50)
   vnpayTransactionNo             String?              @db.VarChar(100)
   vnpayTxnRef                    String?              @db.VarChar(100)
+  merchandiseOriginalSubtotalVnd Decimal?              @db.Decimal(18, 0)
+  promotionDiscountTotalVnd      Decimal?              @db.Decimal(18, 0)
+  merchandiseAfterPromotionVnd   Decimal?              @db.Decimal(18, 0)
+  voucherDiscountVnd             Decimal?              @db.Decimal(18, 0)
+  merchandiseAfterVoucherVnd     Decimal?              @db.Decimal(18, 0)
+  shippingAmountVnd              Decimal?              @db.Decimal(18, 0)
+  payableAmountVnd               Decimal?              @db.Decimal(18, 0)
   user                           User?                @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: Cascade)
   orderItems                     OrderItem[]
   paymentRefunds                 PaymentRefund[]      @relation("OrderRefundAttempts")
   activeRefundRequest            PaymentRefund?       @relation("OrderActiveRefundRequest", fields: [activeRefundRequestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   reviews                        Review[]
   statusHistory                  OrderStatusHistory[]
+  currentVoucherUsers            UserVoucher[]         @relation("UserVoucherCurrentOrder")
+  voucherApplication             VoucherApplication?
+  pointLedgerEntries             PointLedger[]
+  loyaltyOrderProcessing         LoyaltyOrderProcessing?
 
   @@index([userId])
   @@index([phone])
@@ -422,4 +445,259 @@ model PasswordResetToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tokenHash])
+}
+
+model VoucherDefinition {
+  id                    Int       @id @default(autoincrement())
+  normalizedCode        String    @unique @db.VarChar(100)
+  name                  String    @db.NVarChar(255)
+  description           String?   @db.NVarChar(Max)
+  discountType          String    @db.VarChar(50)
+  discountValue         Decimal   @db.Decimal(18, 0)
+  maximumDiscountVnd    Decimal?  @db.Decimal(18, 0)
+  minimumOrderVnd       Decimal?  @db.Decimal(18, 0)
+  claimStartsAt         DateTime?
+  claimEndsAt           DateTime?
+  fixedExpiresAt        DateTime?
+  validityDays          Int?
+  publicClaimEnabled    Boolean   @default(false)
+  audienceType          String?   @db.VarChar(50)
+  minimumTier           String?   @db.VarChar(50)
+  isActive              Boolean   @default(true)
+  disabledAt            DateTime?
+  disabledReason        String?   @db.NVarChar(1000)
+  createdById           Int?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  createdBy             User?     @relation("VoucherDefinitionCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userVouchers          UserVoucher[]
+  publicClaims          PublicVoucherClaim[]
+  assignments           VoucherAssignment[]
+  applications          VoucherApplication[]
+  rewardCatalogItems    RewardCatalogItem[]
+  tierVoucherClaims     TierVoucherClaim[]
+
+  @@index([isActive, publicClaimEnabled, claimStartsAt, claimEndsAt])
+  @@index([createdById])
+}
+
+model UserVoucher {
+  id                       Int       @id @default(autoincrement())
+  userId                   Int
+  voucherDefinitionId      Int
+  source                   String    @db.VarChar(50)
+  status                   String    @default("AVAILABLE") @db.VarChar(50)
+  issuedCode               String    @db.VarChar(100)
+  issuedName               String    @db.NVarChar(255)
+  issuedDescription        String?   @db.NVarChar(Max)
+  issuedDiscountType       String    @db.VarChar(50)
+  issuedDiscountValue      Decimal   @db.Decimal(18, 0)
+  issuedMaximumDiscountVnd Decimal?  @db.Decimal(18, 0)
+  issuedMinimumOrderVnd    Decimal?  @db.Decimal(18, 0)
+  issuedAt                 DateTime  @default(now())
+  expiresAt                DateTime
+  usedAt                   DateTime?
+  lastRestoredAt           DateTime?
+  currentUsedOrderId       Int?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  user                     User      @relation("UserVouchers", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  voucherDefinition        VoucherDefinition @relation(fields: [voucherDefinitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  currentUsedOrder         Order?    @relation("UserVoucherCurrentOrder", fields: [currentUsedOrderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  publicClaim              PublicVoucherClaim?
+  assignmentRecipient      VoucherAssignmentRecipient?
+  applications             VoucherApplication[]
+  tierRewardAchievements   UserTierAchievement[] @relation("TierRewardVoucher")
+  rewardRedemption         RewardRedemption? @relation("RewardRedemptionVoucher")
+  tierVoucherClaim         TierVoucherClaim? @relation("TierVoucherClaimVoucher")
+
+  @@index([userId, status, expiresAt])
+  @@index([userId, status, usedAt])
+  @@index([voucherDefinitionId])
+}
+
+model PublicVoucherClaim {
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  voucherDefinitionId Int
+  userVoucherId       Int       @unique
+  createdAt           DateTime  @default(now())
+  user                User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  voucherDefinition   VoucherDefinition @relation(fields: [voucherDefinitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userVoucher         UserVoucher @relation(fields: [userVoucherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, voucherDefinitionId])
+  @@index([voucherDefinitionId])
+}
+
+model TierVoucherClaim {
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  voucherDefinitionId Int
+  userVoucherId       Int?      @unique
+  tierAtClaim         String    @db.VarChar(50)
+  claimedAt           DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  user                User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  voucherDefinition   VoucherDefinition @relation(fields: [voucherDefinitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userVoucher         UserVoucher? @relation("TierVoucherClaimVoucher", fields: [userVoucherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, voucherDefinitionId])
+  @@index([userId])
+  @@index([voucherDefinitionId])
+}
+
+model VoucherAssignment {
+  id                  Int       @id @default(autoincrement())
+  actorId             Int
+  voucherDefinitionId Int
+  requestKey          String    @db.VarChar(128)
+  payloadHash         String    @db.VarChar(128)
+  reason              String?   @db.NVarChar(1000)
+  createdAt           DateTime  @default(now())
+  actor               User      @relation("VoucherAssignmentActor", fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  voucherDefinition   VoucherDefinition @relation(fields: [voucherDefinitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recipients          VoucherAssignmentRecipient[]
+
+  @@unique([actorId, requestKey])
+  @@index([actorId, createdAt])
+}
+
+model VoucherAssignmentRecipient {
+  id                  Int       @id @default(autoincrement())
+  voucherAssignmentId Int
+  userId              Int
+  userVoucherId       Int       @unique
+  createdAt           DateTime  @default(now())
+  voucherAssignment   VoucherAssignment @relation(fields: [voucherAssignmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                User      @relation("VoucherAssignmentRecipientUser", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userVoucher         UserVoucher @relation(fields: [userVoucherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([voucherAssignmentId, userId])
+  @@index([userId, createdAt])
+}
+
+model VoucherApplication {
+  id                          Int       @id @default(autoincrement())
+  orderId                     Int       @unique
+  userVoucherId               Int
+  userId                      Int
+  voucherDefinitionId         Int
+  appliedCode                 String    @db.VarChar(100)
+  appliedName                 String    @db.NVarChar(255)
+  appliedDiscountType         String    @db.VarChar(50)
+  appliedDiscountValue        Decimal   @db.Decimal(18, 0)
+  appliedMaximumDiscountVnd   Decimal?  @db.Decimal(18, 0)
+  appliedMinimumOrderVnd      Decimal?  @db.Decimal(18, 0)
+  subtotalAfterPromotionVnd   Decimal   @db.Decimal(18, 0)
+  voucherDiscountVnd          Decimal   @db.Decimal(18, 0)
+  merchandiseAfterVoucherVnd  Decimal   @db.Decimal(18, 0)
+  appliedAt                   DateTime  @default(now())
+  restoredAt                  DateTime?
+  restoreTrigger              String?   @db.VarChar(50)
+  order                       Order     @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userVoucher                 UserVoucher @relation(fields: [userVoucherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                        User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  voucherDefinition           VoucherDefinition @relation(fields: [voucherDefinitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userVoucherId, appliedAt])
+  @@index([userId, appliedAt])
+}
+
+model LoyaltyAccount {
+  userId          Int      @id
+  pointBalance    Int      @default(0)
+  lifetimePoints  Int      @default(0)
+  currentTier     String?  @db.VarChar(50)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model UserTierAchievement {
+  id                    Int          @id @default(autoincrement())
+  userId                Int
+  tier                  String       @db.VarChar(50)
+  achievedAt            DateTime     @default(now())
+  rewardUserVoucherId   Int?
+  rewardStatus          String?      @db.VarChar(50)
+  user                  User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rewardUserVoucher     UserVoucher? @relation("TierRewardVoucher", fields: [rewardUserVoucherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, tier])
+  @@index([userId, achievedAt])
+  @@index([rewardUserVoucherId])
+}
+
+model PointLedger {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  orderId         Int?
+  entryType       String   @db.VarChar(50)
+  sourceType      String   @db.VarChar(50)
+  sourceId        Int
+  pointsDelta     Int
+  reason          String?  @db.NVarChar(1000)
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  order           Order?   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  earnedForProcessings LoyaltyOrderProcessing[] @relation("LoyaltyOrderEarnLedger")
+  reversedForProcessings LoyaltyOrderProcessing[] @relation("LoyaltyOrderReverseLedger")
+  rewardRedemption       RewardRedemption? @relation("RewardRedemptionLedger")
+
+  @@unique([sourceType, sourceId, entryType])
+  @@index([userId, createdAt])
+  @@index([userId, entryType, createdAt])
+  @@index([orderId])
+}
+
+model LoyaltyOrderProcessing {
+  id              Int          @id @default(autoincrement())
+  orderId         Int          @unique
+  userId          Int
+  earnedLedgerId  Int?
+  reversedLedgerId Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  earnedLedger    PointLedger? @relation("LoyaltyOrderEarnLedger", fields: [earnedLedgerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reversedLedger  PointLedger? @relation("LoyaltyOrderReverseLedger", fields: [reversedLedgerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([earnedLedgerId])
+  @@index([reversedLedgerId])
+}
+
+model RewardCatalogItem {
+  id                  Int       @id @default(autoincrement())
+  voucherDefinitionId Int       @unique
+  pointCost           Int
+  inventoryLimit      Int?
+  redeemedCount       Int       @default(0)
+  isActive            Boolean   @default(true)
+  validityDays        Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  voucherDefinition   VoucherDefinition @relation(fields: [voucherDefinitionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  redemptions         RewardRedemption[]
+
+  @@index([isActive])
+}
+
+model RewardRedemption {
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  rewardCatalogItemId Int
+  pointCost           Int
+  pointLedgerId       Int?      @unique
+  userVoucherId       Int?      @unique
+  createdAt           DateTime  @default(now())
+  user                User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rewardCatalogItem   RewardCatalogItem @relation(fields: [rewardCatalogItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pointLedger         PointLedger? @relation("RewardRedemptionLedger", fields: [pointLedgerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userVoucher         UserVoucher? @relation("RewardRedemptionVoucher", fields: [userVoucherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, createdAt])
+  @@index([rewardCatalogItemId, createdAt])
 }

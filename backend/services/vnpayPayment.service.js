@@ -15,8 +15,11 @@ export const toPublicPaymentOrderDto = (order) => ({
   status: order.status,
   paymentStatus: order.paymentStatus,
   paymentMethod: order.paymentMethod,
-  totalAmount: order.totalAmount
+  totalAmount: order.totalAmount,
+  payableAmountVnd: order.payableAmountVnd ?? null
 });
+
+export const getCanonicalPayableAmount = (order) => Number(order?.payableAmountVnd ?? order?.totalAmount);
 
 export const createVNPayPaymentUrlForOrder = async ({
   order,
@@ -51,7 +54,7 @@ export const createVNPayPaymentUrlForOrder = async ({
   return createVNPayUrl(
     ipAddr,
     txnRef,
-    order.totalAmount,
+    getCanonicalPayableAmount(order),
     `Thanh toán đơn hàng ${order.orderCode}`
   );
 };

@@ -12,6 +12,8 @@ export default function OrderSuccess() {
   const order = location.state?.order || null;
   const customerType = location.state?.customerType || (isAuthenticated ? 'authenticated' : 'guest');
   const orderCode = order?.orderCode || '';
+  const hasAuthoritativePricing = order?.merchandiseOriginalSubtotalVnd !== undefined && order?.merchandiseOriginalSubtotalVnd !== null;
+  const payableAmount = order?.payableAmountVnd ?? order?.totalAmount;
 
   const copyOrderCode = async () => {
     if (!orderCode || !navigator?.clipboard) return;
@@ -47,9 +49,19 @@ export default function OrderSuccess() {
                   </span>
                 </div>
                 {copied && <p className="text-right text-sm font-semibold text-secondary">Đã copy mã đơn hàng</p>}
+                {hasAuthoritativePricing ? (
+                  <>
+                    <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Tiền hàng ban đầu:</span><span>{formatPrice(order.merchandiseOriginalSubtotalVnd)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Giảm khuyến mãi:</span><span>-{formatPrice(order.promotionDiscountTotalVnd)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Sau khuyến mãi:</span><span>{formatPrice(order.merchandiseAfterPromotionVnd)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Giảm Voucher:</span><span>-{formatPrice(order.voucherDiscountVnd)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Sau Voucher:</span><span>{formatPrice(order.merchandiseAfterVoucherVnd)}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Phí giao hàng:</span><span>{formatPrice(order.shippingAmountVnd)}</span></div>
+                  </>
+                ) : null}
                 <div className="flex justify-between gap-4">
-                  <span className="text-on-surface-variant">Tổng tiền:</span>
-                  <span className="font-bold text-accent-terracotta">{order.totalAmount ? formatPrice(order.totalAmount) : 'N/A'}</span>
+                  <span className="text-on-surface-variant">Tổng thanh toán:</span>
+                  <span className="font-bold text-accent-terracotta">{payableAmount !== undefined && payableAmount !== null ? formatPrice(payableAmount) : 'N/A'}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-on-surface-variant">Trạng thái:</span>

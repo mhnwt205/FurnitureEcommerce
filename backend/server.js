@@ -20,6 +20,13 @@ import aiAdvisorRoutes from './routes/aiAdvisor.routes.js';
 import consultationRequestRoutes from './routes/consultationRequest.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
+import voucherRoutes from './routes/voucher.routes.js';
+import publicVoucherRoutes from './routes/public-voucher.routes.js';
+import voucherDefinitionRoutes from './routes/voucher-definition.routes.js';
+import voucherClaimRoutes from './routes/voucher-claim.routes.js';
+import voucherAssignmentRoutes from './routes/voucher-assignment.routes.js';
+import loyaltyRoutes from './routes/loyalty.routes.js';
+import { rewardCatalogRoutes, rewardRedemptionRoutes } from './routes/reward-catalog.routes.js';
 import { isAllowedOrigin } from './utils/originPolicy.js';
 
 dotenv.config();
@@ -68,6 +75,14 @@ app.use('/api/ai-advisor', aiAdvisorRoutes);
 app.use('/api/consultation-requests', consultationRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/vouchers', voucherRoutes);
+app.use('/api/public-vouchers', publicVoucherRoutes);
+app.use('/api/voucher-definitions', voucherDefinitionRoutes);
+app.use('/api/voucher-claims', voucherClaimRoutes);
+app.use('/api/voucher-assignments', voucherAssignmentRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/reward-catalog', rewardCatalogRoutes);
+app.use('/api/reward-redemptions', rewardRedemptionRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

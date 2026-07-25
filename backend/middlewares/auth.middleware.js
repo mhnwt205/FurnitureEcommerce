@@ -1,5 +1,22 @@
 import prisma from '../prismaClient.js';
+import crypto from 'crypto';
 import { verifyAccessToken } from '../utils/tokenService.js';
+
+const sendAuthError = (req, res, status, message) => {
+  if (!req.rewardPointsErrorEnvelope) {
+    return res.status(status).json({ message });
+  }
+
+  return res.status(status).json({
+    error: {
+      code: status === 401 ? 'UNAUTHORIZED' : 'FORBIDDEN',
+      message
+    },
+    requestId: typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
+      ? req.headers['x-request-id']
+      : crypto.randomUUID()
+  });
+};
 
 const getBearerToken = (req) => {
   const authHeader = req.headers.authorization;
@@ -54,19 +71,19 @@ const findActiveAuthUser = async (token) => {
 export const verifyToken = async (req, res, next) => {
   const { token } = getBearerToken(req);
   if (!token) {
-    return res.status(401).json({ message: 'Access Denied: No token provided' });
+    return sendAuthError(req, res, 401, 'Access Denied: No token provided');
   }
 
   try {
     const result = await findActiveAuthUser(token);
     if (result.error) {
-      return res.status(result.error.status).json({ message: result.error.message });
+      return sendAuthError(req, res, result.error.status, result.error.message);
     }
 
     req.user = result.user;
     next();
   } catch (error) {
-    return res.status(403).json({ message: 'Invalid or expired token' });
+    return sendAuthError(req, res, 403, 'Invalid or expired token');
   }
 };
 

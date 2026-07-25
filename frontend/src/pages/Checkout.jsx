@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { orderService } from '../services/api/orderService';
@@ -8,6 +8,8 @@ import { getProductImage } from '../utils/imageUtils';
 import { getAvailableStock } from '../utils/stockUtils';
 import { formatPrice } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import { voucherService } from '../services/api/voucherService';
+import useFinancialRefresh, { invalidateFinancialData } from '../hooks/useFinancialRefresh';
 
 const copy = {
   brand: 'Heritage Home',
@@ -43,6 +45,13 @@ const copy = {
   remove: 'X\u00f3a',
   promotion: 'Khuy\u1ebfn m\u00e3i',
   autoPromotion: '\u01afu \u0111\u00e3i s\u1ea3n ph\u1ea9m \u0111\u01b0\u1ee3c \u00e1p d\u1ee5ng t\u1ef1 \u0111\u1ed9ng n\u1ebfu c\u00f3.',
+  voucher: 'Voucher',
+  noVoucher: 'Kh\u00f4ng d\u00f9ng Voucher',
+  voucherLoading: '\u0110ang t\u1ea3i Voucher c\u00f3 th\u1ec3 d\u00f9ng...',
+  voucherEmpty: 'Hi\u1ec7n kh\u00f4ng c\u00f3 Voucher c\u00f3 th\u1ec3 d\u00f9ng.',
+  voucherPending: 'Voucher s\u1ebd \u0111\u01b0\u1ee3c h\u1ec7 th\u1ed1ng ki\u1ec3m tra v\u00e0 \u00e1p d\u1ee5ng khi t\u1ea1o \u0111\u01a1n. T\u1ed5ng thanh to\u00e1n ch\u00ednh th\u1ee9c s\u1ebd hi\u1ec3n th\u1ecb sau khi \u0111\u1eb7t h\u00e0ng.',
+  voucherUnavailable: 'Voucher \u0111\u00e3 ch\u1ecdn kh\u00f4ng c\u00f2n c\u00f3 th\u1ec3 d\u00f9ng v\u00e0 \u0111\u00e3 \u0111\u01b0\u1ee3c b\u1ecf ch\u1ecdn.',
+  voucherGuestHint: '\u0110\u0103ng nh\u1eadp \u0111\u1ec3 d\u00f9ng Voucher c\u1ee7a b\u1ea1n. B\u1ea1n v\u1eabn c\u00f3 th\u1ec3 thanh to\u00e1n v\u1edbi t\u01b0 c\u00e1ch kh\u00e1ch.',
   summary: 'T\u00f3m t\u1eaft \u0111\u01a1n h\u00e0ng',
   subtotal: 'T\u1ea1m t\u00ednh',
   totalPayment: 'T\u1ed5ng thanh to\u00e1n',
@@ -84,6 +93,28 @@ const BLOCKING_AVAILABILITY_STATUSES = new Set([
   AVAILABILITY_STATUS.PRODUCT_NOT_FOUND,
   AVAILABILITY_STATUS.VALIDATION_UNAVAILABLE
 ]);
+
+const VOUCHER_SELECTION_INVALID_CODES = new Set([
+  'VOUCHER_NOT_FOUND',
+  'VOUCHER_NOT_OWNED',
+  'VOUCHER_EXPIRED',
+  'VOUCHER_ALREADY_USED',
+  'VOUCHER_NOT_AVAILABLE',
+  'VOUCHER_CONSUMPTION_CONFLICT'
+]);
+
+const getApiErrorCode = (error) => error?.data?.error?.code || error?.data?.code || null;
+
+const formatVoucherDiscount = (voucher) => {
+  if (!voucher) return '';
+  if (voucher.discountType === 'PERCENTAGE') {
+    const cap = voucher.maximumDiscountAmountVnd ? `, tối đa ${formatPrice(voucher.maximumDiscountAmountVnd)}` : '';
+    return `Giảm ${voucher.discountValueVnd}%${cap}`;
+  }
+  return `Giảm ${formatPrice(voucher.discountValueVnd)}`;
+};
+
+const formatVoucherDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : 'Không giới hạn';
 
 const getCartItemQuantity = (item) => {
   const quantity = Number(item?.quantity);
@@ -198,9 +229,18 @@ export default function Checkout() {
     hasBlockingIssues: false,
     message: ''
   });
+  const [selectedVoucherId, setSelectedVoucherId] = useState('');
+  const [vouchers, setVouchers] = useState([]);
+  const [voucherPagination, setVoucherPagination] = useState(null);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherLoadingMore, setVoucherLoadingMore] = useState(false);
+  const [voucherError, setVoucherError] = useState('');
+  const [voucherSelectionMessage, setVoucherSelectionMessage] = useState('');
+  const orderSubmittingRef = useRef(false);
 
   const isGuestCheckout = authStatus === 'unauthenticated';
   const isLoggedInCheckout = isAuthenticated && authStatus === 'authenticated';
+  const canUseCustomerVouchers = isLoggedInCheckout && String(currentUser?.role || '').toLowerCase() === 'customer';
 
   const hasItemDiscount = cartItems.some(item => {
     const basePrice = Number(item.originalPrice ?? item.price ?? 0);
@@ -221,6 +261,75 @@ export default function Checkout() {
     !isAvailabilityReady ||
     hasBlockingAvailabilityIssues
   );
+
+  const loadAvailableVouchers = useCallback(async ({ page = 1, append = false } = {}) => {
+    if (!canUseCustomerVouchers) {
+      setVouchers([]);
+      setVoucherPagination(null);
+      setSelectedVoucherId('');
+      return;
+    }
+
+    if (append) setVoucherLoadingMore(true);
+    else setVoucherLoading(true);
+
+    try {
+      setVoucherError('');
+      const response = await voucherService.listMyVouchers({
+        status: 'AVAILABLE',
+        page,
+        limit: 100,
+        sortBy: 'expiresAt',
+        sortOrder: 'asc'
+      });
+      const available = Array.isArray(response?.data)
+        ? response.data.filter((voucher) => voucher.effectiveStatus === 'AVAILABLE')
+        : [];
+      let normalizedAvailable = available;
+      if (!append && selectedVoucherId && !available.some((voucher) => String(voucher.id) === String(selectedVoucherId))) {
+        try {
+          const selectedResponse = await voucherService.getMyVoucher(selectedVoucherId);
+          const refreshedSelectedVoucher = selectedResponse?.data;
+          if (refreshedSelectedVoucher?.effectiveStatus === 'AVAILABLE') {
+            normalizedAvailable = [refreshedSelectedVoucher, ...available];
+          } else {
+            setSelectedVoucherId('');
+            setVoucherSelectionMessage(copy.voucherUnavailable);
+          }
+        } catch (selectedRequestError) {
+          if (selectedRequestError?.status === 404) {
+            setSelectedVoucherId('');
+            setVoucherSelectionMessage(copy.voucherUnavailable);
+          }
+        }
+      }
+      setVouchers((current) => append
+        ? [...current, ...normalizedAvailable.filter((voucher) => !current.some((existing) => existing.id === voucher.id))]
+        : normalizedAvailable);
+      setVoucherPagination(response?.pagination || null);
+    } catch (requestError) {
+      setVoucherError(requestError?.message || 'Không thể tải Voucher có thể dùng.');
+    } finally {
+      if (append) setVoucherLoadingMore(false);
+      else setVoucherLoading(false);
+    }
+  }, [canUseCustomerVouchers, selectedVoucherId]);
+
+  useFinancialRefresh(loadAvailableVouchers);
+
+  useEffect(() => {
+    if (canUseCustomerVouchers) {
+      loadAvailableVouchers();
+    } else {
+      setVouchers([]);
+      setVoucherPagination(null);
+      setSelectedVoucherId('');
+      setVoucherError('');
+      setVoucherSelectionMessage('');
+    }
+  }, [canUseCustomerVouchers, loadAvailableVouchers]);
+
+  const selectedVoucher = vouchers.find((voucher) => String(voucher.id) === String(selectedVoucherId)) || null;
 
   const classifyAvailability = (item, freshProduct) => {
     const requestedQuantity = getCartItemQuantity(item);
@@ -327,13 +436,14 @@ export default function Checkout() {
 
   const handleOrder = async (e) => {
     e.preventDefault();
-    if (cartItems.length === 0 || loading || authStatus === 'initializing') return;
+    if (cartItems.length === 0 || loading || orderSubmittingRef.current || authStatus === 'initializing') return;
 
     if (authStatus === 'unavailable') {
       setError('Không thể xác minh trạng thái phiên. Vui lòng thử lại khi kết nối ổn định.');
       return;
     }
 
+    orderSubmittingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -373,11 +483,21 @@ export default function Checkout() {
         orderPayload.email = formData.email.trim().toLowerCase();
       }
 
+      if (canUseCustomerVouchers && selectedVoucherId) {
+        orderPayload.voucherId = Number(selectedVoucherId);
+      }
+
       const resultOrder = await orderService.createOrder(orderPayload);
       if (!resultOrder || !resultOrder.order || !resultOrder.order.id) {
         setError(copy.createOrderError);
         window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: copy.createOrderError } }));
         return;
+      }
+
+      if (selectedVoucherId) {
+        setSelectedVoucherId('');
+        setVoucherSelectionMessage('');
+        invalidateFinancialData();
       }
 
       if (paymentMethod === 'VNPAY') {
@@ -412,14 +532,21 @@ export default function Checkout() {
         }
       });
     } catch (err) {
-      const stockChanged = /not have enough stock|not available|not found/i.test(err?.message || '');
+      const errorCode = getApiErrorCode(err);
+      const stockChanged = !errorCode && /not have enough stock|not available|not found/i.test(err?.message || '');
       const message = stockChanged ? 'Tồn kho đã thay đổi. Vui lòng kiểm tra lại giỏ hàng.' : (err.message || copy.orderError);
       setError(message);
+      if (VOUCHER_SELECTION_INVALID_CODES.has(errorCode)) {
+        setSelectedVoucherId('');
+        setVoucherSelectionMessage(copy.voucherUnavailable);
+        loadAvailableVouchers();
+      }
       if (stockChanged) {
         await validateCartAvailability(cartItems, { updateState: true });
       }
     } finally {
       setLoading(false);
+      orderSubmittingRef.current = false;
     }
   };
   if (authStatus === 'initializing') {
@@ -603,13 +730,82 @@ export default function Checkout() {
               </CheckoutCard>
             )}
 
+            {canUseCustomerVouchers ? (
+              <CheckoutCard title={copy.voucher}>
+                <label className="block" htmlFor="checkout-voucher">
+                  <span className="mb-1.5 block text-[12px] font-semibold text-[#555555]">Chọn Voucher</span>
+                  <select
+                    id="checkout-voucher"
+                    value={selectedVoucherId}
+                    onChange={(event) => {
+                      setSelectedVoucherId(event.target.value);
+                      setVoucherSelectionMessage('');
+                    }}
+                    disabled={loading || voucherLoading}
+                    className="h-11 w-full rounded-[7px] border border-[#dddddd] bg-white px-3 text-[13px] text-[#333333] outline-none transition-colors focus:border-[#333333] disabled:cursor-not-allowed disabled:bg-[#f5f5f5]"
+                    aria-describedby="checkout-voucher-help"
+                  >
+                    <option value="">{copy.noVoucher}</option>
+                    {vouchers.map((voucher) => (
+                      <option key={voucher.id} value={voucher.id}>
+                        {voucher.code} - {formatVoucherDiscount(voucher)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div id="checkout-voucher-help" className="mt-3 space-y-2">
+                  {voucherLoading && <p className="rounded-[8px] border border-[#eeeeee] bg-[#fafafa] px-3 py-2 text-[12px] text-[#777777]">{copy.voucherLoading}</p>}
+                  {voucherError && (
+                    <div className="rounded-[8px] border border-[#ecd7c9] bg-[#fff8f4] px-3 py-2 text-[12px] text-[#9c4f2b]" role="alert">
+                      <p>{voucherError}</p>
+                      <button type="button" onClick={() => loadAvailableVouchers()} disabled={loading || voucherLoading} className="mt-2 font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60">Thử lại</button>
+                    </div>
+                  )}
+                  {!voucherLoading && !voucherError && vouchers.length === 0 && <p className="rounded-[8px] border border-[#eeeeee] bg-[#fafafa] px-3 py-2 text-[12px] text-[#777777]">{copy.voucherEmpty}</p>}
+                  {selectedVoucher && (
+                    <div className="rounded-[8px] border border-[#dcdcdc] bg-[#fafafa] px-3 py-3 text-[12px] leading-5 text-[#666666]">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <strong className="break-all text-[#333333]">{selectedVoucher.code}</strong>
+                        <span className="font-semibold text-[#333333]">{formatVoucherDiscount(selectedVoucher)}</span>
+                      </div>
+                      {selectedVoucher.name && <p className="mt-1 font-semibold text-[#444444]">{selectedVoucher.name}</p>}
+                      {selectedVoucher.description && <p className="mt-1 break-words">{selectedVoucher.description}</p>}
+                      <p className="mt-1">Trạng thái: {selectedVoucher.effectiveStatus}</p>
+                      <p className="mt-1">Đơn tối thiểu: {formatPrice(selectedVoucher.minimumOrderAmountVnd || 0)}</p>
+                      <p>Hết hạn: {formatVoucherDate(selectedVoucher.expiresAt)}</p>
+                      <p className="mt-2 text-[#555555]">{copy.voucherPending}</p>
+                    </div>
+                  )}
+                  {voucherSelectionMessage && <p className="rounded-[8px] border border-[#ecd7c9] bg-[#fff8f4] px-3 py-2 text-[12px] text-[#9c4f2b]" role="status">{voucherSelectionMessage}</p>}
+                  {voucherPagination && voucherPagination.page < voucherPagination.totalPages && (
+                    <button type="button" onClick={() => loadAvailableVouchers({ page: voucherPagination.page + 1, append: true })} disabled={loading || voucherLoadingMore} className="text-[12px] font-bold text-[#333333] underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+                      {voucherLoadingMore ? 'Đang tải...' : 'Tải thêm Voucher'}
+                    </button>
+                  )}
+                </div>
+              </CheckoutCard>
+            ) : isGuestCheckout ? (
+              <CheckoutCard title={copy.voucher}>
+                <p className="rounded-[8px] border border-[#eeeeee] bg-[#fafafa] px-3.5 py-3 text-[13px] leading-5 text-[#666666]">{copy.voucherGuestHint}</p>
+              </CheckoutCard>
+            ) : null}
+
             <CheckoutCard title={copy.summary}>
               <dl className="space-y-3 text-[13px]">
                 <div className="flex justify-between gap-4">
                   <dt className="text-[#777777]">{copy.subtotal}</dt>
                   <dd className="font-semibold text-[#333333]">{formatPrice(cartTotal)}</dd>
                 </div>
+                {selectedVoucher && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[#777777]">Voucher đã chọn</dt>
+                    <dd className="text-right font-semibold text-[#333333]">Chờ xác nhận</dd>
+                  </div>
+                )}
               </dl>
+
+              {selectedVoucher && <p className="mt-3 text-[11px] leading-5 text-[#777777]">Giá trên là tạm tính từ giỏ hàng. Hệ thống sẽ tính lại khuyến mãi, Voucher và tổng thanh toán khi tạo đơn.</p>}
 
               <div className="mt-4 border-t border-[#eeeeee] pt-4">
                 <div className="flex items-end justify-between gap-4">
