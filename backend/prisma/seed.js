@@ -31,6 +31,11 @@ async function main() {
     
     { key: 'consultation.view', name: 'Xem yêu cầu tư vấn', group: 'Consultations', description: 'Cho phép xem danh sách và chi tiết yêu cầu tư vấn' },
     { key: 'consultation.update', name: 'Cập nhật yêu cầu tư vấn', group: 'Consultations', description: 'Cho phép phân công, ghi chú và cập nhật trạng thái yêu cầu tư vấn' },
+    { key: 'support_conversation.read', name: 'Xem hỗ trợ trực tuyến', group: 'Support conversations', description: 'Cho phép xem hàng chờ và hội thoại hỗ trợ được phân công' },
+    { key: 'support_conversation.accept', name: 'Nhận hội thoại hỗ trợ', group: 'Support conversations', description: 'Cho phép tự nhận hội thoại đang chờ' },
+    { key: 'support_conversation.reply', name: 'Phản hồi hỗ trợ trực tuyến', group: 'Support conversations', description: 'Cho phép trả lời hội thoại hỗ trợ được phân công' },
+    { key: 'support_conversation.assign', name: 'Phân công hỗ trợ trực tuyến', group: 'Support conversations', description: 'Cho phép phân công hoặc gán lại nhân viên hỗ trợ' },
+    { key: 'support_conversation.close', name: 'Đóng hội thoại hỗ trợ', group: 'Support conversations', description: 'Cho phép đóng hội thoại hỗ trợ đang xử lý' },
     { key: 'admin_account.view', name: 'Xem tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép xem danh sách tài khoản quản trị' },
     { key: 'admin_account.create', name: 'Thêm tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép tạo mới tài khoản staff/admin' },
     { key: 'admin_account.update', name: 'Sửa tài khoản quản trị', group: 'Admin Accounts', description: 'Cho phép sửa thông tin, đổi role tài khoản quản trị' },
