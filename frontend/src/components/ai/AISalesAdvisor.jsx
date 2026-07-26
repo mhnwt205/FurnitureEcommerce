@@ -60,16 +60,24 @@ function RecommendationCard({ product }) {
   );
 }
 
-export default function AISalesAdvisor() {
+export default function AISalesAdvisor({ open = false, onOpenChange, launcherRef }) {
   const location = useLocation();
   const listRef = useRef(null);
-  const [isOpen, setIsOpen] = useState(false);
+  const localLauncherRef = useRef(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [messages, setMessages] = useState([
     { id: 'welcome', role: 'bot', text: INITIAL_MESSAGE, recommendations: [] }
   ]);
+
+  const isOpen = Boolean(open);
+  const setOpen = (nextOpen) => onOpenChange?.(nextOpen);
+  const activeLauncherRef = launcherRef || localLauncherRef;
+  const close = () => {
+    setOpen(false);
+    requestAnimationFrame(() => activeLauncherRef.current?.focus());
+  };
 
   const currentProductId = useMemo(() => getCurrentProductId(location.pathname), [location.pathname]);
 
@@ -116,15 +124,15 @@ export default function AISalesAdvisor() {
   };
 
   return (
-    <div className="fixed bottom-5 right-4 z-[95] flex max-w-[calc(100vw-2rem)] flex-col items-end sm:bottom-6 sm:right-6">
+    <>
       {isOpen && (
-        <div className="mb-3 flex h-[min(660px,calc(100vh-112px))] w-[calc(100vw-32px)] max-w-[400px] flex-col overflow-hidden rounded-[14px] border border-[#e5e5e5] bg-white shadow-[0_18px_42px_rgba(0,0,0,0.10)]">
+        <div className="flex h-[min(660px,calc(100vh-112px))] w-[calc(100vw-32px)] max-w-[400px] flex-col overflow-hidden rounded-[14px] border border-[#e5e5e5] bg-white shadow-[0_18px_42px_rgba(0,0,0,0.10)]">
           <div className="flex items-start justify-between gap-3 border-b border-[#eeeeee] bg-white px-5 py-4">
             <div>
               <p className="text-[15px] font-bold leading-tight text-[#333333]">Tư vấn nội thất</p>
               <p className="mt-1 text-xs leading-5 text-[#777777]">Gợi ý theo nhu cầu, ngân sách và sản phẩm thật</p>
             </div>
-            <button type="button" onClick={() => setIsOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#777777] transition-colors hover:bg-[#f3f3f1] hover:text-[#333333]" aria-label="Đóng AI tư vấn">
+            <button type="button" onClick={close} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#777777] transition-colors hover:bg-[#f3f3f1] hover:text-[#333333]" aria-label="Đóng AI tư vấn">
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
           </div>
@@ -178,10 +186,10 @@ export default function AISalesAdvisor() {
         </div>
       )}
 
-      <button type="button" onClick={() => setIsOpen(prev => !prev)} className="flex h-12 items-center gap-2 rounded-[12px] border border-[#333333] bg-[#333333] px-4 text-white shadow-[0_8px_22px_rgba(0,0,0,0.14)] transition-colors hover:bg-[#4a3a31] active:scale-[0.98] sm:h-13" aria-expanded={isOpen} aria-label="AI tư vấn nội thất">
+      <button ref={activeLauncherRef} type="button" onClick={() => setOpen(!isOpen)} className="flex h-12 items-center gap-2 rounded-[12px] border border-[#333333] bg-[#333333] px-4 text-white shadow-[0_8px_22px_rgba(0,0,0,0.14)] transition-colors hover:bg-[#4a3a31] active:scale-[0.98] sm:h-13" aria-expanded={isOpen} aria-label="AI tư vấn nội thất">
         <span className="material-symbols-outlined text-[22px]">support_agent</span>
         <span className="hidden text-sm font-bold md:inline">Tư vấn nội thất</span>
       </button>
-    </div>
+    </>
   );
 }

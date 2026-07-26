@@ -27,8 +27,9 @@ import CustomerProfile from './pages/profile/CustomerProfile';
 import CustomerOrderPage from './pages/profile/CustomerOrderPage';
 import VoucherDetail from './pages/profile/VoucherDetail';
 import RewardCatalog from './pages/profile/RewardCatalog';
+import SupportConversations from './pages/profile/SupportConversations';
 import FloatingButtons from './components/common/FloatingButtons';
-import AISalesAdvisor from './components/ai/AISalesAdvisor';
+import FloatingChatStack from './components/common/FloatingChatStack';
 import AdminRoute from './components/common/AdminRoute';
 import ScrollToTop from './components/common/ScrollToTop';
 import { useAuth } from './context/AuthContext';
@@ -38,6 +39,7 @@ const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
 const AdminConsultationRequests = lazy(() => import('./pages/AdminConsultationRequests'));
+const AdminSupportConversations = lazy(() => import('./pages/AdminSupportConversations'));
 const AdminPromotions = lazy(() => import('./pages/AdminPromotions'));
 const AdminVouchers = lazy(() => import('./pages/AdminVouchers'));
 const StoreSystem = lazy(() => import('./pages/StoreSystem'));
@@ -100,6 +102,7 @@ function AppContent() {
         <Route path="/admin/customers" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="customer.view"><AdminCustomers /></AdminRoute>} />
         <Route path="/admin/reviews" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="review.view"><AdminReviews /></AdminRoute>} />
         <Route path="/admin/consultation-requests" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="consultation.view"><AdminConsultationRequests /></AdminRoute>} />
+        <Route path="/admin/support/conversations" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="support_conversation.read"><AdminSupportConversations /></AdminRoute>} />
         <Route path="/admin/accounts" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="admin_account.view"><AdminAccounts /></AdminRoute>} />
         <Route path="/admin/promotions" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="promotion.view"><AdminPromotions /></AdminRoute>} />
         <Route path="/admin/voucher-definitions" element={<AdminRoute allowedRoles={['admin', 'staff']} requiredPermission="voucher_definition.view"><AdminVouchers /></AdminRoute>} />
@@ -126,12 +129,13 @@ function AppContent() {
         <Route path="/profile/tier-benefits" element={<CustomerProfile />} />
         <Route path="/profile/reward-catalog" element={<RewardCatalog />} />
         <Route path="/profile/public-vouchers" element={<CustomerProfile />} />
+        <Route path="/profile/support" element={<SupportConversations />} />
         </Routes>
       </Suspense>
       {!isAdminRoute && (
         <>
           <FloatingButtons />
-          <AISalesAdvisor />
+          <FloatingChatStack />
         </>
       )}
     </>

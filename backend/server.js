@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
+import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
@@ -27,7 +29,9 @@ import voucherClaimRoutes from './routes/voucher-claim.routes.js';
 import voucherAssignmentRoutes from './routes/voucher-assignment.routes.js';
 import loyaltyRoutes from './routes/loyalty.routes.js';
 import { rewardCatalogRoutes, rewardRedemptionRoutes } from './routes/reward-catalog.routes.js';
+import { adminSupportConversationRoutes, supportConversationRoutes } from './routes/supportConversation.routes.js';
 import { isAllowedOrigin } from './utils/originPolicy.js';
+import { createSupportConversationSocketServer } from './realtime/supportConversationSocket.js';
 
 dotenv.config();
 
@@ -83,17 +87,43 @@ app.use('/api/voucher-assignments', voucherAssignmentRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
 app.use('/api/reward-catalog', rewardCatalogRoutes);
 app.use('/api/reward-redemptions', rewardRedemptionRoutes);
+app.use('/api/support/conversations', supportConversationRoutes);
+app.use('/api/admin/support/conversations', adminSupportConversationRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
+  const isSupportConversationRequest = req.path.startsWith('/api/support/conversations')
+    || req.path.startsWith('/api/admin/support/conversations');
   if (err.message === 'Not allowed by CORS') {
+    if (isSupportConversationRequest) {
+      const requestId = typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
+        ? req.headers['x-request-id']
+        : crypto.randomUUID();
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Origin not allowed by CORS' }, requestId });
+    }
     return res.status(403).json({ message: 'Origin not allowed by CORS' });
   }
-  
+  if (isSupportConversationRequest) {
+    const isMalformedJson = err instanceof SyntaxError && err.status === 400 && Object.hasOwn(err, 'body');
+    const requestId = typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
+      ? req.headers['x-request-id']
+      : crypto.randomUUID();
+    return res.status(isMalformedJson ? 400 : 500).json({
+      error: {
+        code: isMalformedJson ? 'VALIDATION_ERROR' : 'INTERNAL_SERVER_ERROR',
+        message: isMalformedJson ? 'Request validation failed' : 'Internal server error'
+      },
+      requestId
+    });
+  }
+
   console.error('Unhandled request error', { method: req.method, path: req.path, name: err?.name });
   res.status(500).json({ message: 'Something went wrong. Please try again later.' });
 });
 
-app.listen(port, () => {
+const httpServer = createServer(app);
+createSupportConversationSocketServer(httpServer);
+
+httpServer.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);
 });

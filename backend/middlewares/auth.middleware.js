@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { verifyAccessToken } from '../utils/tokenService.js';
 
 const sendAuthError = (req, res, status, message) => {
-  if (!req.rewardPointsErrorEnvelope) {
+  if (!req.rewardPointsErrorEnvelope && !req.supportConversationErrorEnvelope) {
     return res.status(status).json({ message });
   }
 
@@ -18,11 +18,10 @@ const sendAuthError = (req, res, status, message) => {
   });
 };
 
-const getBearerToken = (req) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return { hasAuthHeader: false, token: null };
+export const parseBearerToken = (authorization) => {
+  if (!authorization || typeof authorization !== 'string') return { hasAuthHeader: false, token: null };
 
-  const [scheme, token, ...extraParts] = authHeader.trim().split(/\s+/);
+  const [scheme, token, ...extraParts] = authorization.trim().split(/\s+/);
   if (scheme !== 'Bearer' || !token || extraParts.length > 0) {
     return { hasAuthHeader: true, token: null, malformed: true };
   }
@@ -30,7 +29,9 @@ const getBearerToken = (req) => {
   return { hasAuthHeader: true, token };
 };
 
-const findActiveAuthUser = async (token) => {
+const getBearerToken = (req) => parseBearerToken(req.headers.authorization);
+
+export const findActiveAuthUser = async (token) => {
   const decoded = verifyAccessToken(token);
   const userId = Number(decoded.id || decoded.sub);
 

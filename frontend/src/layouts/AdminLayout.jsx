@@ -171,6 +171,7 @@ export default function AdminLayout({ children }) {
       { name: 'Quản lý đánh giá', path: '/admin/reviews', icon: 'rate_review' },
       { name: 'Quản lý Danh mục', path: '/admin/categories', icon: 'category' },
       { name: 'Quản lý yêu cầu tư vấn', path: '/admin/consultation-requests', icon: 'support_agent' },
+      { name: 'Hỗ trợ trực tuyến', path: '/admin/support/conversations', icon: 'forum' },
       { name: 'Quản lý khuyến mãi', path: '/admin/promotions', icon: 'sell' },
       { name: 'Voucher', path: '/admin/voucher-definitions', icon: 'card_giftcard' },
       { name: 'Khách hàng', path: '/admin/customers', icon: 'group' },
@@ -192,6 +193,9 @@ export default function AdminLayout({ children }) {
     }
     if (perms.includes('consultation.view')) {
       menuItems.push({ name: 'Quản lý yêu cầu tư vấn', path: '/admin/consultation-requests', icon: 'support_agent' });
+    }
+    if (perms.includes('support_conversation.read')) {
+      menuItems.push({ name: 'Hỗ trợ trực tuyến', path: '/admin/support/conversations', icon: 'forum' });
     }
     if (perms.includes('category.view')) {
       menuItems.push({ name: 'Quản lý Danh mục', path: '/admin/categories', icon: 'category' });

@@ -1,6 +1,56 @@
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+let prisma = new PrismaClient();
+
+const permissionErrorCode = (status) => {
+  if (status === 401) return 'UNAUTHORIZED';
+  if (status === 403) return 'FORBIDDEN';
+  return 'INTERNAL_SERVER_ERROR';
+};
+
+const sendPermissionError = (req, res, status, message) => {
+  if (!req.supportConversationErrorEnvelope) {
+    return res.status(status).json({ message });
+  }
+
+  return res.status(status).json({
+    error: {
+      code: permissionErrorCode(status),
+      message
+    },
+    requestId: typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
+      ? req.headers['x-request-id']
+      : crypto.randomUUID()
+  });
+};
+
+// Test-only seam for exercising the real permission middleware's database
+// failure path without changing authorization behavior in application code.
+export const setPermissionPrismaClientForTests = (client) => {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('Permission Prisma test override is only available when NODE_ENV=test');
+  }
+  if (!client?.userPermission?.findFirst) {
+    throw new Error('Permission Prisma test override requires userPermission.findFirst');
+  }
+  const previousClient = prisma;
+  prisma = client;
+  return () => {
+    prisma = previousClient;
+  };
+};
+
+export const userHasPermission = async (user, permissionKey) => {
+  if (user?.role === 'admin') return true;
+  if (user?.role !== 'staff') return false;
+  return Boolean(await prisma.userPermission.findFirst({
+    where: {
+      userId: user.id,
+      permission: { key: permissionKey }
+    }
+  }));
+};
 
 export const requirePermission = (permissionKey) => {
   return async (req, res, next) => {
@@ -8,7 +58,7 @@ export const requirePermission = (permissionKey) => {
       const user = req.user;
 
       if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return sendPermissionError(req, res, 401, 'Unauthorized');
       }
 
       // Admin has all permissions
@@ -18,7 +68,7 @@ export const requirePermission = (permissionKey) => {
 
       // Customers don't have access to admin actions
       if (user.role === 'customer') {
-        return res.status(403).json({ message: 'Forbidden' });
+        return sendPermissionError(req, res, 403, 'Forbidden');
       }
 
       // If user is staff, check specific permission
@@ -36,15 +86,15 @@ export const requirePermission = (permissionKey) => {
         if (hasPerm) {
           return next();
         } else {
-          return res.status(403).json({ message: `Forbidden: Requires permission '${permissionKey}'` });
+          return sendPermissionError(req, res, 403, `Forbidden: Requires permission '${permissionKey}'`);
         }
       }
 
-      return res.status(403).json({ message: 'Forbidden' });
+      return sendPermissionError(req, res, 403, 'Forbidden');
 
     } catch (error) {
       console.error('Error in permission middleware:', error);
-      res.status(500).json({ message: 'Internal server error checking permissions' });
+      return sendPermissionError(req, res, 500, 'Internal server error checking permissions');
     }
   };
 };
@@ -55,7 +105,7 @@ export const requireAnyPermission = (permissionKeys) => {
       const user = req.user;
 
       if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return sendPermissionError(req, res, 401, 'Unauthorized');
       }
 
       // Admin has all permissions
@@ -65,7 +115,7 @@ export const requireAnyPermission = (permissionKeys) => {
 
       // Customers don't have access to admin actions
       if (user.role === 'customer') {
-        return res.status(403).json({ message: 'Forbidden' });
+        return sendPermissionError(req, res, 403, 'Forbidden');
       }
 
       // If user is staff, check specific permission
@@ -83,15 +133,15 @@ export const requireAnyPermission = (permissionKeys) => {
         if (hasPerm) {
           return next();
         } else {
-          return res.status(403).json({ message: `Forbidden: Requires one of permissions: ${permissionKeys.join(', ')}` });
+          return sendPermissionError(req, res, 403, `Forbidden: Requires one of permissions: ${permissionKeys.join(', ')}`);
         }
       }
 
-      return res.status(403).json({ message: 'Forbidden' });
+      return sendPermissionError(req, res, 403, 'Forbidden');
 
     } catch (error) {
       console.error('Error in permission middleware:', error);
-      res.status(500).json({ message: 'Internal server error checking permissions' });
+      return sendPermissionError(req, res, 500, 'Internal server error checking permissions');
     }
   };
 };

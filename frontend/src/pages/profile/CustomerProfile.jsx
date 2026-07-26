@@ -26,7 +26,8 @@ const navItems = [
   { tab: 'rewards', icon: 'stars', label: 'Điểm thưởng', customerOnly: true },
   { tab: 'tier', icon: 'workspace_premium', label: 'Hạng thành viên', customerOnly: true },
   { tab: 'tier-benefits', icon: 'card_giftcard', label: 'Ưu đãi hạng thành viên', customerOnly: true },
-  { tab: 'public-vouchers', icon: 'local_offer', label: 'Ưu đãi công khai', customerOnly: true }
+  { tab: 'public-vouchers', icon: 'local_offer', label: 'Ưu đãi công khai', customerOnly: true },
+  { tab: 'support', icon: 'support_agent', label: 'Hỗ trợ trực tuyến', customerOnly: true }
 ];
 
 const TIER_LABELS = { BRONZE: 'Hạng Đồng', SILVER: 'Hạng Bạc', GOLD: 'Hạng Vàng', DIAMOND: 'Hạng Kim Cương' };
@@ -75,6 +76,7 @@ export default function CustomerProfile() {
     if (tab === 'tier') return navigate('/profile/tier');
     if (tab === 'tier-benefits') return navigate('/profile/tier-benefits');
     if (tab === 'public-vouchers') return navigate('/profile/public-vouchers');
+    if (tab === 'support') return navigate('/profile/support');
     navigate(`/profile?tab=${tab}`);
   };
   const content = { info: <PersonalInfo />, orders: <OrderHistory />, wishlist: <Wishlist />, addresses: <AddressBook />, password: <ChangePassword />, vouchers: <MyVouchers />, rewards: <RewardPoints />, tier: <Tier />, 'tier-benefits': <TierBenefits />, 'public-vouchers': <PublicVouchers /> };
