@@ -12,10 +12,11 @@ import {
 import { verifyToken } from '../middlewares/auth.middleware.js';
 import { verifyAdminOrStaff } from '../middlewares/admin.middleware.js';
 import { requirePermission } from '../middlewares/permission.middleware.js';
+import { consultationRequestRateLimiter } from '../middlewares/publicRateLimit.middleware.js';
 
 const router = express.Router();
 
-router.post('/', createConsultationRequest);
+router.post('/', consultationRequestRateLimiter, createConsultationRequest);
 router.get('/my', verifyToken, getMyConsultationRequests);
 
 router.get('/admin', verifyToken, verifyAdminOrStaff, requirePermission('consultation.view'), getAdminConsultationRequests);

@@ -1,5 +1,5 @@
-import crypto from 'crypto';
 import { z } from 'zod';
+import { getRequestId } from '../middlewares/requestContext.middleware.js';
 import {
   POINT_LEDGER_TYPES,
   RewardPointsError,
@@ -14,12 +14,6 @@ const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   type: z.enum(POINT_LEDGER_TYPES).optional()
 }).strict();
-
-const getRequestId = (req) => (
-  typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-    ? req.headers['x-request-id']
-    : crypto.randomUUID()
-);
 
 const sendError = (req, res, error) => {
   const isValidation = error instanceof z.ZodError;

@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-import crypto from 'crypto';
+import sharedPrisma from '../prismaClient.js';
+import { getRequestId } from './requestContext.middleware.js';
 
-let prisma = new PrismaClient();
+let prisma = sharedPrisma;
 
 const permissionErrorCode = (status) => {
   if (status === 401) return 'UNAUTHORIZED';
@@ -11,7 +11,7 @@ const permissionErrorCode = (status) => {
 
 const sendPermissionError = (req, res, status, message) => {
   if (!req.supportConversationErrorEnvelope) {
-    return res.status(status).json({ message });
+    return res.status(status).json({ message, ...(req.requestId ? { requestId: req.requestId } : {}) });
   }
 
   return res.status(status).json({
@@ -19,9 +19,7 @@ const sendPermissionError = (req, res, status, message) => {
       code: permissionErrorCode(status),
       message
     },
-    requestId: typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-      ? req.headers['x-request-id']
-      : crypto.randomUUID()
+    requestId: getRequestId(req)
   });
 };
 

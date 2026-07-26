@@ -1,5 +1,5 @@
-import crypto from 'crypto';
 import { z } from 'zod';
+import { getRequestId } from '../middlewares/requestContext.middleware.js';
 import { publishSupportConversationEvent, supportSocketEvents } from '../realtime/supportConversationSocket.js';
 import {
   SupportConversationError,
@@ -46,11 +46,7 @@ const messageHistorySchema = z.object({
   { message: 'beforeCreatedAt and beforeId must be provided together', path: ['beforeCreatedAt'] }
 );
 
-const requestId = (req) => (
-  typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-    ? req.headers['x-request-id']
-    : crypto.randomUUID()
-);
+const requestId = getRequestId;
 
 const validationDetails = (error) => ({ fields: error.issues.reduce((fields, issue) => {
   const key = issue.path.join('.') || 'request';
