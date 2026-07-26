@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import dashboardService from '../services/api/dashboardService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -7,6 +7,7 @@ import { getStaticFileUrl } from '../utils/imageUtils';
 import { formatPrice } from '../utils/formatters';
 import { ADMIN_ORDER_STATUS_LABELS as statusLabels, getAdminOrderStatusColorClass as getStatusColorClass } from '../utils/statusMaps';
 import Skeleton from '../components/ui/Skeleton';
+import RevenueOrdersTable from '../components/admin/dashboard/RevenueOrdersTable';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const revenuePresets = [
@@ -128,15 +129,29 @@ export default function AdminDashboard() {
   const [widgets, setWidgets] = useState(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [revenueRange, setRevenueRange] = useState(() => getRevenuePresetRange('30days'));
+  const initialRevenueRangeRef = useRef(null);
+  if (!initialRevenueRangeRef.current) {
+    initialRevenueRangeRef.current = getRevenuePresetRange('30days');
+  }
+  const [draftRevenueRange, setDraftRevenueRange] = useState(() => initialRevenueRangeRef.current);
+  const [appliedRevenueRange, setAppliedRevenueRange] = useState(() => initialRevenueRangeRef.current);
   const [activeRevenuePreset, setActiveRevenuePreset] = useState('30days');
   const [revenueData, setRevenueData] = useState(null);
   const [revenueLoading, setRevenueLoading] = useState(true);
   const [revenueError, setRevenueError] = useState('');
   const [revenueValidationError, setRevenueValidationError] = useState('');
+  const [revenueOrders, setRevenueOrders] = useState([]);
+  const [revenueOrdersPagination, setRevenueOrdersPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [revenueOrdersLoading, setRevenueOrdersLoading] = useState(true);
+  const [revenueOrdersError, setRevenueOrdersError] = useState('');
+  const [revenueOrderStatus, setRevenueOrderStatus] = useState('all');
+  const [revenueOrdersPage, setRevenueOrdersPage] = useState(1);
+  const [revenueOrdersLimit, setRevenueOrdersLimit] = useState(10);
+  const revenueRequestSeqRef = useRef(0);
+  const revenueOrdersRequestSeqRef = useRef(0);
   const navigate = useNavigate();
 
-  const fetchRevenue = async (range = revenueRange) => {
+  const fetchRevenue = async (range = appliedRevenueRange, status = revenueOrderStatus) => {
     const validationMessage = validateRevenueRange(range);
 
     if (validationMessage) {
@@ -144,41 +159,133 @@ export default function AdminDashboard() {
       return;
     }
 
+    const requestSequence = revenueRequestSeqRef.current + 1;
+    revenueRequestSeqRef.current = requestSequence;
     setRevenueLoading(true);
     setRevenueError('');
     setRevenueValidationError('');
 
     try {
-      const data = await dashboardService.getRevenue(buildRevenueParams(range));
+      const data = await dashboardService.getRevenue({ ...buildRevenueParams(range), status });
+      if (requestSequence !== revenueRequestSeqRef.current) return;
       setRevenueData(data);
     } catch (err) {
-      setRevenueError(err.message || 'Không thể tải báo cáo doanh thu.');
+      if (requestSequence === revenueRequestSeqRef.current) {
+        setRevenueError(err.message || 'Không thể tải báo cáo doanh thu.');
+      }
     } finally {
-      setRevenueLoading(false);
+      if (requestSequence === revenueRequestSeqRef.current) {
+        setRevenueLoading(false);
+      }
+    }
+  };
+
+  const fetchRevenueOrders = async ({
+    range = appliedRevenueRange,
+    status = revenueOrderStatus,
+    page = revenueOrdersPage,
+    limit = revenueOrdersLimit
+  } = {}) => {
+    const requestSequence = revenueOrdersRequestSeqRef.current + 1;
+    revenueOrdersRequestSeqRef.current = requestSequence;
+    setRevenueOrdersLoading(true);
+    setRevenueOrdersError('');
+
+    try {
+      const data = await dashboardService.getRevenueOrders({
+        ...buildRevenueParams(range),
+        status,
+        page,
+        limit
+      });
+
+      if (requestSequence !== revenueOrdersRequestSeqRef.current) return;
+
+      const nextPage = Number(data?.pagination?.page) || page;
+      const nextLimit = Number(data?.pagination?.limit) || limit;
+      setRevenueOrders(Array.isArray(data?.data) ? data.data : []);
+      setRevenueOrdersPagination({
+        page: nextPage,
+        limit: nextLimit,
+        total: Number(data?.pagination?.total) || 0,
+        totalPages: Number(data?.pagination?.totalPages) || 0
+      });
+      setRevenueOrdersPage(nextPage);
+      setRevenueOrdersLimit(nextLimit);
+    } catch (err) {
+      if (requestSequence === revenueOrdersRequestSeqRef.current) {
+        setRevenueOrdersError('Không thể tải danh sách đơn hàng doanh thu.');
+      }
+    } finally {
+      if (requestSequence === revenueOrdersRequestSeqRef.current) {
+        setRevenueOrdersLoading(false);
+      }
     }
   };
 
   const handleRevenueRangeChange = (field, value) => {
     setActiveRevenuePreset('custom');
-    setRevenueRange(prev => ({ ...prev, [field]: value }));
+    setDraftRevenueRange(prev => ({ ...prev, [field]: value }));
   };
 
   const handleRevenuePreset = (preset) => {
     const nextRange = getRevenuePresetRange(preset);
     setActiveRevenuePreset(preset);
-    setRevenueRange(nextRange);
-    fetchRevenue(nextRange);
+    setDraftRevenueRange(nextRange);
+    setAppliedRevenueRange(nextRange);
+    setRevenueOrdersPage(1);
+    fetchRevenue(nextRange, revenueOrderStatus);
+    fetchRevenueOrders({ range: nextRange, status: revenueOrderStatus, page: 1, limit: revenueOrdersLimit });
   };
 
   const handleRevenueApply = () => {
-    fetchRevenue(revenueRange);
+    const validationMessage = validateRevenueRange(draftRevenueRange);
+    if (validationMessage) {
+      setRevenueValidationError(validationMessage);
+      return;
+    }
+
+    setAppliedRevenueRange(draftRevenueRange);
+    setRevenueOrdersPage(1);
+    fetchRevenue(draftRevenueRange, revenueOrderStatus);
+    fetchRevenueOrders({ range: draftRevenueRange, status: revenueOrderStatus, page: 1, limit: revenueOrdersLimit });
   };
 
   const handleRevenueReset = () => {
     const nextRange = getRevenuePresetRange('30days');
     setActiveRevenuePreset('30days');
-    setRevenueRange(nextRange);
-    fetchRevenue(nextRange);
+    setDraftRevenueRange(nextRange);
+    setAppliedRevenueRange(nextRange);
+    setRevenueOrderStatus('all');
+    setRevenueOrdersPage(1);
+    setRevenueOrdersLimit(10);
+    fetchRevenue(nextRange, 'all');
+    fetchRevenueOrders({ range: nextRange, status: 'all', page: 1, limit: 10 });
+  };
+
+  const handleRevenueOrderStatusChange = (nextStatus) => {
+    setRevenueOrderStatus(nextStatus);
+    setRevenueOrdersPage(1);
+    fetchRevenue(appliedRevenueRange, nextStatus);
+    fetchRevenueOrders({ range: appliedRevenueRange, status: nextStatus, page: 1, limit: revenueOrdersLimit });
+  };
+
+  const handleRevenueOrdersPageChange = (nextPage) => {
+    const page = Number(nextPage);
+    const totalPages = Number(revenueOrdersPagination.totalPages) || 0;
+    if (!Number.isInteger(page) || page < 1 || (totalPages > 0 && page > totalPages) || page === revenueOrdersPage) return;
+
+    setRevenueOrdersPage(page);
+    fetchRevenueOrders({ range: appliedRevenueRange, status: revenueOrderStatus, page, limit: revenueOrdersLimit });
+  };
+
+  const handleRevenueOrdersLimitChange = (nextLimit) => {
+    const limit = Number(nextLimit);
+    if (![10, 20, 50].includes(limit)) return;
+
+    setRevenueOrdersLimit(limit);
+    setRevenueOrdersPage(1);
+    fetchRevenueOrders({ range: appliedRevenueRange, status: revenueOrderStatus, page: 1, limit });
   };
 
   useEffect(() => {
@@ -202,7 +309,8 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchRevenue(revenueRange);
+    fetchRevenue(appliedRevenueRange, 'all');
+    fetchRevenueOrders({ range: appliedRevenueRange, status: 'all', page: 1, limit: 10 });
   }, []);
 
   if (loading) {
@@ -302,14 +410,14 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(210px,1fr)_minmax(210px,1fr)_auto_auto]">
+            <div className="mt-5 grid grid-cols-1 items-end gap-3 xl:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(180px,1fr)_auto_auto]">
               <div>
                 <label htmlFor="revenue-from" className="mb-2 block text-xs font-bold uppercase tracking-wide text-on-surface-variant">Từ ngày - giờ</label>
                 <input
                   id="revenue-from"
                   type="datetime-local"
                   step="1"
-                  value={revenueRange.from}
+                  value={draftRevenueRange.from}
                   onChange={(event) => handleRevenueRangeChange('from', event.target.value)}
                   className="h-11 w-full rounded-lg border border-surface-beige bg-white px-3 text-sm text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
@@ -320,10 +428,22 @@ export default function AdminDashboard() {
                   id="revenue-to"
                   type="datetime-local"
                   step="1"
-                  value={revenueRange.to}
+                  value={draftRevenueRange.to}
                   onChange={(event) => handleRevenueRangeChange('to', event.target.value)}
                   className="h-11 w-full rounded-lg border border-surface-beige bg-white px-3 text-sm text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
+              </div>
+              <div>
+                <label htmlFor="revenue-order-status" className="mb-2 block text-xs font-bold uppercase tracking-wide text-on-surface-variant">Trạng thái đơn</label>
+                <select
+                  id="revenue-order-status"
+                  value={revenueOrderStatus}
+                  onChange={(event) => handleRevenueOrderStatusChange(event.target.value)}
+                  className="h-11 w-full rounded-lg border border-surface-beige bg-white px-3 text-sm text-primary outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  {revenueStatusKeys.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+                </select>
               </div>
               <button
                 type="button"
@@ -358,7 +478,7 @@ export default function AdminDashboard() {
                 <p className="text-sm mb-4">{revenueError}</p>
                 <button
                   type="button"
-                  onClick={() => fetchRevenue(revenueRange)}
+                  onClick={() => fetchRevenue(appliedRevenueRange)}
                   className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-label-lg hover:bg-red-700 transition-colors"
                 >
                   Thử lại
@@ -481,6 +601,16 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
+
+                <RevenueOrdersTable
+                  orders={revenueOrders}
+                  pagination={revenueOrdersPagination}
+                  loading={revenueOrdersLoading}
+                  error={revenueOrdersError}
+                  onRetry={() => fetchRevenueOrders()}
+                  onPageChange={handleRevenueOrdersPageChange}
+                  onLimitChange={handleRevenueOrdersLimitChange}
+                />
 
                 <div className="rounded-2xl border border-surface-beige/80 bg-white p-5 shadow-[0_3px_16px_rgba(93,64,55,0.04)]">
                   <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

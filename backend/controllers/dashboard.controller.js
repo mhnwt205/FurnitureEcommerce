@@ -52,6 +52,46 @@ const getRevenueRange = (query) => {
   return { fromDate, toDate, fromDayStart, dayCount };
 };
 
+const getRevenueStatus = (query) => {
+  const status = query.status ?? 'all';
+
+  if (typeof status !== 'string' || (status !== 'all' && !REVENUE_STATUS_KEYS.includes(status))) {
+    return { error: 'Trạng thái đơn hàng không hợp lệ.' };
+  }
+
+  return { value: status };
+};
+
+const createRevenueWhere = ({ fromDate, toDate, status }) => ({
+  paymentStatus: 'paid',
+  paidAt: {
+    gte: fromDate,
+    lte: toDate
+  },
+  ...(status !== 'all' ? { status } : {})
+});
+
+const getPositiveIntegerQueryValue = (value, name, defaultValue, maximum) => {
+  if (value === undefined) {
+    return { value: defaultValue };
+  }
+
+  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+    return { error: `Tham sá»‘ ${name} pháº£i lÃ  sá»‘ nguyÃªn dÆ°Æ¡ng.` };
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) {
+    return { error: `Tham sá»‘ ${name} pháº£i lÃ  sá»‘ nguyÃªn dÆ°Æ¡ng.` };
+  }
+
+  if (maximum && parsed > maximum) {
+    return { error: `Tham sá»‘ ${name} khÃ´ng Ä‘Æ°á»£c lá»›n hÆ¡n ${maximum}.` };
+  }
+
+  return { value: parsed };
+};
+
 const createEmptyStatusCounts = () => REVENUE_STATUS_KEYS.reduce((counts, status) => {
   counts[status] = 0;
   return counts;
@@ -91,6 +131,82 @@ const getProductImageUrl = (product) => {
   return null;
 };
 
+export const getDashboardRevenueOrders = async (req, res) => {
+  try {
+    const range = getRevenueRange(req.query);
+
+    if (range.error) {
+      return res.status(400).json({ message: range.error });
+    }
+
+    const statusResult = getRevenueStatus(req.query);
+    if (statusResult.error) {
+      return res.status(400).json({ message: statusResult.error });
+    }
+
+    const pageResult = getPositiveIntegerQueryValue(req.query.page, 'page', 1);
+    if (pageResult.error) {
+      return res.status(400).json({ message: pageResult.error });
+    }
+
+    const limitResult = getPositiveIntegerQueryValue(req.query.limit, 'limit', 10, 50);
+    if (limitResult.error) {
+      return res.status(400).json({ message: limitResult.error });
+    }
+
+    const { fromDate, toDate } = range;
+    const status = statusResult.value;
+    const page = pageResult.value;
+    const limit = limitResult.value;
+    const where = createRevenueWhere({ fromDate, toDate, status });
+
+    const [total, orders] = await prisma.$transaction([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          orderCode: true,
+          fullName: true,
+          status: true,
+          paymentMethod: true,
+          totalAmount: true,
+          paidAt: true,
+          createdAt: true
+        },
+        orderBy: [
+          { paidAt: 'desc' },
+          { id: 'desc' }
+        ],
+        skip: (page - 1) * limit,
+        take: limit
+      })
+    ]);
+
+    return res.json({
+      data: orders.map((order) => ({
+        id: order.id,
+        orderCode: order.orderCode,
+        customerName: order.fullName,
+        status: order.status,
+        paymentMethod: order.paymentMethod,
+        totalAmount: roundMoney(order.totalAmount),
+        paidAt: order.paidAt,
+        createdAt: order.createdAt
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: total === 0 ? 0 : Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error getting dashboard revenue orders:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const getDashboardRevenue = async (req, res) => {
   try {
     const range = getRevenueRange(req.query);
@@ -99,51 +215,23 @@ export const getDashboardRevenue = async (req, res) => {
       return res.status(400).json({ message: range.error });
     }
 
-    const { fromDate, toDate, fromDayStart, dayCount } = range;
-    const revenueWhere = {
-      paymentStatus: 'paid',
-      paidAt: {
-        gte: fromDate,
-        lte: toDate
-      }
-    };
+    const statusResult = getRevenueStatus(req.query);
+    if (statusResult.error) {
+      return res.status(400).json({ message: statusResult.error });
+    }
 
-    const [paidOrders, successfulOrders, cancelledOrders, statusGroups, topProductGroups] = await Promise.all([
+    const { fromDate, toDate, fromDayStart, dayCount } = range;
+    const revenueWhere = createRevenueWhere({ fromDate, toDate, status: statusResult.value });
+
+    const [paidOrders, topProductGroups] = await Promise.all([
       prisma.order.findMany({
         where: revenueWhere,
         select: {
           id: true,
           totalAmount: true,
-          paidAt: true
+          paidAt: true,
+          status: true
         }
-      }),
-      prisma.order.count({
-        where: {
-          status: { in: ['delivered', 'completed'] },
-          paidAt: {
-            gte: fromDate,
-            lte: toDate
-          }
-        }
-      }),
-      prisma.order.count({
-        where: {
-          status: 'cancelled',
-          createdAt: {
-            gte: fromDate,
-            lte: toDate
-          }
-        }
-      }),
-      prisma.order.groupBy({
-        by: ['status'],
-        where: {
-          createdAt: {
-            gte: fromDate,
-            lte: toDate
-          }
-        },
-        _count: true
       }),
       prisma.orderItem.groupBy({
         by: ['productId', 'productName'],
@@ -160,6 +248,8 @@ export const getDashboardRevenue = async (req, res) => {
     const totalRevenue = roundMoney(paidOrders.reduce((sum, order) => sum + Number(order.totalAmount ?? 0), 0));
     const paidOrdersCount = paidOrders.length;
     const averageOrderValue = paidOrdersCount > 0 ? roundMoney(totalRevenue / paidOrdersCount) : 0;
+    const successfulOrders = paidOrders.filter((order) => ['delivered', 'completed'].includes(order.status)).length;
+    const cancelledOrders = paidOrders.filter((order) => order.status === 'cancelled').length;
 
     const chartByDate = createEmptyChartData(fromDayStart, dayCount);
     paidOrders.forEach((order) => {
@@ -179,9 +269,9 @@ export const getDashboardRevenue = async (req, res) => {
     });
 
     const statusCounts = createEmptyStatusCounts();
-    statusGroups.forEach((item) => {
-      if (Object.prototype.hasOwnProperty.call(statusCounts, item.status)) {
-        statusCounts[item.status] = item._count;
+    paidOrders.forEach((order) => {
+      if (Object.prototype.hasOwnProperty.call(statusCounts, order.status)) {
+        statusCounts[order.status] += 1;
       }
     });
 
