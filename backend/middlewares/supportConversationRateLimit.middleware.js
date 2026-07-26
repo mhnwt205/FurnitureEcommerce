@@ -1,16 +1,10 @@
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
-import crypto from 'crypto';
+import { getRequestId } from './requestContext.middleware.js';
 
 const positiveIntegerEnv = (name, fallback) => {
   const value = Number.parseInt(process.env[name] || '', 10);
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 };
-
-const requestId = (req) => (
-  typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-    ? req.headers['x-request-id']
-    : crypto.randomUUID()
-);
 
 const supportMessageRateLimit = ({ windowEnv, maxEnv, windowMs, limit }) => rateLimit({
   windowMs: positiveIntegerEnv(windowEnv, windowMs),
@@ -20,7 +14,7 @@ const supportMessageRateLimit = ({ windowEnv, maxEnv, windowMs, limit }) => rate
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json({
     error: { code: 'RATE_LIMITED', message: 'Too many support messages. Please try again later.' },
-    requestId: requestId(req)
+    requestId: getRequestId(req)
   })
 });
 

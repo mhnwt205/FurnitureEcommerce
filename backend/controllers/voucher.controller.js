@@ -1,6 +1,6 @@
-import crypto from 'crypto';
 import { z } from 'zod';
 import prisma from '../prismaClient.js';
+import { getRequestId } from '../middlewares/requestContext.middleware.js';
 import { createNotification } from '../services/notification.service.js';
 import * as vouchers from '../services/voucher.service.js';
 
@@ -41,7 +41,7 @@ const paginationFields = { page: z.coerce.number().int().min(1).default(1), limi
 const idSchema = z.coerce.number().int().positive().max(2_147_483_647);
 const sourceSchema = z.enum(['PUBLIC_CLAIM', 'ADMIN_ASSIGNMENT', 'TIER_REWARD', 'POINT_REDEMPTION']);
 
-const requestId = (req) => typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128 ? req.headers['x-request-id'] : crypto.randomUUID();
+const requestId = getRequestId;
 const sendError = (req, res, err) => {
   const isValidation = err instanceof z.ZodError;
   const isBusinessError = err instanceof vouchers.VoucherError;

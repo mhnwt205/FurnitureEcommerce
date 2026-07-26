@@ -4,6 +4,7 @@ import { findActiveAuthUser, parseBearerToken } from '../middlewares/auth.middle
 import { userHasPermission } from '../middlewares/permission.middleware.js';
 import { getCustomerConversation, getStaffConversation } from '../services/supportConversation.service.js';
 import { isAllowedOrigin } from '../utils/originPolicy.js';
+import { logger } from '../utils/logger.js';
 
 export const supportSocketEvents = Object.freeze({
   messageCreated: 'conversation.message.created',
@@ -18,9 +19,7 @@ const CONVERSATION_ROOM = (conversationId) => `conversation:${conversationId}`;
 const WAITING_ROOM = 'support:waiting';
 let supportIo = null;
 
-const logSocketEvent = (eventName, values = {}) => {
-  console.info('Support conversation socket event', { eventName, ...values });
-};
+const logSocketEvent = (eventName, values = {}) => logger.info('socket_event', { reason: eventName, ...values });
 
 const socketOrigin = (origin, callback) => {
   if (!origin || isAllowedOrigin(origin)) return callback(null, true);
@@ -122,11 +121,7 @@ const revokeSupersededStaffRoomAccess = async (conversationId, assignedStaffId) 
         : undefined
     )));
   } catch (error) {
-    console.error('Support conversation socket room revocation failed', {
-      conversationId,
-      assignedStaffId,
-      name: error?.name
-    });
+    logger.error('socket_room_revocation_failed', { errorName: error?.name }, error);
   }
 };
 
@@ -148,13 +143,7 @@ export const publishSupportConversationEvent = async ({ eventName, conversationI
     logSocketEvent(eventName, { conversationId, messageId: messageId ?? null, requestId: requestId ?? null, eventName });
     return true;
   } catch (error) {
-    console.error('Support conversation socket delivery failed', {
-      eventName,
-      conversationId,
-      messageId: messageId ?? null,
-      requestId: requestId ?? null,
-      name: error?.name
-    });
+    logger.error('socket_delivery_failed', { requestId: requestId ?? null, errorName: error?.name }, error);
     return false;
   }
 };

@@ -6,8 +6,8 @@ import { verifyToken } from '../middlewares/auth.middleware.js';
 import { requireAnyPermission } from '../middlewares/permission.middleware.js';
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
+import { uploadRateLimiter } from '../middlewares/publicRateLimit.middleware.js';
 
-const router = express.Router();
 const REVIEWABLE_STATUSES = ['delivered', 'completed'];
 
 const reviewUploadSchema = z.object({
@@ -120,8 +120,16 @@ const validateReviewUploadEligibility = async (req, res, next) => {
   }
 };
 
-router.post('/products', verifyToken, requireAnyPermission(['product.create', 'product.update']), (req, res) => {
-  const uploadSingle = uploadProducts.single('image');
+export const createUploadRouter = ({
+  verifyTokenMiddleware = verifyToken,
+  uploadRateLimiterMiddleware = uploadRateLimiter,
+  requireAnyPermissionMiddleware = requireAnyPermission,
+  productUploadMiddleware = uploadProducts
+} = {}) => {
+  const router = express.Router();
+
+router.post('/products', verifyTokenMiddleware, uploadRateLimiterMiddleware, requireAnyPermissionMiddleware(['product.create', 'product.update']), (req, res) => {
+  const uploadSingle = productUploadMiddleware.single('image');
   
   uploadSingle(req, res, function (err) {
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
@@ -131,7 +139,7 @@ router.post('/products', verifyToken, requireAnyPermission(['product.create', 'p
   });
 });
 
-router.post('/products/multiple', verifyToken, requireAnyPermission(['product.create', 'product.update']), (req, res) => {
+router.post('/products/multiple', verifyTokenMiddleware, uploadRateLimiterMiddleware, requireAnyPermissionMiddleware(['product.create', 'product.update']), (req, res) => {
   const uploadMultiple = uploadProducts.array('images', 8);
   
   uploadMultiple(req, res, function (err) {
@@ -144,7 +152,7 @@ router.post('/products/multiple', verifyToken, requireAnyPermission(['product.cr
 });
 
 
-router.post('/reviews/multiple', verifyToken, (req, res, next) => {
+router.post('/reviews/multiple', verifyTokenMiddleware, uploadRateLimiterMiddleware, (req, res, next) => {
   const uploadMultiple = uploadReviews.array('images', 5);
 
   uploadMultiple(req, res, function (err) {
@@ -162,7 +170,7 @@ router.post('/reviews/multiple', verifyToken, (req, res, next) => {
     res.status(500).json({ message: 'Khong the upload anh danh gia.' });
   }
 });
-router.post('/avatars', verifyToken, (req, res) => {
+router.post('/avatars', verifyTokenMiddleware, uploadRateLimiterMiddleware, (req, res) => {
   const uploadSingle = uploadAvatars.single('avatar');
   
   uploadSingle(req, res, function (err) {
@@ -173,5 +181,8 @@ router.post('/avatars', verifyToken, (req, res) => {
   });
 });
 
-export default router;
+return router;
+};
+
+export default createUploadRouter();
 

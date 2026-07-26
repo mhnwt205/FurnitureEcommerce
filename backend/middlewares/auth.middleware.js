@@ -1,10 +1,10 @@
 import prisma from '../prismaClient.js';
-import crypto from 'crypto';
 import { verifyAccessToken } from '../utils/tokenService.js';
+import { getRequestId } from './requestContext.middleware.js';
 
 const sendAuthError = (req, res, status, message) => {
   if (!req.rewardPointsErrorEnvelope && !req.supportConversationErrorEnvelope) {
-    return res.status(status).json({ message });
+    return res.status(status).json({ message, ...(req.requestId ? { requestId: req.requestId } : {}) });
   }
 
   return res.status(status).json({
@@ -12,9 +12,7 @@ const sendAuthError = (req, res, status, message) => {
       code: status === 401 ? 'UNAUTHORIZED' : 'FORBIDDEN',
       message
     },
-    requestId: typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-      ? req.headers['x-request-id']
-      : crypto.randomUUID()
+    requestId: getRequestId(req)
   });
 };
 
@@ -97,7 +95,7 @@ export const optionalAuth = async (req, res, next) => {
   }
 
   if (malformed || !token) {
-    return res.status(403).json({ message: 'Invalid or expired token' });
+    return res.status(403).json({ message: 'Invalid or expired token', ...(req.requestId ? { requestId: req.requestId } : {}) });
   }
 
   try {
@@ -109,6 +107,6 @@ export const optionalAuth = async (req, res, next) => {
     req.user = result.user;
     return next();
   } catch (error) {
-    return res.status(403).json({ message: 'Invalid or expired token' });
+    return res.status(403).json({ message: 'Invalid or expired token', ...(req.requestId ? { requestId: req.requestId } : {}) });
   }
 };

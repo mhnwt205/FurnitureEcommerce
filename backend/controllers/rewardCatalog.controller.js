@@ -1,16 +1,12 @@
-import crypto from 'crypto';
 import { z } from 'zod';
+import { getRequestId } from '../middlewares/requestContext.middleware.js';
 import { createNotification } from '../services/notification.service.js';
 import { RewardCatalogError, listRewardCatalog, redeemReward } from '../services/rewardCatalog.service.js';
 
 const itemIdSchema = z.coerce.number().int().positive().max(2_147_483_647);
 const redemptionSchema = z.object({ rewardCatalogItemId: itemIdSchema }).strict();
 
-const requestId = (req) => (
-  typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-    ? req.headers['x-request-id']
-    : crypto.randomUUID()
-);
+const requestId = getRequestId;
 
 const requireCustomer = (req) => {
   if (req.user?.role !== 'customer') throw new RewardCatalogError('FORBIDDEN', 'Customer access is required', 403);

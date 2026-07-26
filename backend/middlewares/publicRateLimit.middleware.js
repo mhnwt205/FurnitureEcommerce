@@ -1,0 +1,24 @@
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
+import { logger } from '../utils/logger.js';
+
+const positiveInteger = (name, fallback) => {
+  const value = Number.parseInt(process.env[name] || '', 10);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+};
+
+const createLimiter = ({ event, maxEnv, windowEnv, limit, windowMs, keyGenerator }) => rateLimit({
+  windowMs: positiveInteger(windowEnv, windowMs),
+  limit: positiveInteger(maxEnv, limit),
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  keyGenerator,
+  handler: (req, res) => {
+    logger.warn('rate_limit_rejected', { requestId: req.requestId, method: req.method, path: req.path, userId: req.user?.id, ip: req.ip, reason: event });
+    res.status(429).json({ message: 'Too many requests. Please try again later.', requestId: req.requestId });
+  }
+});
+
+const ipKey = (req) => ipKeyGenerator(req.ip);
+export const aiAdvisorRateLimiter = createLimiter({ event: 'ai_advisor', maxEnv: 'AI_ADVISOR_RATE_LIMIT_MAX', windowEnv: 'AI_ADVISOR_RATE_LIMIT_WINDOW_MS', limit: 10, windowMs: 15 * 60 * 1000, keyGenerator: ipKey });
+export const consultationRequestRateLimiter = createLimiter({ event: 'consultation_request', maxEnv: 'CONSULTATION_REQUEST_RATE_LIMIT_MAX', windowEnv: 'CONSULTATION_REQUEST_RATE_LIMIT_WINDOW_MS', limit: 5, windowMs: 60 * 60 * 1000, keyGenerator: ipKey });
+export const uploadRateLimiter = createLimiter({ event: 'upload', maxEnv: 'UPLOAD_RATE_LIMIT_MAX', windowEnv: 'UPLOAD_RATE_LIMIT_WINDOW_MS', limit: 30, windowMs: 15 * 60 * 1000, keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : ipKey(req) });

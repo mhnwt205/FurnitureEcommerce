@@ -1,6 +1,6 @@
-import crypto from 'crypto';
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
+import { getRequestId } from '../middlewares/requestContext.middleware.js';
 import {
   CheckoutVoucherError,
   buildCanonicalPricing,
@@ -74,11 +74,7 @@ const lockCustomerLoyalty = (tx, userId) => tx.$queryRaw`
   FROM [dbo].[User] WITH (UPDLOCK, HOLDLOCK)
   WHERE [id] = ${userId}
 `;
-const createRequestId = (req) => (
-  typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].length <= 128
-    ? req.headers['x-request-id']
-    : crypto.randomUUID()
-);
+const createRequestId = getRequestId;
 
 const optionalEmailSchema = z.preprocess(
   (value) => {
