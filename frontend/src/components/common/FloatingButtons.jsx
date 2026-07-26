@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function FloatingButtons() {
   return (
-    <div className="fixed bottom-20 right-4 z-[90] flex flex-col items-center gap-2 sm:bottom-24 sm:right-6 md:bottom-28 md:right-8">
+    <div className="fixed bottom-36 right-4 z-[90] flex flex-col items-center gap-2 sm:bottom-40 sm:right-6 md:bottom-44 md:right-8">
       <button
         className="flex h-11 w-11 items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-white text-[#555555] shadow-[0_6px_18px_rgba(0,0,0,0.08)] transition-colors duration-200 hover:border-[#bfa37c] hover:text-[#333333] active:scale-[0.98] sm:h-12 sm:w-12"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
