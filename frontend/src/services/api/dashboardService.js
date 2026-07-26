@@ -13,9 +13,14 @@ const dashboardService = {
     return await apiClient('/dashboard/widgets', { method: 'GET' });
   },
 
-  getRevenue: async ({ from, to }) => {
-    const query = new URLSearchParams({ from, to }).toString();
+  getRevenue: async ({ from, to, status = 'all' }) => {
+    const query = new URLSearchParams({ from, to, status }).toString();
     return await apiClient(`/dashboard/revenue?${query}`, { method: 'GET' });
+  },
+
+  getRevenueOrders: async ({ from, to, status = 'all', page = 1, limit = 10 }) => {
+    const query = new URLSearchParams({ from, to, status, page, limit }).toString();
+    return await apiClient(`/dashboard/revenue/orders?${query}`, { method: 'GET' });
   }
 };
 
