@@ -8,3 +8,6 @@ coverage
 .vscode
 .idea
 !.env.example
+
+# Ignore H1 test files
+backend/tests/h1*.test.js
