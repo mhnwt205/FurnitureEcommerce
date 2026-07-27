@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { wishlistService } from '../../services/api/wishlistService';
 import ProductImage from '../../components/product/ProductImage';
 import ProductPriceBlock from '../../components/product/ProductPriceBlock';
+import clientLogger from '../../utils/clientLogger';
 
 export default function Wishlist() {
   const [wishlist, setWishlist] = useState([]);
@@ -15,7 +16,7 @@ export default function Wishlist() {
     try {
       const data = await wishlistService.getWishlist();
       setWishlist(data || []);
-    } catch (error) { console.error(error); }
+    } catch (error) { clientLogger.warn('wishlist_load_failed', error); }
     finally { setLoading(false); }
   };
 
@@ -24,7 +25,7 @@ export default function Wishlist() {
       await wishlistService.removeWishlist(productId);
       setWishlist(wishlist.filter(item => item.productId !== productId));
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Đã xóa khỏi sản phẩm yêu thích', type: 'success' }}));
-    } catch (error) {
+    } catch {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Có lỗi xảy ra', type: 'error' }}));
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { wishlistService } from '../../services/api/wishlistService';
 import { useAuth } from '../../context/AuthContext';
+import clientLogger from '../../utils/clientLogger';
 
 export default function WishlistButton({ productId, initialIsActive = false, className, iconClassName }) {
   const [isActive, setIsActive] = useState(initialIsActive);
@@ -35,7 +36,7 @@ export default function WishlistButton({ productId, initialIsActive = false, cla
         window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Đã thêm vào yêu thích', type: 'success' } }));
       }
     } catch (error) {
-      console.error(error);
+      clientLogger.error('wishlist_toggle_failed', error);
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Có lỗi xảy ra', type: 'error' } }));
     } finally {
       setLoading(false);

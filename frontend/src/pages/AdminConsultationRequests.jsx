@@ -5,6 +5,7 @@ import { consultationRequestService } from '../services/api/consultationRequestS
 import { formatShortDateTime as formatDateTime } from '../utils/date';
 import { CONSULTATION_STATUS_OPTIONS as STATUS_OPTIONS, CONSULTATION_STATUS_CLASSES as STATUS_CLASSES, getConsultationStatusLabel as getStatusLabel } from '../utils/statusMaps';
 import { useAuth } from '../context/AuthContext';
+import clientLogger from '../utils/clientLogger';
 
 const SkeletonRows = () => (
   <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(93,64,55,0.05)] overflow-hidden">
@@ -215,7 +216,7 @@ export default function AdminConsultationRequests() {
       try {
         await refreshSelectedConsultation(selectedConsultation.id);
       } catch (refreshError) {
-        console.error('Refresh consultation after save failure error:', refreshError);
+        clientLogger.error('consultation_refresh_after_save_failure', refreshError);
       }
       setModalMessage({ type: 'error', text: err.message || 'Kh\u00F4ng th\u1EC3 l\u01B0u thay \u0111\u1ED5i y\u00EAu c\u1EA7u t\u01B0 v\u1EA5n.' });
     } finally {

@@ -7,6 +7,7 @@ import ScrollReveal from '../components/common/ScrollReveal';
 import { productService } from '../services/api/productService';
 import { getStaticFileUrl } from '../utils/imageUtils';
 import PriceDisplay from '../components/common/PriceDisplay';
+import clientLogger from '../utils/clientLogger';
 const getProjectProductImage = (product) => {
   const rawImage = product?.imageUrl || (Array.isArray(product?.images) && product.images.length > 0 ? (product.images.find(img => img?.isPrimary)?.imageUrl || product.images[0]?.imageUrl || product.images[0]) : '');
   return rawImage ? getStaticFileUrl(rawImage) : '';
@@ -198,7 +199,7 @@ const IndochineVillaSaiGon = ({ project }) => {
           <p className="font-label-lg text-label-lg mb-4 tracking-[0.2em] uppercase opacity-90">Dinh thự riêng tư</p>
           <h1 className="font-display-lg text-display-lg mb-6 leading-tight max-w-3xl">Indochine Villa Sài Gòn</h1>
           <p className="font-headline-md text-headline-md font-light italic max-w-2xl opacity-80">
-            "Nơi vẻ đẹp thanh lịch vượt thời gian của kiến trúc Pháp giao thoa cùng linh hồn di sản Việt, kiến tạo nên một thánh đường của ánh sáng và hoài niệm."
+            {`"Nơi vẻ đẹp thanh lịch vượt thời gian của kiến trúc Pháp giao thoa cùng linh hồn di sản Việt, kiến tạo nên một thánh đường của ánh sáng và hoài niệm."`}
           </p>
         </ScrollReveal>
       </section>
@@ -236,11 +237,11 @@ const IndochineVillaSaiGon = ({ project }) => {
                 Indochine Villa Sài Gòn không chỉ đơn thuần là một dự án cải tạo; đó là một quá trình phục dựng tinh tế những giá trị cốt lõi. Ẩn mình trong khu dân cư yên tĩnh tại Quận 2, dự án là nhịp cầu nối giữa vẻ đẹp hoài cổ của Đông Dương những năm 1920 và những đòi hỏi khắt khe của phong cách sống thượng lưu hiện đại.
               </p>
               <p>
-                Thiết kế xoay quanh triết lý "Di sản xúc giác". Chúng tôi đã tỉ mỉ tìm kiếm những khối gỗ sồi tái chế cho hệ tủ kệ may đo, những viên gạch bông ép thủ công từ các xưởng nghệ nhân miền Trung, và khéo léo lồng ghép kết cấu mây đan vào những đường nét nội thất tối giản.
+                {`Thiết kế xoay quanh triết lý "Di sản xúc giác". Chúng tôi đã tỉ mỉ tìm kiếm những khối gỗ sồi tái chế cho hệ tủ kệ may đo, những viên gạch bông ép thủ công từ các xưởng nghệ nhân miền Trung, và khéo léo lồng ghép kết cấu mây đan vào những đường nét nội thất tối giản.`}
               </p>
               <div className="py-8">
                 <blockquote className="border-l-4 border-accent-gold pl-8 italic text-primary font-headline-md">
-                  "Mục tiêu là tạo ra một không gian biết thở—nơi không khí luôn mát lành dưới những vòm trần cao, và bóng tối nhảy múa nhịp nhàng trên những bức tường vôi nhám."
+                  {`"Mục tiêu là tạo ra một không gian biết thở—nơi không khí luôn mát lành dưới những vòm trần cao, và bóng tối nhảy múa nhịp nhàng trên những bức tường vôi nhám."`}
                 </blockquote>
               </div>
               <p>
@@ -307,7 +308,7 @@ export default function ProjectDetail() {
   useEffect(() => {
     productService.getProducts({ limit: 100 })
       .then(res => setProducts(res.data ? res.data : (Array.isArray(res) ? res : [])))
-      .catch(console.error);
+      .catch((error) => clientLogger.warn('project_products_load_failed', error));
     window.scrollTo(0, 0);
   }, [slug]);
 

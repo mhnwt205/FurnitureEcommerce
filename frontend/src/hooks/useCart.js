@@ -21,7 +21,7 @@ const parseCartItems = () => {
   try {
     const parsed = JSON.parse(localStorage.getItem('cartItems') || '[]');
     return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
+  } catch {
     return [];
   }
 };
@@ -95,7 +95,7 @@ export function useCart() {
         const latestProduct = await productService.getProductById(item.id);
         const imageUrl = getProductMainImage(latestProduct);
         return { ...item, ...latestProduct, imageUrl, quantity: item.quantity };
-      } catch (error) {
+      } catch {
         return item;
       }
     }));

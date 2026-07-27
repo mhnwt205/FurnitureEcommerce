@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import Skeleton from '../../components/ui/Skeleton';
 import FormField from '../../components/ui/FormField';
+import clientLogger from '../../utils/clientLogger';
 
 const emptyAddressForm = {
   id: null,
@@ -33,7 +34,7 @@ export default function AddressBook() {
       const data = await addressService.getAddresses();
       setAddresses(data);
     } catch (error) {
-      console.error(error);
+      clientLogger.warn('address_book_load_failed', error);
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,7 @@ export default function AddressBook() {
         await addressService.deleteAddress(id);
         fetchAddresses();
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã xóa địa chỉ', type: 'success' } }));
-      } catch (error) {
+      } catch {
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi khi xóa địa chỉ', type: 'error' } }));
       }
     }
@@ -66,7 +67,7 @@ export default function AddressBook() {
       await addressService.setDefaultAddress(id);
       fetchAddresses();
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Đã đặt làm mặc định', type: 'success' } }));
-    } catch (error) {
+    } catch {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi khi đặt mặc định', type: 'error' } }));
     }
   };
@@ -79,7 +80,7 @@ export default function AddressBook() {
       setIsEditing(false);
       fetchAddresses();
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lưu địa chỉ thành công', type: 'success' } }));
-    } catch (error) {
+    } catch {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Lỗi khi lưu địa chỉ', type: 'error' } }));
     }
   };

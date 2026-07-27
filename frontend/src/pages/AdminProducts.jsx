@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { productService } from '../services/api/productService';
 import { categoryService } from '../services/api/categoryService';
 import { uploadService } from '../services/api/uploadService';
@@ -33,6 +33,7 @@ export default function AdminProducts() {
   const [existingImages, setExistingImages] = useState([]);
   const [primaryImageUrl, setPrimaryImageUrl] = useState('');
   const [imagesToDelete, setImagesToDelete] = useState([]);
+  const previewUrlsRef = useRef(new Set());
   
   const initialFormState = {
     name: '',
@@ -53,6 +54,26 @@ export default function AdminProducts() {
     isActive: true
   };
   const [formData, setFormData] = useState(initialFormState);
+
+  const createPreviewUrl = (file) => {
+    const previewUrl = URL.createObjectURL(file);
+    previewUrlsRef.current.add(previewUrl);
+    return previewUrl;
+  };
+
+  const revokePreviewUrl = (previewUrl) => {
+    if (!previewUrlsRef.current.delete(previewUrl)) return;
+    URL.revokeObjectURL(previewUrl);
+  };
+
+  const clearImageFiles = () => {
+    previewUrlsRef.current.forEach((previewUrl) => revokePreviewUrl(previewUrl));
+    setImageFiles([]);
+  };
+
+  useEffect(() => () => {
+    previewUrlsRef.current.forEach((previewUrl) => revokePreviewUrl(previewUrl));
+  }, []);
 
   useEffect(() => {
     fetchInitialData();
@@ -132,7 +153,7 @@ export default function AdminProducts() {
     setEditMode(false);
     setCurrentProductId(null);
     setFormData(initialFormState);
-    setImageFiles([]);
+    clearImageFiles();
     setExistingImages([]);
     setPrimaryImageUrl('');
     setImagesToDelete([]);
@@ -160,7 +181,7 @@ export default function AdminProducts() {
       style: product.style || '',
       isActive: product.isActive !== false
     });
-    setImageFiles([]);
+    clearImageFiles();
     setImagesToDelete([]);
     
     if (product.images && product.images.length > 0) {
@@ -233,7 +254,7 @@ export default function AdminProducts() {
 
     const newFiles = validFiles.map(file => ({
       file,
-      preview: URL.createObjectURL(file),
+      preview: createPreviewUrl(file),
       id: `new-${Date.now()}-${Math.random()}`
     }));
 
@@ -257,6 +278,7 @@ export default function AdminProducts() {
   };
 
   const handleRemoveNewImage = (id, preview) => {
+    revokePreviewUrl(preview);
     setImageFiles(prev => prev.filter(img => img.id !== id));
     if (primaryImageUrl === preview) {
       setPrimaryImageUrl('');
@@ -319,6 +341,7 @@ export default function AdminProducts() {
         await productService.createProduct(payload);
         alert('Thêm sản phẩm thành công!');
       }
+      clearImageFiles();
       setIsModalOpen(false);
       fetchProducts();
     } catch (err) {
@@ -516,7 +539,7 @@ export default function AdminProducts() {
           <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-outline-variant p-6 flex justify-between items-center z-10">
               <h2 className="font-headline-sm text-primary">{editMode ? 'Cập nhật Sản phẩm' : 'Thêm Sản phẩm mới'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-outline-variant hover:text-primary">
+              <button onClick={() => { clearImageFiles(); setIsModalOpen(false); }} className="text-outline-variant hover:text-primary">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -773,7 +796,7 @@ export default function AdminProducts() {
               <div className="flex justify-end gap-3 pt-6 border-t border-outline-variant mt-6">
                 <button 
                   type="button" 
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { clearImageFiles(); setIsModalOpen(false); }}
                   className="px-4 py-2 border border-outline-variant rounded text-on-surface-variant hover:bg-surface-beige transition-colors"
                 >
                   Hủy

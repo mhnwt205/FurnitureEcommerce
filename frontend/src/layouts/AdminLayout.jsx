@@ -65,7 +65,7 @@ export default function AdminLayout({ children }) {
       setUnreadLoading(true);
       const response = await notificationService.getUnreadCount();
       setUnreadCount(response.unreadCount || 0);
-    } catch (error) {
+    } catch {
       setUnreadCount(0);
     } finally {
       setUnreadLoading(false);

@@ -8,7 +8,7 @@ const Template1 = () => (<div className="w-full">
 <article className="w-full mx-auto mb-section-gap">
 <div className="flex flex-col gap-stack-lg">
 <p className="font-body-lg text-body-lg text-primary italic border-l-4 border-accent-gold pl-6 leading-relaxed">
-                    "Tại Heritage Home, chúng tôi tin rằng mỗi vân gỗ là một bản giao hưởng của thời gian. Sự sang trọng thực sự không nằm ở sự hào nhoáng, mà nằm ở tính bền vững và sự kết nối giữa con người với thiên nhiên."
+                    {`"Tại Heritage Home, chúng tôi tin rằng mỗi vân gỗ là một bản giao hưởng của thời gian. Sự sang trọng thực sự không nằm ở sự hào nhoáng, mà nằm ở tính bền vững và sự kết nối giữa con người với thiên nhiên."`}
                 </p>
 <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter items-center my-stack-lg">
 <div className="order-2 md:order-1">
@@ -107,7 +107,7 @@ const Template1 = () => (<div className="w-full">
 const Template2 = () => (<div className="w-full">
 <article className="flex flex-col gap-stack-lg">
 <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                Phong cách Indochine (Đông Dương) không chỉ là sự kết hợp giữa nét hoài cổ của văn hóa Á Đông và vẻ lãng mạn của kiến trúc Pháp, mà còn là một bản hòa ca của ánh sáng. Trong một không gian đậm chất di sản, ánh sáng đóng vai trò là "chất keo" kết nối các yếu tố trang trí, tạo nên chiều sâu và khơi gợi cảm xúc người ở.
+                {`Phong cách Indochine (Đông Dương) không chỉ là sự kết hợp giữa nét hoài cổ của văn hóa Á Đông và vẻ lãng mạn của kiến trúc Pháp, mà còn là một bản hòa ca của ánh sáng. Trong một không gian đậm chất di sản, ánh sáng đóng vai trò là "chất keo" kết nối các yếu tố trang trí, tạo nên chiều sâu và khơi gợi cảm xúc người ở.`}
             </p>
 <h2 className="font-headline-md text-headline-md text-primary mt-stack-lg">1. Ánh sáng vàng: Linh hồn của sự ấm cúng</h2>
 <p className="text-on-surface-variant leading-relaxed">
@@ -115,7 +115,7 @@ const Template2 = () => (<div className="w-full">
             </p>
 {/*  */}
 <blockquote className="bg-surface-beige border-l-4 border-accent-gold p-stack-lg my-stack-md italic font-headline-md text-primary-container">
-                "Ánh sáng trong nội thất Đông Dương không nên quá gắt. Nó cần được 'lọc' qua những lớp chất liệu tự nhiên như lụa, mây tre để tạo ra những mảng sáng tối dịu dàng, tựa như nắng chiều qua khung cửa sổ gỗ."
+                {`"Ánh sáng trong nội thất Đông Dương không nên quá gắt. Nó cần được 'lọc' qua những lớp chất liệu tự nhiên như lụa, mây tre để tạo ra những mảng sáng tối dịu dàng, tựa như nắng chiều qua khung cửa sổ gỗ."`}
                 <cite className="block mt-stack-md font-label-lg text-label-lg not-italic text-on-surface-variant">— KTS. Trần Minh Đức, Giám đốc Nghệ thuật tại Heritage Home</cite>
 </blockquote>
 <h2 className="font-headline-md text-headline-md text-primary mt-stack-lg">2. Sự kết hợp giữa truyền thống và hiện đại</h2>
@@ -179,7 +179,7 @@ const Template3 = () => (<div className="w-full">
                         Nền tảng từ gam màu trung tính
                     </h2>
 <p className="font-body-md text-body-md mb-8 leading-loose">
-                        Hãy bắt đầu với các sắc độ của Beige, Ivory hoặc Xám ấm (Warm Grey). Đây là những gam màu "vượt thời gian" giúp mở rộng không gian và tạo cảm giác thư thái. Màu Ivory (Trắng Ngà) của Heritage Home được lấy cảm hứng từ những bức tường vôi truyền thống, mang lại vẻ đẹp dịu dàng nhưng vô cùng sang trọng.
+                        {`Hãy bắt đầu với các sắc độ của Beige, Ivory hoặc Xám ấm (Warm Grey). Đây là những gam màu "vượt thời gian" giúp mở rộng không gian và tạo cảm giác thư thái. Màu Ivory (Trắng Ngà) của Heritage Home được lấy cảm hứng từ những bức tường vôi truyền thống, mang lại vẻ đẹp dịu dàng nhưng vô cùng sang trọng.`}
                     </p>
 <div className="bg-surface-beige p-8 rounded-lg flex flex-wrap gap-4 items-center mb-8">
 <div className="flex-1 min-w-[150px]">
@@ -191,7 +191,7 @@ const Template3 = () => (<div className="w-full">
 </div>
 </div>
 <div className="flex-1 min-w-[200px] italic font-body-sm text-body-sm text-on-surface-variant">
-                            "Màu trung tính là tấm toan hoàn hảo để tôn vinh những món đồ nội thất thủ công."
+                            {`"Màu trung tính là tấm toan hoàn hảo để tôn vinh những món đồ nội thất thủ công."`}
                         </div>
 </div>
 </section>
@@ -204,7 +204,7 @@ const Template3 = () => (<div className="w-full">
 <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter items-center mb-8">
 <div>
 <p className="font-body-md text-body-md leading-loose">
-                                Sắc đỏ gạch nung (Terracotta) gợi nhắc về chất liệu gốm truyền thống của Việt Nam. Khi kết hợp với nền trắng ngà, Terracotta tạo nên sự tương phản mạnh mẽ nhưng vẫn đầy tinh tế. Hãy sử dụng màu này cho gối tựa, thảm trải sàn hoặc các bình gốm trang trí để tạo "nhịp điệu" cho căn phòng.
+                                {`Sắc đỏ gạch nung (Terracotta) gợi nhắc về chất liệu gốm truyền thống của Việt Nam. Khi kết hợp với nền trắng ngà, Terracotta tạo nên sự tương phản mạnh mẽ nhưng vẫn đầy tinh tế. Hãy sử dụng màu này cho gối tựa, thảm trải sàn hoặc các bình gốm trang trí để tạo "nhịp điệu" cho căn phòng.`}
                             </p>
 </div>
 <img alt="Góc trang trí với gối terracotta" className="w-full h-64 object-cover rounded-lg shadow-sm" data-alt="A close-up shot of professional interior styling showing a cream-colored armchair with a deep terracotta linen pillow. In the background, a minimalist dark wood side table holds a matte terracotta vase with dried branches. The lighting is soft and warm, highlighting the high-quality textures of the fabrics and materials in a sophisticated, minimalist Vietnamese style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4xXWpM6vwgkGl0Ds25JQ6vhA6v6VaN02uWF9G_QKsYvm08V0MJ0tkqtYZZvq5rw6Pvq4UiAOcar1XALn09DGkp94aUaKBl9WeFdE8Gf7wa8LZxpGdvQ4jlBI5rkbvDS-cRfb9BxO-hCDM9_P4EgleGFfwNQn7lEjYyXXHeahTiAN6SvnYzbjbXImRg4EM68dtbUvTBt_0ORg0wSpTBzBw6dcu-d7BkGprQ6gzXuYZHFFxWuXm_nuRvD02sC0amLHD1k_gieEWMvU"/>
@@ -237,7 +237,7 @@ const Template3 = () => (<div className="w-full">
 <div className="bg-primary-container p-10 text-white rounded-xl">
 <h3 className="font-headline-md text-headline-md mb-4">05. Phụ kiện Kim Loại</h3>
 <p className="font-body-sm text-body-sm leading-relaxed text-on-primary-container">
-                                Một chút ánh kim từ đồng thau (Gold Brass) trên chân bàn hay tay nắm cửa sẽ là cú chốt cuối cùng để hoàn thiện vẻ đẹp "sang trọng thầm lặng" cho phòng khách của bạn.
+                                {`Một chút ánh kim từ đồng thau (Gold Brass) trên chân bàn hay tay nắm cửa sẽ là cú chốt cuối cùng để hoàn thiện vẻ đẹp "sang trọng thầm lặng" cho phòng khách của bạn.`}
                             </p>
 </div>
 </div>
@@ -247,7 +247,7 @@ const Template3 = () => (<div className="w-full">
 <div className="my-section-gap text-center relative px-8 py-12">
 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-1 bg-accent-gold/30"></div>
 <p className="font-display-lg-mobile text-display-lg-mobile text-primary italic leading-tight">
-                    "Màu sắc không chỉ là ánh sáng, nó là cảm xúc của ngôi nhà."
+                    {`"Màu sắc không chỉ là ánh sáng, nó là cảm xúc của ngôi nhà."`}
                 </p>
 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-1 bg-accent-gold/30"></div>
 </div>
@@ -273,7 +273,7 @@ export default function BlogDetail() {
   const { slug } = useParams();
   const post = blogDetailsData[slug];
   const relatedPosts = Object.entries(blogDetailsData)
-    .filter(([key, _]) => key !== slug)
+    .filter(([key]) => key !== slug)
     .slice(0, 3);
 
   useEffect(() => {

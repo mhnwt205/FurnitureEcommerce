@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { reviewService } from '../services/api/reviewService';
 import PriceDisplay from '../components/common/PriceDisplay';
 import { canPurchaseQuantity, getAvailableStock, isOutOfStock } from '../utils/stockUtils';
+import clientLogger from '../utils/clientLogger';
 
 const hasSpecValue = (value) => value !== null && value !== undefined && String(value).trim() !== '';
 
@@ -167,7 +168,7 @@ export default function ProductDetail() {
         const res = await wishlistService.getWishlistIds();
         if (res && res.ids) setWishlistIds(res.ids);
       } catch (error) {
-        console.error('Failed to fetch wishlist ids', error);
+        clientLogger.warn('wishlist_ids_load_failed', error);
       }
     };
     fetchWishlistIds();
@@ -215,7 +216,7 @@ export default function ProductDetail() {
         setReviews(data.reviews || []);
         setReviewSummary(data.summary || { averageRating: 0, reviewCount: 0, distribution: {} });
       } catch (err) {
-        console.error('Lỗi tải đánh giá:', err);
+        clientLogger.warn('product_reviews_load_failed', err);
       }
     };
 
@@ -244,7 +245,7 @@ export default function ProductDetail() {
 
         setRelatedProducts(related.slice(0, 4));
       } catch (err) {
-        console.error('Lỗi tải sản phẩm liên quan:', err);
+        clientLogger.warn('related_products_load_failed', err);
       }
     };
 

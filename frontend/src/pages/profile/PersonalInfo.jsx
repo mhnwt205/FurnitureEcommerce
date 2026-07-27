@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import Skeleton from '../../components/ui/Skeleton';
 import { useAuth } from '../../context/AuthContext';
+import clientLogger from '../../utils/clientLogger';
 
 export default function PersonalInfo() {
   const [profile, setProfile] = useState(null);
@@ -19,7 +20,7 @@ export default function PersonalInfo() {
       const data = await customerService.getMyProfile();
       setProfile(data);
       setFormData({ fullName: data.fullName || '', phone: data.phone || '' });
-    } catch (error) { console.error(error); }
+    } catch (error) { clientLogger.warn('profile_load_failed', error); }
   };
 
   const handleSave = async (e) => {
@@ -30,7 +31,7 @@ export default function PersonalInfo() {
       setIsEditing(false);
       fetchProfile();
       updateCurrentUser(formData);
-    } catch (error) {
+    } catch {
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Có lỗi xảy ra', type: 'error' }}));
     }
   };
