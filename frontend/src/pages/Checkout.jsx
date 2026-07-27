@@ -405,7 +405,7 @@ export default function Checkout() {
         setRefreshingPricing(true);
         setPricingWarning(null);
         await refreshCartPricing();
-      } catch (error) {
+      } catch {
         setPricingWarning(copy.priceWarning);
       } finally {
         setRefreshingPricing(false);
@@ -453,7 +453,7 @@ export default function Checkout() {
         setRefreshingPricing(true);
         setPricingWarning(null);
         latestCartItems = await refreshCartPricing();
-      } catch (refreshError) {
+      } catch {
         setPricingWarning(copy.priceWarningSubmit);
       } finally {
         setRefreshingPricing(false);

@@ -1,3 +1,5 @@
+import { STATIC_FILE_BASE_URL } from '../config/environment.js';
+
 export const PRODUCT_IMAGE_PLACEHOLDER = 'https://placehold.co/800x1000?text=No+Image';
 export const PRODUCT_THUMB_PLACEHOLDER = 'https://placehold.co/100x100?text=No+Image';
 
@@ -6,10 +8,7 @@ export const getStaticFileUrl = (path) => {
   if (typeof path !== 'string') return null;
   if (path.startsWith('http') || path.startsWith('data:')) return path;
   
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  const staticBase = apiBase.replace(/\/api\/?$/, '');
-  
-  return `${staticBase}${path.startsWith('/') ? '' : '/'}${path}`;
+  return `${STATIC_FILE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 // Alias for backwards compatibility, though new code should use getStaticFileUrl

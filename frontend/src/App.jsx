@@ -1,33 +1,7 @@
 ﻿import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
-import ProductList from './pages/ProductList';
-import ProductDetail from './pages/ProductDetail';
-import Checkout from './pages/Checkout';
-import OrderSuccess from './pages/OrderSuccess';
-import PaymentResult from './pages/PaymentResult';
-import OrderLookup from './pages/OrderLookup';
-import GuestOrderManage from './pages/GuestOrderManage';
-
-import AdminCategories from './pages/AdminCategories';
-
-import AdminAccounts from './pages/AdminAccounts';
-import AdminReviews from './pages/AdminReviews';
-
-import Login from './pages/Login';
-import Register from './pages/Register';
-import VerifyEmail from './pages/VerifyEmail';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-
-import Promotions from './pages/Promotions';
-import DesignServices from './pages/DesignServices';
-
-import CustomerProfile from './pages/profile/CustomerProfile';
-import CustomerOrderPage from './pages/profile/CustomerOrderPage';
-import VoucherDetail from './pages/profile/VoucherDetail';
-import RewardCatalog from './pages/profile/RewardCatalog';
-import SupportConversations from './pages/profile/SupportConversations';
+import NotFoundPage from './pages/NotFoundPage';
 import FloatingButtons from './components/common/FloatingButtons';
 import FloatingChatStack from './components/common/FloatingChatStack';
 import AdminRoute from './components/common/AdminRoute';
@@ -35,6 +9,28 @@ import ScrollToTop from './components/common/ScrollToTop';
 import { useAuth } from './context/AuthContext';
 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const ProductList = lazy(() => import('./pages/ProductList'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
+const PaymentResult = lazy(() => import('./pages/PaymentResult'));
+const OrderLookup = lazy(() => import('./pages/OrderLookup'));
+const GuestOrderManage = lazy(() => import('./pages/GuestOrderManage'));
+const AdminCategories = lazy(() => import('./pages/AdminCategories'));
+const AdminAccounts = lazy(() => import('./pages/AdminAccounts'));
+const AdminReviews = lazy(() => import('./pages/AdminReviews'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Promotions = lazy(() => import('./pages/Promotions'));
+const DesignServices = lazy(() => import('./pages/DesignServices'));
+const CustomerProfile = lazy(() => import('./pages/profile/CustomerProfile'));
+const CustomerOrderPage = lazy(() => import('./pages/profile/CustomerOrderPage'));
+const VoucherDetail = lazy(() => import('./pages/profile/VoucherDetail'));
+const RewardCatalog = lazy(() => import('./pages/profile/RewardCatalog'));
+const SupportConversations = lazy(() => import('./pages/profile/SupportConversations'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
@@ -130,6 +126,7 @@ function AppContent() {
         <Route path="/profile/reward-catalog" element={<RewardCatalog />} />
         <Route path="/profile/public-vouchers" element={<CustomerProfile />} />
         <Route path="/profile/support" element={<SupportConversations />} />
+        <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
       {!isAdminRoute && (

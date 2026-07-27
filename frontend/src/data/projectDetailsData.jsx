@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import ScrollReveal from '../components/common/ScrollReveal';
 
 export const projectsData = [
@@ -116,7 +115,7 @@ export const ModernPenthouseSkyline = ({ project }) => (
 <div className="lg:col-span-7">
 <h2 className="font-headline-lg text-headline-lg text-primary mb-8">Triết lý thiết kế: Sang trọng từ sự tĩnh lặng</h2>
 <div className="space-y-6 text-on-surface-variant font-body-lg leading-relaxed">
-<p>Dự án Modern Penthouse Skyline tọa lạc tại trái tim của thành phố, nơi nhịp sống hối hả bị bỏ lại sau cánh cửa để nhường chỗ cho sự tĩnh lặng và đẳng cấp. Chúng tôi áp dụng triết lý "Modern Vietnamese Heritage" - kết hợp tinh hoa truyền thống và sự tinh giản của kiến trúc đương đại.</p>
+<p>{`Dự án Modern Penthouse Skyline tọa lạc tại trái tim của thành phố, nơi nhịp sống hối hả bị bỏ lại sau cánh cửa để nhường chỗ cho sự tĩnh lặng và đẳng cấp. Chúng tôi áp dụng triết lý "Modern Vietnamese Heritage" - kết hợp tinh hoa truyền thống và sự tinh giản của kiến trúc đương đại.`}</p>
 <p>Mọi chi tiết từ sàn gỗ óc chó nhập khẩu đến hệ thống chiếu sáng thông minh đều được tuyển chọn khắt khe nhằm tạo ra một không gian sống không chỉ đẹp mà còn mang lại cảm xúc trọn vẹn cho gia chủ.</p>
 </div>
 </div>
@@ -288,7 +287,7 @@ export const CreativeHubOffice = ({ project }) => (
 <div className="lg:col-span-8">
 <h2 className="font-headline-lg text-headline-lg mb-8 text-primary">Tầm nhìn thiết kế</h2>
 <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed mb-6">
-                        Dự án Creative Hub Office được thiết kế dựa trên triết lý "Heritage Modernist" - nơi những giá trị di sản tinh tế gặp gỡ ngôn ngữ kiến trúc tối giản đương đại. Chúng tôi tập trung vào việc tạo ra những điểm chạm cảm xúc thông qua vật liệu tự nhiên như gỗ óc chó, đá cẩm thạch và kim loại mờ.
+                        {`Dự án Creative Hub Office được thiết kế dựa trên triết lý "Heritage Modernist" - nơi những giá trị di sản tinh tế gặp gỡ ngôn ngữ kiến trúc tối giản đương đại. Chúng tôi tập trung vào việc tạo ra những điểm chạm cảm xúc thông qua vật liệu tự nhiên như gỗ óc chó, đá cẩm thạch và kim loại mờ.`}
                     </p>
 <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
                         Không gian không chỉ là nơi làm việc mà là một hệ sinh thái nuôi dưỡng sự sáng tạo, với các khu vực mở khuyến khích tương tác và những góc yên tĩnh để tập trung sâu. Ánh sáng được điều phối thông minh để giảm căng thẳng và tăng cường sự tập trung trong suốt 8 giờ làm việc.

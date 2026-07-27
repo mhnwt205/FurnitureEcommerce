@@ -6,6 +6,7 @@ import { productService } from '../services/api/productService';
 import ScrollReveal from '../components/common/ScrollReveal';
 import { wishlistService } from '../services/api/wishlistService';
 import { useAuth } from '../context/AuthContext';
+import clientLogger from '../utils/clientLogger';
 import {
   CustomerProductCard,
   LoadingProductGrid,
@@ -148,7 +149,7 @@ export default function Home() {
         const res = await wishlistService.getWishlistIds();
         if (res?.ids) setWishlistIds(res.ids);
       } catch (wishlistError) {
-        console.error('Failed to fetch wishlist ids', wishlistError);
+        clientLogger.warn('wishlist_ids_load_failed', wishlistError);
       }
     };
 

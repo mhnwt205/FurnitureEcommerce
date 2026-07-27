@@ -19,7 +19,7 @@ export default function OrderHistory() {
     try {
       const data = await orderService.getMyOrders();
       setOrders(data);
-    } catch (error) {
+    } catch {
       setOrders([]);
     } finally {
       setLoading(false);

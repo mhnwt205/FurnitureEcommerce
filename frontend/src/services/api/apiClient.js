@@ -5,8 +5,7 @@ import {
   markRefreshSessionExpired,
   runCoordinatedRefresh
 } from '../auth/refreshCoordinator.js';
-
-const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
+import { API_URL } from '../../config/environment.js';
 
 const AUTH_ENDPOINTS_WITHOUT_REFRESH = [
   '/auth/login',
@@ -15,6 +14,8 @@ const AUTH_ENDPOINTS_WITHOUT_REFRESH = [
   '/auth/logout',
   '/auth/logout-all'
 ];
+
+export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 const isFormData = (value) => typeof FormData !== 'undefined' && value instanceof FormData;
 
@@ -33,11 +34,47 @@ const parseResponseBody = async (response) => {
   }
 };
 
-const createApiError = (message, status, data) => {
+const createApiError = (message, status, data, code) => {
   const error = new Error(message || 'An error occurred');
   error.status = status;
   error.data = data;
+  if (code) error.code = code;
   return error;
+};
+
+const getRequestTimeout = (timeoutMs) => {
+  if (timeoutMs === false || timeoutMs === 0) return null;
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_REQUEST_TIMEOUT_MS;
+};
+
+const createRequestSignal = (callerSignal, timeoutMs) => {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = getRequestTimeout(timeoutMs);
+  let timeoutId = null;
+
+  const abortFromCaller = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) {
+    abortFromCaller();
+  } else {
+    callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
+  if (timeout) {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
+  }
+
+  return {
+    signal: controller.signal,
+    timedOut: () => timedOut,
+    cleanup: () => {
+      if (timeoutId !== null) clearTimeout(timeoutId);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+    }
+  };
 };
 
 const performRefresh = async ({ signal } = {}) => {
@@ -84,10 +121,11 @@ const performRefresh = async ({ signal } = {}) => {
 const refreshAccessToken = () => runCoordinatedRefresh(performRefresh);
 
 const apiClient = async (endpoint, options = {}, hasRetried = false) => {
+  const { signal: callerSignal, timeoutMs, ...requestOptions } = options;
   const token = getAccessToken();
-  const headers = { ...(options.headers || {}) };
+  const headers = { ...(requestOptions.headers || {}) };
 
-  if (options.body && !isFormData(options.body) && !headers['Content-Type']) {
+  if (requestOptions.body && !isFormData(requestOptions.body) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -95,22 +133,32 @@ const apiClient = async (endpoint, options = {}, hasRetried = false) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const requestSignal = createRequestSignal(callerSignal, timeoutMs);
   const config = {
-    ...options,
+    ...requestOptions,
     credentials: options.credentials || 'include',
-    headers
+    headers,
+    signal: requestSignal.signal
   };
 
   let response;
+  let data;
   try {
     response = await fetch(`${API_URL}${endpoint}`, config);
-  } catch (error) {
-    const apiError = createApiError('Network error', 0, null);
-    apiError.cause = error;
-    throw apiError;
-  }
+    data = await parseResponseBody(response);
+  } catch {
+    if (requestSignal.timedOut()) {
+      throw createApiError('Request timed out. Please try again.', 0, null, 'REQUEST_TIMEOUT');
+    }
 
-  const data = await parseResponseBody(response);
+    if (callerSignal?.aborted || requestSignal.signal.aborted) {
+      throw createApiError('Request was cancelled.', 0, null, 'REQUEST_ABORTED');
+    }
+
+    throw createApiError('Network error', 0, null, 'NETWORK_ERROR');
+  } finally {
+    requestSignal.cleanup();
+  }
 
   if (response.status === 401 && !hasRetried && !shouldSkipRefresh(endpoint)) {
     await refreshAccessToken();

@@ -13,6 +13,7 @@ import ProductImage from '../components/product/ProductImage';
 import ProductBadge from '../components/product/ProductBadge';
 import ProductPriceBlock from '../components/product/ProductPriceBlock';
 import { isOutOfStock } from '../utils/stockUtils';
+import clientLogger from '../utils/clientLogger';
 
 const categories = [
   { name: 'Tất cả', slug: 'ALL' },
@@ -291,7 +292,7 @@ export default function ProductList() {
           setWishlistIds(res.ids);
         }
       } catch (error) {
-        console.error('Failed to fetch wishlist ids', error);
+        clientLogger.warn('wishlist_ids_load_failed', error);
       }
     };
     fetchWishlistIds();

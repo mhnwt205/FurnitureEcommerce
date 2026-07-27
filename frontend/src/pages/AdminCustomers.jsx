@@ -78,7 +78,6 @@ export default function AdminCustomers() {
 
   const handleConfirmToggle = async () => {
     const { customerId, currentStatus } = confirmModal;
-    const actionText = currentStatus ? 'khóa' : 'mở khóa';
     try {
       await customerService.updateCustomerStatus(customerId, !currentStatus);
       setConfirmModal({ isOpen: false, customerId: null, currentStatus: null, customerName: '' });

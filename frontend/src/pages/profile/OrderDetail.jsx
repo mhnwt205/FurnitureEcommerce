@@ -4,6 +4,7 @@ import { orderService } from '../../services/api/orderService';
 import { reviewService } from '../../services/api/reviewService';
 import { uploadService } from '../../services/api/uploadService';
 import { getStaticFileUrl } from '../../utils/imageUtils';
+import { validateReviewImageFiles } from '../../utils/reviewImageUploadValidation';
 import { formatPlainVnd as formatMoney } from '../../utils/formatters';
 import {
   getCustomerOrderStatusClass as getStatusClass,
@@ -21,6 +22,22 @@ const getErrorMessage = (error) => {
   if (error?.status === 400) return 'Thông tin hủy đơn không hợp lệ.';
   if (error?.code === 'REFUND_PENDING') return 'Yêu cầu hủy và hoàn tiền đã được ghi nhận.';
   return error?.message || 'Không thể thực hiện yêu cầu lúc này.';
+};
+
+const getReviewSubmissionErrorMessage = (error) => {
+  if (error?.code === 'REQUEST_TIMEOUT') return 'Tải ảnh mất quá nhiều thời gian. Vui lòng thử lại.';
+  if (error?.code === 'REQUEST_ABORTED') return 'Yêu cầu tải ảnh đã được hủy.';
+  if (error?.code === 'NETWORK_ERROR') return 'Không thể kết nối để tải ảnh. Vui lòng kiểm tra mạng và thử lại.';
+  if (error?.status === 413) return 'Mỗi ảnh có dung lượng tối đa 5 MB.';
+  if (error?.status === 415) return 'Định dạng ảnh không được hỗ trợ. Vui lòng chọn JPG, JPEG, PNG hoặc WebP.';
+  if (error?.status === 429) return 'Bạn đã gửi quá nhiều yêu cầu tải ảnh. Vui lòng thử lại sau.';
+  if (error?.status === 400) {
+    const businessMessage = error?.data?.error?.message || error?.data?.message;
+    return typeof businessMessage === 'string' && businessMessage.trim()
+      ? businessMessage
+      : 'Thông tin đánh giá hoặc ảnh tải lên không hợp lệ.';
+  }
+  return 'Không thể gửi đánh giá lúc này. Vui lòng thử lại.';
 };
 
 const getRefundStatusMessage = (order) => {
@@ -71,7 +88,7 @@ export default function OrderDetail({ orderId }) {
       if (showLoader) setLoading(true);
       const data = await orderService.getMyOrderById(effectiveId);
       setOrder(data);
-    } catch (error) {
+    } catch {
       setOrder(null);
     } finally {
       setLoading(false);
@@ -83,11 +100,29 @@ export default function OrderDetail({ orderId }) {
   const canReviewItem = (item) => REVIEWABLE_STATUSES.includes(order?.status) && (!item.reviews || item.reviews.length === 0);
   const openReviewModal = (item) => { setSelectedItem(item); setReviewForm({ rating: 5, comment: '', images: [] }); setReviewError(''); };
   const closeReviewModal = () => { if (reviewSubmitting) return; setSelectedItem(null); setReviewForm({ rating: 5, comment: '', images: [] }); setReviewError(''); };
-  const handleReviewImageChange = (event) => { const files = Array.from(event.target.files || []).slice(0, 5); setReviewForm(prev => ({ ...prev, images: files })); };
+  const handleReviewImageChange = (event) => {
+    const validation = validateReviewImageFiles(event.target.files);
+    event.target.value = '';
+
+    if (validation.error) {
+      setReviewError(validation.error);
+      return;
+    }
+
+    setReviewError('');
+    setReviewForm(prev => ({ ...prev, images: validation.files }));
+  };
 
   const handleReviewSubmit = async (event) => {
     event.preventDefault();
     if (!selectedItem || !order) return;
+
+    const validation = validateReviewImageFiles(reviewForm.images);
+    if (validation.error) {
+      setReviewError(validation.error);
+      return;
+    }
+
     try {
       setReviewSubmitting(true);
       setReviewError('');
@@ -100,7 +135,7 @@ export default function OrderDetail({ orderId }) {
       setOrder(prev => ({ ...prev, orderItems: prev.orderItems.map(item => item.id === selectedItem.id ? { ...item, reviews: [{ id: result.review?.id, rating: result.review?.rating, createdAt: result.review?.createdAt }] } : item) }));
       closeReviewModal();
     } catch (err) {
-      setReviewError(err.message || 'Không thể gửi đánh giá.');
+      setReviewError(getReviewSubmissionErrorMessage(err));
     } finally {
       setReviewSubmitting(false);
     }
@@ -212,7 +247,7 @@ export default function OrderDetail({ orderId }) {
         </aside>
       </div>
 
-      {selectedItem && <div className="ui-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"><form onSubmit={handleReviewSubmit} className="ui-modal-panel w-full max-w-xl overflow-hidden" role="dialog" aria-modal="true" aria-label="Đánh giá sản phẩm"><div className="ui-modal-header flex items-start justify-between gap-4"><div><h3 className="text-xl font-bold text-[#333333]">Đánh giá sản phẩm</h3><p className="mt-1 line-clamp-2 text-sm text-[#777777]">{selectedItem.productName}</p></div><button type="button" onClick={closeReviewModal} className="flex h-9 w-9 items-center justify-center rounded-[8px] text-[#777777] hover:bg-[#fdebec] hover:text-[#9f2f2d]" aria-label="Đóng form đánh giá"><span className="material-symbols-outlined">close</span></button></div><div className="space-y-5 p-5"><div><label className="mb-2 block text-sm font-semibold text-[#333333]">Số sao</label>{renderStars(reviewForm.rating, rating => setReviewForm(prev => ({ ...prev, rating })))}</div><div><label className="mb-2 block text-sm font-semibold text-[#333333]">Bình luận</label><textarea value={reviewForm.comment} onChange={e => setReviewForm(prev => ({ ...prev, comment: e.target.value }))} rows="4" maxLength="2000" placeholder="Sản phẩm có đúng kỳ vọng của bạn không?" className="ui-textarea" /></div><label className="inline-flex cursor-pointer items-center gap-2 text-sm text-[#777777]"><span className="material-symbols-outlined text-[20px]">add_photo_alternate</span><span>{reviewForm.images.length > 0 ? `${reviewForm.images.length} ảnh đã chọn` : 'Thêm tối đa 5 ảnh'}</span><input type="file" accept="image/*" multiple onChange={handleReviewImageChange} className="hidden" /></label>{reviewError && <div className="rounded-[8px] border border-[#f5d2d3] bg-[#fdebec] px-4 py-3 text-sm text-[#9f2f2d]">{reviewError}</div>}</div><div className="ui-modal-footer flex justify-end gap-3"><button type="button" onClick={closeReviewModal} className="ui-button-secondary px-5 py-2.5 text-sm">Hủy</button><button type="submit" disabled={reviewSubmitting} className="ui-button-primary px-6 py-2.5 text-sm disabled:opacity-60">{reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}</button></div></form></div>}
+      {selectedItem && <div className="ui-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"><form onSubmit={handleReviewSubmit} className="ui-modal-panel w-full max-w-xl overflow-hidden" role="dialog" aria-modal="true" aria-label="Đánh giá sản phẩm"><div className="ui-modal-header flex items-start justify-between gap-4"><div><h3 className="text-xl font-bold text-[#333333]">Đánh giá sản phẩm</h3><p className="mt-1 line-clamp-2 text-sm text-[#777777]">{selectedItem.productName}</p></div><button type="button" onClick={closeReviewModal} className="flex h-9 w-9 items-center justify-center rounded-[8px] text-[#777777] hover:bg-[#fdebec] hover:text-[#9f2f2d]" aria-label="Đóng form đánh giá"><span className="material-symbols-outlined">close</span></button></div><div className="space-y-5 p-5"><div><label className="mb-2 block text-sm font-semibold text-[#333333]">Số sao</label>{renderStars(reviewForm.rating, rating => setReviewForm(prev => ({ ...prev, rating })))}</div><div><label className="mb-2 block text-sm font-semibold text-[#333333]">Bình luận</label><textarea value={reviewForm.comment} onChange={e => setReviewForm(prev => ({ ...prev, comment: e.target.value }))} rows="4" maxLength="2000" placeholder="Sản phẩm có đúng kỳ vọng của bạn không?" className="ui-textarea" /></div><label className="inline-flex cursor-pointer items-center gap-2 text-sm text-[#777777]"><span className="material-symbols-outlined text-[20px]">add_photo_alternate</span><span>{reviewForm.images.length > 0 ? `${reviewForm.images.length} ảnh đã chọn` : 'Thêm tối đa 5 ảnh'}</span><input type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple onChange={handleReviewImageChange} className="hidden" /></label>{reviewError && <div className="rounded-[8px] border border-[#f5d2d3] bg-[#fdebec] px-4 py-3 text-sm text-[#9f2f2d]">{reviewError}</div>}</div><div className="ui-modal-footer flex justify-end gap-3"><button type="button" onClick={closeReviewModal} className="ui-button-secondary px-5 py-2.5 text-sm">Hủy</button><button type="submit" disabled={reviewSubmitting} className="ui-button-primary px-6 py-2.5 text-sm disabled:opacity-60">{reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}</button></div></form></div>}
 
       <OrderCancelModal open={Boolean(cancelTarget)} onClose={() => setCancelTarget(null)} onConfirm={handleCancelConfirm} loading={cancelLoading} error={cancelError} refundMode={Boolean(cancelTarget?.requiresRefund)} />
     </>

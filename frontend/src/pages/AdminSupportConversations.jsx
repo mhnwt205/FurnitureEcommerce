@@ -30,7 +30,7 @@ function SenderLabel({ message, mine }) {
   return <p className="mb-1 text-[11px] font-semibold text-[#777777]">{message.sender?.fullName || (message.senderRole === 'CUSTOMER' ? 'Khách hàng' : 'Nhân viên hỗ trợ')}</p>;
 }
 
-function ConversationMessages({ messages, currentUserId, scrollRef, onScroll }) {
+function ConversationMessages({ messages, currentUserId, scrollRef: _scrollRef, onScroll: _onScroll }) {
   if (!messages.length) return <p className="py-10 text-center text-sm text-[#777777]">Chưa có tin nhắn.</p>;
   return (
     <ol className="space-y-3" role="list">

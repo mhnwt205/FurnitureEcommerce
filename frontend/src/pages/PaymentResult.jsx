@@ -27,7 +27,7 @@ export default function PaymentResult() {
           clearCart();
         }
         setResultData(response);
-      } catch (error) {
+      } catch {
         setResultData({ success: false, status: 'error', message: 'Đã có lỗi xảy ra khi xác minh giao dịch.' });
       } finally {
         setLoading(false);

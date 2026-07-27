@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { GOOGLE_CLIENT_ID } from '../config/environment.js';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -157,6 +158,8 @@ export default function Login() {
                 </Button>
               </form>
 
+              {GOOGLE_CLIENT_ID && (
+                <>
               <div className="relative my-6 flex items-center justify-center">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-[#eeeeee]" />
@@ -176,6 +179,8 @@ export default function Login() {
                   onError={handleGoogleError}
                 />
               </div>
+                </>
+              )}
 
               <p className="mt-8 text-center text-sm text-[#666666] lg:hidden">
                 <Link to="/" className="font-semibold text-[#333333] transition-colors hover:text-[#bfa37c]">

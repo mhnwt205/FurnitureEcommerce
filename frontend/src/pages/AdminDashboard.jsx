@@ -8,6 +8,7 @@ import { formatPrice } from '../utils/formatters';
 import { ADMIN_ORDER_STATUS_LABELS as statusLabels, getAdminOrderStatusColorClass as getStatusColorClass } from '../utils/statusMaps';
 import Skeleton from '../components/ui/Skeleton';
 import RevenueOrdersTable from '../components/admin/dashboard/RevenueOrdersTable';
+import clientLogger from '../utils/clientLogger';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const revenuePresets = [
@@ -212,7 +213,7 @@ export default function AdminDashboard() {
       });
       setRevenueOrdersPage(nextPage);
       setRevenueOrdersLimit(nextLimit);
-    } catch (err) {
+    } catch {
       if (requestSequence === revenueOrdersRequestSeqRef.current) {
         setRevenueOrdersError('Không thể tải danh sách đơn hàng doanh thu.');
       }
@@ -299,7 +300,7 @@ export default function AdminDashboard() {
         setWidgets(widgetRes);
         setError(false);
       } catch (err) {
-        console.error('Lỗi tải dashboard:', err);
+        clientLogger.error('admin_dashboard_load_failed', err);
         setError(true);
       } finally {
         setLoading(false);
