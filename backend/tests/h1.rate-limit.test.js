@@ -62,7 +62,7 @@ test('actual products upload route runs auth before its limiter and rejects befo
     single: () => (req, res, next) => {
       multerCalls += 1;
       calls.push('multer');
-      req.file = { path: 'test-image' };
+      req.file = { path: 'test-image', mimetype: 'image/jpeg', buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]) };
       next();
     }
   };

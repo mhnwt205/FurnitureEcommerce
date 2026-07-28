@@ -1,3 +1,5 @@
+import { validateVNPayEnvironmentConfig } from './vnpay.js';
+
 const SECRET_MIN_LENGTH = 32;
 
 export class EnvironmentValidationError extends Error {
@@ -94,6 +96,7 @@ export const validateEnvironment = (environment = process.env) => {
   if (accessSecret && accessSecret.length < SECRET_MIN_LENGTH) issues.push('JWT_ACCESS_SECRET or JWT_SECRET must be at least 32 characters');
   const legacyJwt = !environment.JWT_ACCESS_SECRET && Boolean(environment.JWT_SECRET);
   validateSecret(environment, issues, 'REFRESH_TOKEN_HASH_SECRET');
+  validateSecret(environment, issues, 'METRICS_TOKEN');
 
   const frontendUrl = required(environment, issues, 'FRONTEND_URL');
   const frontendOrigin = frontendUrl ? httpsOrigin(frontendUrl, issues, 'FRONTEND_URL') : null;
@@ -113,7 +116,8 @@ export const validateEnvironment = (environment = process.env) => {
   if (smtpPort) positiveInteger(smtpPort, issues, 'SMTP_PORT', { min: 1, max: 65535 });
   if (environment.CONSULTATION_NOTIFY_EMAIL && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(environment.CONSULTATION_NOTIFY_EMAIL)) issues.push('CONSULTATION_NOTIFY_EMAIL must be a valid email address');
   if (environment.PAYMENT_REFUND_ENV && !['sandbox', 'production'].includes(String(environment.PAYMENT_REFUND_ENV).toLowerCase())) issues.push('PAYMENT_REFUND_ENV must be sandbox or production');
-  if (environment.VNP_ENV && !['sandbox', 'production'].includes(String(environment.VNP_ENV).toLowerCase())) issues.push('VNP_ENV must be sandbox or production');
+  const vnpayEnvironmentCheck = validateVNPayEnvironmentConfig(environment);
+  if (!vnpayEnvironmentCheck.valid) issues.push(vnpayEnvironmentCheck.issue);
   for (const name of RATE_LIMIT_VARIABLES) validateOptionalPositiveInteger(environment, issues, name);
 
   if (issues.length) throw new EnvironmentValidationError(issues);

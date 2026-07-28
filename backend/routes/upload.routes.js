@@ -6,7 +6,8 @@ import { requireAnyPermission } from '../middlewares/permission.middleware.js';
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
 import { uploadRateLimiter } from '../middlewares/publicRateLimit.middleware.js';
-import { uploadImageBuffer } from '../utils/cloudinaryUpload.js';
+import { cleanupCloudinaryAssets, uploadImageAsset, uploadImageBuffer } from '../utils/cloudinaryUpload.js';
+import { assertImageSignature } from '../utils/imageSignature.js';
 
 const REVIEWABLE_STATUSES = ['delivered', 'completed'];
 
@@ -43,6 +44,17 @@ const uploadReviews = multer({
 });
 
 const uploadImage = (file, folder) => uploadImageBuffer({ cloudinary, buffer: file.buffer, folder });
+const uploadVerifiedImages = async (files, folder) => {
+  files.forEach(assertImageSignature);
+  const uploaded = [];
+  try {
+    for (const file of files) uploaded.push(await uploadImageAsset({ cloudinary, buffer: file.buffer, folder }));
+    return uploaded.map((asset) => asset.imageUrl);
+  } catch (error) {
+    await cleanupCloudinaryAssets({ cloudinary, assets: uploaded });
+    throw error;
+  }
+};
 
 const validateReviewUploadEligibility = async (req, res, next) => {
   try {
@@ -107,6 +119,7 @@ router.post('/products', verifyTokenMiddleware, uploadRateLimiterMiddleware, req
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn file ảnh' });
 
+    try { assertImageSignature(req.file); } catch { return res.status(400).json({ message: 'Invalid image file signature.' }); }
     return uploadImageMiddleware(req.file, 'FurnitureEcommerce/products')
       .then((imageUrl) => res.status(200).json({ message: 'Upload thành công', imageUrl }))
       .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));
@@ -120,7 +133,7 @@ router.post('/products/multiple', verifyTokenMiddleware, uploadRateLimiterMiddle
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'Vui lòng chọn ít nhất 1 file ảnh' });
 
-    return Promise.all(req.files.map((file) => uploadImageMiddleware(file, 'FurnitureEcommerce/products')))
+    return uploadVerifiedImages(req.files, 'FurnitureEcommerce/products')
       .then((imageUrls) => res.status(200).json({ message: 'Upload thành công', imageUrls }))
       .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));
   });
@@ -138,7 +151,7 @@ router.post('/reviews/multiple', verifyTokenMiddleware, uploadRateLimiterMiddlew
   });
 }, validateReviewUploadEligibility, async (req, res) => {
   try {
-    const imageUrls = await Promise.all(req.files.map((file) => uploadImage(file, 'FurnitureEcommerce/reviews')));
+    const imageUrls = await uploadVerifiedImages(req.files, 'FurnitureEcommerce/reviews');
     res.status(200).json({ message: 'Upload thÃ nh cÃ´ng', imageUrls });
   } catch (error) {
     console.error('Upload review images error:', error);
@@ -152,6 +165,7 @@ router.post('/avatars', verifyTokenMiddleware, uploadRateLimiterMiddleware, (req
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn file ảnh' });
 
+    try { assertImageSignature(req.file); } catch { return res.status(400).json({ message: 'Invalid image file signature.' }); }
     return uploadImage(req.file, 'FurnitureEcommerce/avatars')
       .then((imageUrl) => res.status(200).json({ message: 'Upload thành công', imageUrl }))
       .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));

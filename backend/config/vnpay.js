@@ -4,12 +4,47 @@ import moment from 'moment';
 
 const requiredConfigKeys = ['VNP_TMNCODE', 'VNP_HASHSECRET', 'VNP_URL', 'VNP_RETURNURL'];
 
+const PAYMENT_HOSTS = {
+  sandbox: new Set(['sandbox.vnpayment.vn']),
+  production: new Set(['pay.vnpay.vn', 'www.vnpayment.vn'])
+};
+
+export const resolveVNPayEnvironment = (environment = process.env) => (
+  String(environment.VNP_ENV || (environment.NODE_ENV === 'production' ? 'production' : 'sandbox')).toLowerCase()
+);
+
+export const validateVNPayEnvironmentConfig = (environment = process.env) => {
+  const selectedEnvironment = resolveVNPayEnvironment(environment);
+  if (!PAYMENT_HOSTS[selectedEnvironment]) return { valid: false, issue: 'VNP_ENV must be sandbox or production' };
+
+  try {
+    const paymentUrl = new URL(environment.VNP_URL);
+    const returnUrl = new URL(environment.VNP_RETURNURL);
+    const frontendUrl = new URL(environment.FRONTEND_URL);
+    if (paymentUrl.protocol !== 'https:' || !PAYMENT_HOSTS[selectedEnvironment].has(paymentUrl.hostname)) {
+      return { valid: false, issue: `VNP_URL must use an approved ${selectedEnvironment} VNPay HTTPS host` };
+    }
+    if (returnUrl.protocol !== 'https:' || returnUrl.origin !== frontendUrl.origin || returnUrl.pathname !== '/payment-result') {
+      return { valid: false, issue: 'VNP_RETURNURL must be the HTTPS FRONTEND_URL origin with /payment-result path' };
+    }
+  } catch {
+    return { valid: false, issue: 'VNPay URLs must be absolute HTTPS URLs' };
+  }
+  return { valid: true, selectedEnvironment };
+};
+
 const assertVNPayConfig = () => {
   const missing = requiredConfigKeys.filter((key) => !process.env[key]);
   if (missing.length > 0) {
     const error = new Error('VNPAY_CONFIG_MISSING');
     error.code = 'VNPAY_CONFIG_MISSING';
     error.missingKeys = missing;
+    throw error;
+  }
+  const environmentCheck = validateVNPayEnvironmentConfig();
+  if (!environmentCheck.valid) {
+    const error = new Error('VNPAY_ENVIRONMENT_CONFIG_INVALID');
+    error.code = 'VNPAY_ENVIRONMENT_CONFIG_INVALID';
     throw error;
   }
 };

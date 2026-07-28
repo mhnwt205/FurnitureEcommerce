@@ -35,6 +35,8 @@ import { requestLogger } from './middlewares/requestLogger.middleware.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 import { createHealthRouter } from './routes/health.routes.js';
 import { configureCloudinary } from './config/cloudinary.js';
+import { snapshotMetrics } from './utils/metrics.js';
+import { reportOnlyPolicy } from './middlewares/contentSecurityPolicy.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +48,7 @@ export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
 
   app.disable('x-powered-by');
   app.use(helmet({ contentSecurityPolicy: false, hsts: process.env.NODE_ENV === 'production' ? undefined : false, crossOriginResourcePolicy: { policy: 'cross-origin' }, referrerPolicy: { policy: 'strict-origin-when-cross-origin' } }));
+  app.use(reportOnlyPolicy);
   app.use(requestContext);
   app.use(cors({ origin: (origin, callback) => !origin || isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS')), credentials: true }));
   app.use(requestLogger);
@@ -54,6 +57,12 @@ export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
   configureCloudinary();
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   app.use(createHealthRouter({ prisma, getIsShuttingDown }));
+  app.get('/metrics', (req, res) => {
+    const token = process.env.METRICS_TOKEN;
+    if (!token || req.get('authorization') !== `Bearer ${token}`) return res.status(404).end();
+    res.set('Cache-Control', 'no-store');
+    return res.json(snapshotMetrics());
+  });
 
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
