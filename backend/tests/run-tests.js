@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import dotenv from 'dotenv';
 import { validateTestDatabaseEnvironment } from './testDatabaseEnvironment.js';
 
-// TEST_DATABASE_URL must come from the caller, never from the normal .env file.
+// TEST_DATABASE_URL is sourced only from the caller or ignored local .env.test, never .env.
+dotenv.config({ path: '.env.test', quiet: true });
 const suppliedTestDatabaseUrl = process.env.TEST_DATABASE_URL;
 dotenv.config({ quiet: true });
 

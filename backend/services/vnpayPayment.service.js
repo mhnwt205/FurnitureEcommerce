@@ -15,7 +15,7 @@ export const toPublicPaymentOrderDto = (order) => ({
   status: order.status,
   paymentStatus: order.paymentStatus,
   paymentMethod: order.paymentMethod,
-  totalAmount: order.totalAmount,
+  totalAmount: Number(order.totalAmount),
   payableAmountVnd: order.payableAmountVnd ?? null
 });
 

@@ -17,7 +17,7 @@ export const getGuestOrderManagementDto = (order) => {
     status: order.status,
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
-    totalAmount: order.totalAmount,
+    totalAmount: Number(order.totalAmount),
     fullName: order.fullName,
     phone: order.phone,
     customerEmail: order.customerEmail,
@@ -26,8 +26,8 @@ export const getGuestOrderManagementDto = (order) => {
     items: (order.orderItems || []).map((item) => ({
       productName: item.productName,
       quantity: item.quantity,
-      finalPrice: item.finalPrice ?? item.price,
-      subtotal: item.subtotal
+      finalPrice: Number(item.finalPrice ?? item.price),
+      subtotal: Number(item.subtotal)
     })),
     statusHistory: (order.statusHistory || []).map((entry) => ({
       status: entry.toStatus,

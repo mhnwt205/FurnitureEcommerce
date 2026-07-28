@@ -223,7 +223,18 @@ const stripInternalOrderFields = (order) => {
     paymentRefunds,
     ...safeOrder
   } = order;
-  return safeOrder;
+  return {
+    ...safeOrder,
+    totalAmount: Number(safeOrder.totalAmount),
+    orderItems: safeOrder.orderItems?.map((item) => ({
+      ...item,
+      price: Number(item.price),
+      originalPrice: item.originalPrice === null ? null : Number(item.originalPrice),
+      discountAmount: item.discountAmount === null ? null : Number(item.discountAmount),
+      finalPrice: item.finalPrice === null ? null : Number(item.finalPrice),
+      subtotal: Number(item.subtotal)
+    }))
+  };
 };
 
 const toCustomerOrderDto = (order) => {
@@ -267,7 +278,7 @@ const toPublicOrderLookupDto = (order) => ({
   status: order.status,
   paymentStatus: order.paymentStatus,
   paymentMethod: order.paymentMethod,
-  totalAmount: order.totalAmount,
+  totalAmount: Number(order.totalAmount),
   customer: {
     fullNameMasked: maskFullName(order.fullName),
     phoneMasked: maskPhone(order.phone),
@@ -277,8 +288,8 @@ const toPublicOrderLookupDto = (order) => ({
   items: (order.orderItems || []).map((item) => ({
     productName: item.productName,
     quantity: item.quantity,
-    finalPrice: item.finalPrice ?? item.price,
-    subtotal: item.subtotal
+    finalPrice: Number(item.finalPrice ?? item.price),
+    subtotal: Number(item.subtotal)
   })),
   statusHistory: (order.statusHistory || []).map((entry) => ({
     status: entry.toStatus,
@@ -299,7 +310,18 @@ const toCreateOrderDto = (order) => {
     ...safeOrder
   } = order;
 
-  return safeOrder;
+  return {
+    ...safeOrder,
+    totalAmount: Number(safeOrder.totalAmount),
+    orderItems: safeOrder.orderItems?.map((item) => ({
+      ...item,
+      price: Number(item.price),
+      originalPrice: item.originalPrice === null ? null : Number(item.originalPrice),
+      discountAmount: item.discountAmount === null ? null : Number(item.discountAmount),
+      finalPrice: item.finalPrice === null ? null : Number(item.finalPrice),
+      subtotal: Number(item.subtotal)
+    }))
+  };
 };
 
 const isVNPayPaymentMethod = (paymentMethod) => String(paymentMethod || '').toUpperCase() === 'VNPAY';
@@ -1053,7 +1075,7 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(409).json({ message: 'Order state changed. Please reload and try again.' });
     }
 
-    res.status(200).json({ message: 'Order status updated', order: updatedOrder });
+    res.status(200).json({ message: 'Order status updated', order: toAdminOrderDto(updatedOrder) });
   } catch (error) {
     if (error instanceof RewardPointsError) {
       return res.status(error.status).json({

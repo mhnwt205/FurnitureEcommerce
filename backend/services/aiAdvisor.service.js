@@ -1,4 +1,5 @@
 import prisma from '../prismaClient.js';
+import { logger } from '../utils/logger.js';
 import { attachPricingToProducts } from './promotionPricing.service.js';
 
 const MAX_RECOMMENDATIONS = 5;
@@ -610,58 +611,56 @@ const buildGeminiPrompt = ({ message, recommendations }) => JSON.stringify({
   }
 });
 
-const callGemini = async ({ message, recommendations }) => {
+const GEMINI_TIMEOUT_MS = 8_000;
+const GEMINI_MAX_ATTEMPTS = 2;
+const waitForGeminiRetry = () => new Promise((resolve) => setTimeout(resolve, 200));
+const isTransientGeminiStatus = (status) => status === 408 || status === 429 || status >= 500;
+
+export const callGemini = async ({ message, recommendations, fetchImpl = fetch }) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || recommendations.length === 0) return null;
 
   const model = encodeURIComponent(DEFAULT_MODEL);
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: buildGeminiPrompt({ message, recommendations }) }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        responseMimeType: 'application/json'
+  let lastError;
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt += 1) {
+    const startedAt = process.hrtime.bigint();
+    try {
+      const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: buildGeminiPrompt({ message, recommendations }) }] }], generationConfig: { temperature: 0.4, responseMimeType: 'application/json' } })
+      });
+      if (!response.ok) {
+        const error = Object.assign(new Error(`Gemini request failed with status ${response.status}`), { status: response.status });
+        if (!isTransientGeminiStatus(response.status) || attempt === GEMINI_MAX_ATTEMPTS) throw error;
+        logger.warn('gemini_request_retry', { reason: `http_${response.status}` });
+        await waitForGeminiRetry();
+        continue;
       }
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Gemini request failed with status ${response.status}`);
+      logger.info('gemini_request_completed', { durationMs: Number((process.hrtime.bigint() - startedAt) / 1_000_000n) });
+      const data = await response.json();
+      const content = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
+      const jsonText = extractJsonObject(content);
+      if (!jsonText) return null;
+      const parsed = JSON.parse(jsonText);
+      if (!parsed.answer || typeof parsed.answer !== 'string') return null;
+      const allowedIds = new Set(recommendations.map(item => item.id));
+      const reasonMap = new Map(Array.isArray(parsed.recommendations) ? parsed.recommendations.filter(item => allowedIds.has(item.id) && typeof item.reason === 'string').map(item => [item.id, item.reason]) : []);
+      return { answer: parsed.answer, reasonMap };
+    } catch (error) {
+      lastError = error;
+      const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+      if (attempt < GEMINI_MAX_ATTEMPTS && (timeout || isTransientGeminiStatus(error?.status))) {
+        logger.warn('gemini_request_retry', { reason: timeout ? 'timeout' : `http_${error.status}` });
+        await waitForGeminiRetry();
+        continue;
+      }
+      logger.warn('gemini_request_failed', { reason: timeout ? 'timeout' : 'upstream_failure' }, error);
+      throw error;
+    }
   }
-
-  const data = await response.json();
-  const content = data.candidates?.[0]?.content?.parts
-    ?.map(part => part.text || '')
-    .join('')
-    .trim();
-  const jsonText = extractJsonObject(content);
-  if (!jsonText) return null;
-
-  const parsed = JSON.parse(jsonText);
-  if (!parsed.answer || typeof parsed.answer !== 'string') return null;
-
-  const allowedIds = new Set(recommendations.map(item => item.id));
-  const reasonMap = new Map(
-    Array.isArray(parsed.recommendations)
-      ? parsed.recommendations
-        .filter(item => allowedIds.has(item.id) && typeof item.reason === 'string')
-        .map(item => [item.id, item.reason])
-      : []
-  );
-
-  return {
-    answer: parsed.answer,
-    reasonMap
-  };
+  throw lastError;
 };
 
 const fetchProducts = (where) => prisma.product.findMany({

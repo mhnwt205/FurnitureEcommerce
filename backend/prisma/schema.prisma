@@ -118,7 +118,7 @@ model Product {
   name              String             @db.NVarChar(255)
   slug              String             @unique @db.VarChar(255)
   description       String?            @db.NVarChar(Max)
-  price             Float
+  price             Decimal            @db.Decimal(18, 2)
   imageUrl          String?            @db.VarChar(Max)
   stock             Int                @default(0)
   color             String?            @db.NVarChar(100)
@@ -168,7 +168,7 @@ model Order {
   address                        String               @db.NVarChar(Max)
   note                           String?              @db.NVarChar(Max)
   paymentMethod                  String               @db.VarChar(50)
-  totalAmount                    Float
+  totalAmount                    Decimal              @db.Decimal(18, 2)
   status                         String               @default("pending") @db.VarChar(50)
   createdAt                      DateTime             @default(now())
   updatedAt                      DateTime             @updatedAt
@@ -261,14 +261,14 @@ model OrderItem {
   orderId        Int
   productId      Int
   productName    String   @db.NVarChar(255)
-  price          Float
-  originalPrice  Float?
-  discountAmount Float?   @default(0)
-  finalPrice     Float?
+  price          Decimal   @db.Decimal(18, 2)
+  originalPrice  Decimal?  @db.Decimal(18, 2)
+  discountAmount Decimal?  @default(0) @db.Decimal(18, 2)
+  finalPrice     Decimal?  @db.Decimal(18, 2)
   promotionId    Int?
   promotionName  String?  @db.NVarChar(255)
   quantity       Int
-  subtotal       Float
+  subtotal       Decimal   @db.Decimal(18, 2)
   order          Order    @relation(fields: [orderId], references: [id])
   product        Product  @relation(fields: [productId], references: [id])
   reviews        Review[]
@@ -437,7 +437,7 @@ model Promotion {
   name                String              @db.NVarChar(255)
   description         String?             @db.NVarChar(Max)
   discountType        String              @db.VarChar(50)
-  discountValue       Float
+  discountValue       Decimal             @db.Decimal(18, 2)
   status              String              @default("draft") @db.VarChar(50)
   priority            Int                 @default(0)
   startAt             DateTime

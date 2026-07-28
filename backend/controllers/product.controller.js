@@ -67,6 +67,8 @@ const generateSlug = (name) => {
   return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') + '-' + Date.now();
 };
 
+const toProductDto = (product) => ({ ...product, price: Number(product.price) });
+
 
 const attachReviewSummaries = async (products) => {
   const productList = Array.isArray(products) ? products : [products];
@@ -369,7 +371,7 @@ export const createProduct = async (req, res) => {
       }
     }
 
-    res.status(201).json({ message: 'Product created successfully', product: newProduct });
+    res.status(201).json({ message: 'Product created successfully', product: toProductDto(newProduct) });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: 'Validation failed', errors: error.errors });
@@ -493,7 +495,7 @@ export const updateProduct = async (req, res) => {
       }
     }
 
-    res.status(200).json({ message: 'Product updated successfully', product: updatedProduct });
+    res.status(200).json({ message: 'Product updated successfully', product: toProductDto(updatedProduct) });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: 'Validation failed', errors: error.errors });

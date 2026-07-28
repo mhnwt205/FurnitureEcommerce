@@ -1,5 +1,6 @@
 const TEST_DATABASE_NAME = /(?:_test|-test|test_)|test$/i;
 const PRODUCTION_LIKE_DATABASE_NAME = /(?:^|[_-])prod(?:uction)?(?:[_-]|$)/i;
+const SAFE_DATABASE_NAME = /^[A-Za-z0-9_-]+$/;
 
 export class TestDatabaseEnvironmentError extends Error {
   constructor(message) {
@@ -51,6 +52,9 @@ export const validateTestDatabaseEnvironment = (environment = process.env) => {
   }
   if (!TEST_DATABASE_NAME.test(target.databaseName)) {
     throw new TestDatabaseEnvironmentError(`TEST_DATABASE_URL database "${target.databaseName}" must contain _test, -test, or test_, or end with test`);
+  }
+  if (!SAFE_DATABASE_NAME.test(target.databaseName)) {
+    throw new TestDatabaseEnvironmentError('TEST_DATABASE_URL database name must contain only letters, numbers, underscores, or hyphens');
   }
 
   return target;
