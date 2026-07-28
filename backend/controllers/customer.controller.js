@@ -206,7 +206,10 @@ export const getCustomerById = async (req, res) => {
     const latestOrderDate = customer.orders.length > 0 ? customer.orders[0].createdAt : null;
     const wishlistCount = customer._count?.wishlists || 0;
     
-    const recentOrders = customer.orders.slice(0, 5);
+    const recentOrders = customer.orders.slice(0, 5).map((order) => ({
+      ...order,
+      totalAmount: Number(order.totalAmount)
+    }));
     const recentWishlistProducts = (customer.wishlists || []).map(w => {
       const p = w.product;
       const imageUrl = p.images && p.images.length > 0 ? p.images[0].imageUrl : p.imageUrl;
@@ -214,7 +217,7 @@ export const getCustomerById = async (req, res) => {
         id: p.id,
         name: p.name,
         slug: p.slug,
-        price: p.price,
+        price: Number(p.price),
         imageUrl,
         createdAt: w.createdAt
       };

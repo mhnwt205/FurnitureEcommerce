@@ -30,6 +30,7 @@ test('database guard rejects malformed, production-like, and non-test database n
   assertRejected({ NODE_ENV: 'test', TEST_DATABASE_URL: 'not-a-sqlserver-url' }, 'parseable SQL Server');
   assertRejected({ NODE_ENV: 'test', TEST_DATABASE_URL: 'sqlserver://localhost;database=Production_test' }, 'production-like');
   assertRejected({ NODE_ENV: 'test', TEST_DATABASE_URL: 'sqlserver://localhost;database=FurnitureEcommerce' }, 'must contain');
+  assertRejected({ NODE_ENV: 'test', TEST_DATABASE_URL: 'sqlserver://localhost;database=FurnitureEcommerce_test] ;DROP DATABASE [x' }, 'only letters');
 });
 
 test('database guard accepts an explicitly named SQL Server test database without exposing credentials', () => {

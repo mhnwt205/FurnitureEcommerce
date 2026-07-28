@@ -1,12 +1,12 @@
 import express from 'express';
 import multer from 'multer';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../config/cloudinary.js';
 import { verifyToken } from '../middlewares/auth.middleware.js';
 import { requireAnyPermission } from '../middlewares/permission.middleware.js';
 import prisma from '../prismaClient.js';
 import { z } from 'zod';
 import { uploadRateLimiter } from '../middlewares/publicRateLimit.middleware.js';
+import { uploadImageBuffer } from '../utils/cloudinaryUpload.js';
 
 const REVIEWABLE_STATUSES = ['delivered', 'completed'];
 
@@ -25,30 +25,14 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const storageProducts = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'FurnitureEcommerce/products',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-  },
-});
-
 const uploadProducts = multer({
-  storage: storageProducts,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: fileFilter
 });
 
-const storageAvatars = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'FurnitureEcommerce/avatars',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-  },
-});
-
 const uploadAvatars = multer({
-  storage: storageAvatars,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: fileFilter
 });
@@ -58,20 +42,7 @@ const uploadReviews = multer({
   fileFilter: fileFilter
 });
 
-const uploadReviewBuffer = (file) => new Promise((resolve, reject) => {
-  const uploadStream = cloudinary.uploader.upload_stream(
-    {
-      folder: 'FurnitureEcommerce/reviews',
-      resource_type: 'image'
-    },
-    (error, result) => {
-      if (error) return reject(error);
-      resolve(result.secure_url || result.url);
-    }
-  );
-
-  uploadStream.end(file.buffer);
-});
+const uploadImage = (file, folder) => uploadImageBuffer({ cloudinary, buffer: file.buffer, folder });
 
 const validateReviewUploadEligibility = async (req, res, next) => {
   try {
@@ -124,7 +95,8 @@ export const createUploadRouter = ({
   verifyTokenMiddleware = verifyToken,
   uploadRateLimiterMiddleware = uploadRateLimiter,
   requireAnyPermissionMiddleware = requireAnyPermission,
-  productUploadMiddleware = uploadProducts
+  productUploadMiddleware = uploadProducts,
+  uploadImageMiddleware = uploadImage
 } = {}) => {
   const router = express.Router();
 
@@ -135,7 +107,9 @@ router.post('/products', verifyTokenMiddleware, uploadRateLimiterMiddleware, req
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn file ảnh' });
 
-    res.status(200).json({ message: 'Upload thành công', imageUrl: req.file.path });
+    return uploadImageMiddleware(req.file, 'FurnitureEcommerce/products')
+      .then((imageUrl) => res.status(200).json({ message: 'Upload thành công', imageUrl }))
+      .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));
   });
 });
 
@@ -146,8 +120,9 @@ router.post('/products/multiple', verifyTokenMiddleware, uploadRateLimiterMiddle
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'Vui lòng chọn ít nhất 1 file ảnh' });
 
-    const imageUrls = req.files.map(file => file.path);
-    res.status(200).json({ message: 'Upload thành công', imageUrls });
+    return Promise.all(req.files.map((file) => uploadImageMiddleware(file, 'FurnitureEcommerce/products')))
+      .then((imageUrls) => res.status(200).json({ message: 'Upload thành công', imageUrls }))
+      .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));
   });
 });
 
@@ -163,7 +138,7 @@ router.post('/reviews/multiple', verifyTokenMiddleware, uploadRateLimiterMiddlew
   });
 }, validateReviewUploadEligibility, async (req, res) => {
   try {
-    const imageUrls = await Promise.all(req.files.map(uploadReviewBuffer));
+    const imageUrls = await Promise.all(req.files.map((file) => uploadImage(file, 'FurnitureEcommerce/reviews')));
     res.status(200).json({ message: 'Upload thÃ nh cÃ´ng', imageUrls });
   } catch (error) {
     console.error('Upload review images error:', error);
@@ -177,7 +152,9 @@ router.post('/avatars', verifyTokenMiddleware, uploadRateLimiterMiddleware, (req
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn file ảnh' });
 
-    res.status(200).json({ message: 'Upload thành công', imageUrl: req.file.path });
+    return uploadImage(req.file, 'FurnitureEcommerce/avatars')
+      .then((imageUrl) => res.status(200).json({ message: 'Upload thành công', imageUrl }))
+      .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));
   });
 });
 

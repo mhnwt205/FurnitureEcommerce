@@ -20,7 +20,7 @@ const toPromotionSummary = (promotion) => ({
   id: promotion.id,
   name: promotion.name,
   discountType: promotion.discountType,
-  discountValue: promotion.discountValue,
+  discountValue: Number(promotion.discountValue),
   startAt: promotion.startAt,
   endAt: promotion.endAt,
   priority: promotion.priority
@@ -157,6 +157,7 @@ export const attachPricingToProducts = async (products) => {
 
   return products.map((product) => ({
     ...product,
+    price: Number(product.price),
     ...calculatePromotionForProduct(product, candidatePromotions)
   }));
 };

@@ -8,6 +8,8 @@ const idParamSchema = z.object({
 
 const idArraySchema = z.array(z.coerce.number().int().positive()).optional();
 
+const toPromotionDto = (promotion) => ({ ...promotion, discountValue: Number(promotion.discountValue) });
+
 const promotionFieldsSchema = z.object({
   name: z.string().trim().min(1, 'name is required').max(255, 'name cannot exceed 255 characters'),
   description: z.string().trim().optional().nullable(),
@@ -212,7 +214,7 @@ export const getPromotions = async (req, res) => {
     ]);
 
     res.status(200).json({
-      data: promotions,
+      data: promotions.map(toPromotionDto),
       pagination: {
         page: query.page,
         limit: query.limit,
@@ -239,7 +241,7 @@ export const getPromotionById = async (req, res) => {
       return res.status(404).json({ message: 'Promotion not found' });
     }
 
-    res.status(200).json(promotion);
+    res.status(200).json(toPromotionDto(promotion));
   } catch (error) {
     if (handleValidationError(error, res)) return;
     console.error('Get promotion detail error:', error);
@@ -274,7 +276,7 @@ export const createPromotion = async (req, res) => {
       });
     });
 
-    res.status(201).json(promotion);
+    res.status(201).json(toPromotionDto(promotion));
   } catch (error) {
     if (handleValidationError(error, res)) return;
     console.error('Create promotion error:', error);
@@ -359,7 +361,7 @@ export const updatePromotion = async (req, res) => {
       });
     });
 
-    res.status(200).json(promotion);
+    res.status(200).json(toPromotionDto(promotion));
   } catch (error) {
     if (handleValidationError(error, res)) return;
     console.error('Update promotion error:', error);
@@ -397,7 +399,7 @@ export const updatePromotionStatus = async (req, res) => {
       include: promotionInclude
     });
 
-    res.status(200).json(promotion);
+    res.status(200).json(toPromotionDto(promotion));
   } catch (error) {
     if (handleValidationError(error, res)) return;
     console.error('Update promotion status error:', error);
@@ -423,7 +425,7 @@ export const disablePromotion = async (req, res) => {
       include: promotionInclude
     });
 
-    res.status(200).json({ message: 'Promotion disabled successfully', promotion });
+    res.status(200).json({ message: 'Promotion disabled successfully', promotion: toPromotionDto(promotion) });
   } catch (error) {
     if (handleValidationError(error, res)) return;
     console.error('Disable promotion error:', error);
