@@ -55,14 +55,28 @@ const sendConsultationMail = async ({ to, subject, html, text, context }) => {
     return 'DEV_MODE';
   }
 
-  const transporter = getTransporter();
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || '"FurnitureEcommerce" <noreply@furniture.com>',
-    to,
-    subject,
-    html,
-    text,
-  });
+  const getTransporter = () => {
+    const port = Number(process.env.SMTP_PORT || 587);
+
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: port === 465,
+
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+
+      tls: {
+        servername: process.env.SMTP_HOST,
+      },
+    });
+  };
 
   console.log(`[EmailService] Consultation ${context} email sent to ${to}`);
   return 'SMTP_MODE';
@@ -90,8 +104,17 @@ export const sendVerificationEmail = async (toEmail, token) => {
       console.log(`Verification email sent to ${toEmail}`);
       return 'SMTP_MODE';
     } catch (error) {
-      console.error('Verification email delivery failed.');
-      throw new Error(`L\u1ED7i g\u1EEDi email x\u00E1c th\u1EF1c: ${error.message}`);
+      console.error('Verification email delivery failed.', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        command: error.command,
+        response: error.response,
+        responseCode: error.responseCode,
+        stack: error.stack,
+      });
+
+      throw error;
     }
   } else {
     console.log(`[EmailService] Running in DEV MODE`);
