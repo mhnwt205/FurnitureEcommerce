@@ -6,6 +6,9 @@ import { validateEnvironment } from './config/env.js';
 import { createSupportConversationSocketServer } from './realtime/supportConversationSocket.js';
 import { logger } from './utils/logger.js';
 import { createShutdownController } from './utils/shutdown.js';
+import dns from "node:dns";
+
+dns.setDefaultResultOrder("ipv4first");
 
 dotenv.config({ quiet: true });
 
