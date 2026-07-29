@@ -44,11 +44,28 @@ const uploadReviews = multer({
 });
 
 const uploadImage = (file, folder) => uploadImageBuffer({ cloudinary, buffer: file.buffer, folder });
-const uploadVerifiedImages = async (files, folder) => {
+const logUploadError = (requestId, error, context = {}) => {
+  console.error('Product image upload failed:', {
+    requestId,
+    ...context,
+    name: error?.name,
+    message: error?.message,
+    stack: error?.stack,
+    http_code: error?.http_code,
+    response: error?.response,
+    error
+  }, error);
+};
+
+const uploadVerifiedImages = async (files, folder, requestId) => {
   files.forEach(assertImageSignature);
   const uploaded = [];
   try {
-    for (const file of files) uploaded.push(await uploadImageAsset({ cloudinary, buffer: file.buffer, folder }));
+    for (const file of files) {
+      const metadata = { requestId, fileName: file.originalname, fileSize: file.size, mimetype: file.mimetype };
+      console.info('Uploading file:', { ...metadata, folder });
+      uploaded.push(await uploadImageAsset({ cloudinary, buffer: file.buffer, folder, ...metadata }));
+    }
     return uploaded.map((asset) => asset.imageUrl);
   } catch (error) {
     await cleanupCloudinaryAssets({ cloudinary, assets: uploaded });
@@ -130,12 +147,18 @@ router.post('/products/multiple', verifyTokenMiddleware, uploadRateLimiterMiddle
   const uploadMultiple = uploadProducts.array('images', 8);
   
   uploadMultiple(req, res, function (err) {
+    if (err) logUploadError(req.requestId, err, { stage: 'multer' });
     if (err) return res.status(400).json({ message: 'Lỗi upload ảnh: ' + err.message });
     if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'Vui lòng chọn ít nhất 1 file ảnh' });
 
-    return uploadVerifiedImages(req.files, 'FurnitureEcommerce/products')
+    const files = req.files.map((file) => ({ fileName: file.originalname, fileSize: file.size, mimetype: file.mimetype }));
+    console.info('Product image upload batch received:', { requestId: req.requestId, fileCount: req.files.length, files });
+    return uploadVerifiedImages(req.files, 'FurnitureEcommerce/products', req.requestId)
       .then((imageUrls) => res.status(200).json({ message: 'Upload thành công', imageUrls }))
-      .catch(() => res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId }));
+      .catch((error) => {
+        logUploadError(req.requestId, error, { stage: 'upload_or_validation', fileCount: req.files.length, files });
+        return res.status(502).json({ message: 'Image upload failed.', requestId: req.requestId });
+      });
   });
 });
 
@@ -144,7 +167,9 @@ router.post('/reviews/multiple', verifyTokenMiddleware, uploadRateLimiterMiddlew
   const uploadMultiple = uploadReviews.array('images', 5);
 
   uploadMultiple(req, res, function (err) {
-    if (err) return res.status(400).json({ message: 'Lá»—i upload áº£nh: ' + err.message });
+    if (err) {
+      return res.status(400).json({ message: 'Lá»—i upload áº£nh: ' + err.message });
+    }
     if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'Vui lÃ²ng chá»n Ã­t nháº¥t 1 file áº£nh' });
 
     next();
