@@ -1,6 +1,52 @@
 import crypto from 'crypto';
 import querystring from 'qs';
-import moment from 'moment';
+
+const VNPAY_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
+const getVNPayTimeParts = (date) => Object.fromEntries(
+  new Intl.DateTimeFormat(
+    'en-GB',
+    {
+      timeZone: VNPAY_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    },
+  )
+    .formatToParts(date)
+    .filter(({ type }) => type !== 'literal')
+    .map(({ type, value }) => [type, value]),
+);
+
+const formatVNPayDate = (date) => {
+  const {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+  } = getVNPayTimeParts(date);
+
+  return `${year}${month}${day}${hour}${minute}${second}`;
+};
+
+const formatVNPayLocalTime = (date) => {
+  const {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+  } = getVNPayTimeParts(date);
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+};
 
 const requiredConfigKeys = [
   'VNP_TMNCODE',
@@ -254,28 +300,31 @@ export const createVNPayUrl = (
   }
 
   const date = new Date();
+  const expiresAt = new Date(
+    date.getTime() + 15 * 60 * 1000,
+  );
 
-  const createDate = moment(date)
-    .format('YYYYMMDDHHmmss');
+  const createDate = formatVNPayDate(date);
 
-  const expireDate = moment(date)
-    .add(15, 'minutes')
-    .format('YYYYMMDDHHmmss');
+  const expireDate = formatVNPayDate(expiresAt);
 
   console.log(
     '[VNPay payment time debug]',
     {
       serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       processTimezone: process.env.TZ,
+      vnpayTimezone: VNPAY_TIME_ZONE,
       nodeEnv: process.env.NODE_ENV,
       vnpEnv: process.env.VNP_ENV,
       serverLocalTime: date.toString(),
       serverIsoTime: date.toISOString(),
+      vnpayLocalTime: formatVNPayLocalTime(date),
       timestampMilliseconds: date.getTime(),
       createDate,
       expireDate,
-      createToExpireMinutes: moment(expireDate, 'YYYYMMDDHHmmss')
-        .diff(moment(createDate, 'YYYYMMDDHHmmss'), 'minutes'),
+      createToExpireMinutes: (
+        expiresAt.getTime() - date.getTime()
+      ) / (60 * 1000),
     },
   );
 
