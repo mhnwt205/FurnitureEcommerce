@@ -45,7 +45,23 @@ export const startServer = () => {
     installProcessHandlers();
     return httpServer;
   } catch (error) {
-    logger.error('application_startup_failed', {}, error);
+    console.error('[Startup] Application startup failed', {
+      errorName: error?.name,
+      message: error?.message,
+      issues: error?.issues,
+      stack: error?.stack,
+    });
+
+    logger.error(
+      'application_startup_failed',
+      {
+        errorName: error?.name,
+        message: error?.message,
+        issues: error?.issues,
+      },
+      error,
+    );
+
     process.exitCode = 1;
     return null;
   }
