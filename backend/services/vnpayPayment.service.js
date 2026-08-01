@@ -46,6 +46,16 @@ export const createVNPayPaymentUrlForOrder = async ({
 
   const txnRef = `VNP-${order.id}-${Date.now()}`;
 
+  console.log('[VNPay payment order debug]', {
+    orderId: order.id,
+    orderCode: order.orderCode,
+    totalAmount: order.totalAmount,
+    payableAmountVnd: order.payableAmountVnd,
+    canonicalAmount: getCanonicalPayableAmount(order),
+    txnRef,
+    ipAddr
+  });
+
   await client.order.update({
     where: { id: order.id },
     data: { vnpayTxnRef: txnRef }

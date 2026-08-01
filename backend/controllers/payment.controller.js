@@ -28,6 +28,14 @@ export const createPaymentUrl = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    console.log('[VNPay create payment URL request]', {
+      requestBody: req.body,
+      userId,
+      orderId: order.id,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus
+    });
+
     if (order.userId !== userId) {
       return res.status(403).json({ message: 'Forbidden' });
     }
@@ -35,6 +43,10 @@ export const createPaymentUrl = async (req, res) => {
     const paymentUrl = await createVNPayPaymentUrlForOrder({
       order,
       ipAddr: getRequestIpAddress(req)
+    });
+
+    console.log('[VNPay create payment URL response]', {
+      paymentUrl
     });
 
     res.status(200).json({

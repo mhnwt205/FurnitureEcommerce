@@ -262,6 +262,23 @@ export const createVNPayUrl = (
     .add(15, 'minutes')
     .format('YYYYMMDDHHmmss');
 
+  console.log(
+    '[VNPay payment time debug]',
+    {
+      serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      processTimezone: process.env.TZ,
+      nodeEnv: process.env.NODE_ENV,
+      vnpEnv: process.env.VNP_ENV,
+      serverLocalTime: date.toString(),
+      serverIsoTime: date.toISOString(),
+      timestampMilliseconds: date.getTime(),
+      createDate,
+      expireDate,
+      createToExpireMinutes: moment(expireDate, 'YYYYMMDDHHmmss')
+        .diff(moment(createDate, 'YYYYMMDDHHmmss'), 'minutes'),
+    },
+  );
+
   const rawParams = {
     vnp_Version: '2.1.0',
     vnp_Command: 'pay',
@@ -281,6 +298,11 @@ export const createVNPayUrl = (
     vnp_ExpireDate: expireDate,
   };
 
+  console.log(
+    '[VNPay payment raw params]',
+    rawParams,
+  );
+
   const {
     sortedParams,
     signData,
@@ -289,6 +311,15 @@ export const createVNPayUrl = (
     params: rawParams,
     secretKey,
   });
+
+  console.log(
+    '[VNPay payment signed params]',
+    {
+      sortedParams,
+      signData,
+      secureHash,
+    },
+  );
 
   console.log(
     '[VNPay payment URL debug]',
@@ -368,6 +399,9 @@ export const createVNPayUrl = (
 
       paymentUrlLength:
         vnpUrl.length,
+
+      paymentUrl:
+        vnpUrl,
     },
   );
 
@@ -409,6 +443,16 @@ export const verifyVNPaySignature = (
     params: vnpParams,
     secretKey,
   });
+
+  console.log(
+    '[VNPay signature verification values]',
+    {
+      receivedHash,
+      calculatedHash,
+      signData,
+      sortedParams,
+    },
+  );
 
   const isComparable =
     receivedHash.length > 0
