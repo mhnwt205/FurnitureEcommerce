@@ -44,14 +44,6 @@ function CustomerBlock({ order }) {
   );
 }
 
-function RefundRequiredNotice() {
-  return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-      Đơn hàng VNPay đã thanh toán. Nếu khách muốn hủy, cần xử lý hoàn tiền thủ công.
-    </div>
-  );
-}
-
 function CancellationPanel({ cancellation }) {
   if (!cancellation) return null;
 
@@ -413,7 +405,6 @@ export default function AdminOrders() {
                           {order.paymentMethod}
                         </span>
                         {order.refundPending && <p className="mt-1 truncate text-xs font-semibold text-amber-700">Đang xử lý hoàn tiền{order.refundRequestId ? `: ${order.refundRequestId}` : ''}</p>}
-                        {order.requiresRefund && !order.refundPending && <p className="mt-1 truncate text-xs font-semibold text-amber-700">Cần hoàn tiền</p>}
                       </td>
                       <td className="px-4 py-3 text-center align-middle">
                         <span className={`inline-block rounded-sm border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${payment.color}`}>{payment.text}</span>
@@ -497,7 +488,6 @@ export default function AdminOrders() {
                     </section>
 
                     {selectedOrder.refundPending && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">Yêu cầu hoàn tiền đang chờ xử lý{selectedOrder.refundRequestId ? `: ${selectedOrder.refundRequestId}` : ''}.</div>}
-                    {selectedOrder.requiresRefund && !selectedOrder.refundPending && <RefundRequiredNotice />}
                     <CancellationPanel cancellation={selectedOrder.cancellation} />
                   </aside>
                 </div>
