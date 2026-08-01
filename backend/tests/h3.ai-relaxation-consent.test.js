@@ -1,0 +1,3 @@
+import assert from 'node:assert/strict';import test from 'node:test';import { recognizeRelaxationConsent } from '../services/ai-advisor/relaxation/consent.service.js';
+const one={options:[{id:'one'}]};const many={options:[{id:'one'},{id:'two'}]};
+test('consent requires an explicit selection when a proposal has several options',()=>{assert.deepEqual(recognizeRelaxationConsent('đồng ý',one),{action:'accept',optionId:'one'});assert.equal(recognizeRelaxationConsent('đồng ý',many).action,'ambiguous');assert.deepEqual(recognizeRelaxationConsent('phương án 2',many),{action:'accept',optionId:'two'});assert.equal(recognizeRelaxationConsent('giữ nguyên',many).action,'reject');});

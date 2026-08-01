@@ -1,0 +1,23 @@
+import { candidateFilterDiagnosticsSchema, candidateSummarySchema } from './summary.schema.js';
+import { legacyToIntent } from '../intent/intent.taxonomy.js';
+const uniq = (v) => [...new Set(v.filter(Boolean))].sort().slice(0, 10);
+const price = (p) => Number(p.finalPrice ?? p.effectivePrice ?? p.price);
+const comparativeReason = { cheaper:'no_cheaper_match', more_expensive:'no_more_expensive_match', different_product:'no_different_product', smaller:'no_smaller_match', larger:'no_larger_match' };
+export const buildCandidateSummary = ({ mergedIntent, retrievalMetadata, retrievedCandidates = [], eligibleCandidates = [], filterDiagnostics, classification = null, comparativePolicy = null }) => {
+  const diagnostics = candidateFilterDiagnosticsSchema.parse(filterDiagnostics);
+  const hasBudget = mergedIntent.budget.min !== null || mergedIntent.budget.max !== null;
+  const legacyHasAttr = mergedIntent.colors.length || mergedIntent.materials.length || mergedIntent.room || mergedIntent.style || mergedIntent.size;
+  const hasHardAttr = classification ? Boolean(classification.hard.colors.length || classification.hard.materials.length || classification.hard.room || classification.hard.style || classification.hard.size) : legacyHasAttr;
+  let reason = null;
+  if (comparativePolicy?.action === 'clarify_missing_reference') reason = 'missing_comparative_reference';
+  else if (mergedIntent.category && retrievalMetadata.primaryCount === 0) reason = 'no_category_match';
+  else if (retrievalMetadata.retrievedCount === 0) reason = 'no_active_product';
+  else if (diagnostics.beforeBudgetCount > 0 && diagnostics.afterBudgetCount === 0) reason = 'no_budget_match';
+  else if (hasHardAttr && diagnostics.beforeAttributeCount > 0 && diagnostics.afterAttributeCount === 0) reason = 'no_attribute_match';
+  else if (diagnostics.exclusionApplied && diagnostics.beforeExclusionCount > 0 && diagnostics.afterExclusionCount === 0) reason = 'excluded_only';
+  else if (diagnostics.stockRequired && diagnostics.beforeStockCount > 0 && diagnostics.afterStockCount === 0) reason = 'out_of_stock_only';
+  else if (diagnostics.comparativeApplied && diagnostics.beforeComparativeCount > 0 && diagnostics.afterComparativeCount === 0) reason = comparativeReason[diagnostics.comparativeType] || 'unknown';
+  else if (eligibleCandidates.length === 0) reason = 'unknown';
+  const prices = eligibleCandidates.map(price).filter(Number.isInteger);
+  return candidateSummarySchema.parse({ primaryCount: retrievalMetadata.primaryCount, retrievedCount: retrievalMetadata.retrievedCount, eligibleCount: eligibleCandidates.length, fallbackUsed: retrievalMetadata.fallbackUsed, fallbackReason: retrievalMetadata.fallbackReason, noResultReasons: reason ? [reason] : [], categoryMatched: !mergedIntent.category || retrievalMetadata.primaryCount > 0, budgetMatched: hasBudget ? diagnostics.afterBudgetCount > 0 : null, attributeMatched: hasHardAttr ? diagnostics.afterAttributeCount > 0 : null, exclusionMatched: diagnostics.exclusionApplied ? diagnostics.afterExclusionCount > 0 : null, stockMatched: diagnostics.stockRequired ? diagnostics.afterStockCount > 0 : null, comparativeMatched: diagnostics.comparativeApplied ? diagnostics.afterComparativeCount > 0 : null, comparativeType: diagnostics.comparativeType, minEffectivePrice: prices.length ? Math.min(...prices) : null, maxEffectivePrice: prices.length ? Math.max(...prices) : null, availableCategories: uniq(eligibleCandidates.map(p => p.category?.slug)), availableColors: uniq(eligibleCandidates.map(p => legacyToIntent.color.get(p.color))), availableMaterials: uniq(eligibleCandidates.map(p => legacyToIntent.material.get(p.material)) ) });
+};
