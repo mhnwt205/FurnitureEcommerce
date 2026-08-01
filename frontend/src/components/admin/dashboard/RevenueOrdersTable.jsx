@@ -4,7 +4,7 @@ import Skeleton from '../../ui/Skeleton';
 import { formatPrice } from '../../../utils/formatters';
 import { ADMIN_ORDER_STATUS_LABELS, getAdminOrderStatusColorClass } from '../../../utils/statusMaps';
 
-const formatPaidAt = (value) => {
+const formatCreatedAt = (value) => {
   if (!value) return '—';
 
   const date = new Date(value);
@@ -18,8 +18,9 @@ const TableHead = () => (
       <th scope="col" className="px-4 py-3 font-semibold text-on-surface-variant">Khách hàng</th>
       <th scope="col" className="px-4 py-3 text-center font-semibold text-on-surface-variant">Trạng thái</th>
       <th scope="col" className="px-4 py-3 text-center font-semibold text-on-surface-variant">Phương thức thanh toán</th>
-      <th scope="col" className="px-4 py-3 text-right font-semibold text-on-surface-variant">Doanh thu</th>
-      <th scope="col" className="px-4 py-3 font-semibold text-on-surface-variant">Ngày thanh toán</th>
+      <th scope="col" className="px-4 py-3 text-right font-semibold text-on-surface-variant">Doanh thu phát sinh</th>
+      <th scope="col" className="px-4 py-3 font-semibold text-on-surface-variant">Ngày tạo đơn</th>
+      <th scope="col" className="px-4 py-3 text-center font-semibold text-on-surface-variant">Thao tác</th>
     </tr>
   </thead>
 );
@@ -31,7 +32,8 @@ export default function RevenueOrdersTable({
   error = null,
   onRetry,
   onPageChange,
-  onLimitChange
+  onLimitChange,
+  onViewDetails
 }) {
   const rows = Array.isArray(orders) ? orders : [];
   const page = Number(pagination.page) || 1;
@@ -41,14 +43,15 @@ export default function RevenueOrdersTable({
   const skeletonRows = Math.min(Math.max(limit, 1), 10);
 
   const renderTable = (body) => (
-    <AdminTable containerClassName="overflow-x-auto" className="w-full min-w-[900px] table-fixed text-left font-body-sm">
+    <AdminTable containerClassName="overflow-x-auto" className="w-full min-w-[1040px] table-fixed text-left font-body-sm">
       <colgroup>
+        <col className="w-[14%]" />
+        <col className="w-[18%]" />
+        <col className="w-[14%]" />
         <col className="w-[15%]" />
-        <col className="w-[21%]" />
         <col className="w-[15%]" />
-        <col className="w-[17%]" />
-        <col className="w-[16%]" />
-        <col className="w-[16%]" />
+        <col className="w-[14%]" />
+        <col className="w-[10%]" />
       </colgroup>
       <TableHead />
       {body}
@@ -59,8 +62,8 @@ export default function RevenueOrdersTable({
     <section className="mt-8" aria-labelledby="revenue-orders-heading">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 id="revenue-orders-heading" className="font-display-sm text-xl font-semibold text-primary">Đơn hàng đã ghi nhận doanh thu</h2>
-          <p className="mt-1 text-sm text-on-surface-variant">Chỉ hiển thị các đơn đã thanh toán trong khoảng thời gian được chọn.</p>
+          <h2 id="revenue-orders-heading" className="font-display-sm text-xl font-semibold text-primary">Đơn hàng phát sinh doanh thu</h2>
+          <p className="mt-1 text-sm text-on-surface-variant">Hiển thị các đơn phát sinh trong khoảng thời gian và theo trạng thái đã chọn.</p>
         </div>
         {!loading && !error && rows.length > 0 && (
           <span className="font-body-sm text-on-surface-variant">Tổng số: <strong className="text-primary">{total}</strong> đơn hàng</span>
@@ -72,7 +75,7 @@ export default function RevenueOrdersTable({
           <tbody className="divide-y divide-surface-beige" aria-busy="true" aria-label="Đang tải danh sách đơn hàng doanh thu">
             {Array.from({ length: skeletonRows }, (_, index) => (
               <tr key={index}>
-                {Array.from({ length: 6 }, (_, cellIndex) => (
+                {Array.from({ length: 7 }, (_, cellIndex) => (
                   <td key={cellIndex} className="px-4 py-4"><Skeleton className="h-5 w-full rounded" /></td>
                 ))}
               </tr>
@@ -113,7 +116,17 @@ export default function RevenueOrdersTable({
                     </td>
                     <td className="px-4 py-3 text-center align-middle text-on-surface-variant">{order.paymentMethod || '—'}</td>
                     <td className="px-4 py-3 text-right align-middle font-headline-sm text-[16px] text-accent-terracotta">{formatPrice(order.totalAmount)}</td>
-                    <td className="px-4 py-3 align-middle whitespace-nowrap text-on-surface-variant">{formatPaidAt(order.paidAt)}</td>
+                    <td className="px-4 py-3 align-middle whitespace-nowrap text-on-surface-variant">{formatCreatedAt(order.createdAt)}</td>
+                    <td className="px-4 py-3 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={() => onViewDetails?.(order.id)}
+                        disabled={!onViewDetails}
+                        className="rounded border border-outline-variant/50 px-3 py-1.5 font-label-md text-primary transition-colors hover:bg-surface-beige disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Chi tiết
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

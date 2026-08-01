@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import dashboardService from '../services/api/dashboardService';
+import { orderService } from '../services/api/orderService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 import { getStaticFileUrl } from '../utils/imageUtils';
@@ -19,8 +20,8 @@ const revenuePresets = [
 ];
 
 const revenueKpis = [
-  { key: 'totalRevenue', label: 'Tổng doanh thu thực thu', icon: 'payments', type: 'money' },
-  { key: 'paidOrders', label: 'Đơn đã thanh toán', icon: 'receipt_long' },
+  { key: 'totalRevenue', label: 'Tổng doanh thu phát sinh', icon: 'payments', type: 'money' },
+  { key: 'paidOrders', label: 'Tổng đơn phát sinh', icon: 'receipt_long' },
   { key: 'successfulOrders', label: 'Đơn giao thành công', icon: 'task_alt' },
   { key: 'cancelledOrders', label: 'Đơn đã hủy', icon: 'cancel' },
   { key: 'averageOrderValue', label: 'Giá trị đơn trung bình', icon: 'monitoring', type: 'money' }
@@ -148,6 +149,10 @@ export default function AdminDashboard() {
   const [revenueOrderStatus, setRevenueOrderStatus] = useState('all');
   const [revenueOrdersPage, setRevenueOrdersPage] = useState(1);
   const [revenueOrdersLimit, setRevenueOrdersLimit] = useState(10);
+  const [isRevenueOrderDetailOpen, setIsRevenueOrderDetailOpen] = useState(false);
+  const [selectedRevenueOrder, setSelectedRevenueOrder] = useState(null);
+  const [revenueOrderDetailLoading, setRevenueOrderDetailLoading] = useState(false);
+  const [revenueOrderDetailError, setRevenueOrderDetailError] = useState('');
   const revenueRequestSeqRef = useRef(0);
   const revenueOrdersRequestSeqRef = useRef(0);
   const navigate = useNavigate();
@@ -289,6 +294,28 @@ export default function AdminDashboard() {
     fetchRevenueOrders({ range: appliedRevenueRange, status: revenueOrderStatus, page: 1, limit });
   };
 
+  const handleOpenRevenueOrderDetail = async (orderId) => {
+    setIsRevenueOrderDetailOpen(true);
+    setSelectedRevenueOrder(null);
+    setRevenueOrderDetailError('');
+    setRevenueOrderDetailLoading(true);
+
+    try {
+      const order = await orderService.getAdminOrderById(orderId);
+      setSelectedRevenueOrder(order);
+    } catch (err) {
+      setRevenueOrderDetailError(err.message || 'Không thể tải chi tiết đơn hàng.');
+    } finally {
+      setRevenueOrderDetailLoading(false);
+    }
+  };
+
+  const handleCloseRevenueOrderDetail = () => {
+    setIsRevenueOrderDetailOpen(false);
+    setSelectedRevenueOrder(null);
+    setRevenueOrderDetailError('');
+  };
+
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
@@ -390,8 +417,8 @@ export default function AdminDashboard() {
           <div className="border-b border-surface-beige/80 p-5 md:p-6">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-2xl">
-                <p className="font-label-lg text-accent-terracotta uppercase tracking-widest">Báo cáo doanh thu thực thu</p>
-                <h2 className="mt-2 font-display-md text-2xl text-primary">Doanh thu theo thời điểm thanh toán</h2>
+                <p className="font-label-lg text-accent-terracotta uppercase tracking-widest">Báo cáo doanh thu phát sinh</p>
+                <h2 className="mt-2 font-display-md text-2xl text-primary">Doanh thu theo thời điểm tạo đơn</h2>
                 <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
                 </p>
               </div>
@@ -524,7 +551,7 @@ export default function AdminDashboard() {
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div>
                         <h3 className="font-label-lg uppercase tracking-widest text-primary">Biểu đồ doanh thu</h3>
-                        <p className="mt-1 text-sm text-on-surface-variant">Theo ngày ghi nhận thanh toán</p>
+                        <p className="mt-1 text-sm text-on-surface-variant">Theo ngày tạo đơn</p>
                       </div>
                     </div>
                     {revenueLoading && !revenueData ? (
@@ -550,7 +577,7 @@ export default function AdminDashboard() {
                       </ResponsiveContainer>
                     )}
                     {!revenueLoading && revenueData?.summary?.totalRevenue === 0 && (
-                      <p className="text-center text-sm text-on-surface-variant mt-2">Chưa có doanh thu thực thu trong khoảng thời gian này.</p>
+                      <p className="text-center text-sm text-on-surface-variant mt-2">Chưa có doanh thu phát sinh trong khoảng thời gian này.</p>
                     )}
                   </div>
 
@@ -611,13 +638,14 @@ export default function AdminDashboard() {
                   onRetry={() => fetchRevenueOrders()}
                   onPageChange={handleRevenueOrdersPageChange}
                   onLimitChange={handleRevenueOrdersLimitChange}
+                  onViewDetails={handleOpenRevenueOrderDetail}
                 />
 
                 <div className="rounded-2xl border border-surface-beige/80 bg-white p-5 shadow-[0_3px_16px_rgba(93,64,55,0.04)]">
                   <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <h3 className="font-label-lg uppercase tracking-widest text-primary">Top 5 sản phẩm theo doanh thu</h3>
-                      <p className="mt-1 text-sm text-on-surface-variant">Dựa trên doanh thu thực thu từ dòng sản phẩm trong đơn hàng.</p>
+                      <h3 className="font-label-lg uppercase tracking-widest text-primary">Top 5 sản phẩm theo doanh thu phát sinh</h3>
+                      <p className="mt-1 text-sm text-on-surface-variant">Dựa trên doanh thu phát sinh từ dòng sản phẩm trong đơn hàng.</p>
                     </div>
                   </div>
                   <div className="divide-y divide-surface-beige/80">
@@ -639,7 +667,7 @@ export default function AdminDashboard() {
                               </div>
                               <div className="min-w-0">
                                 <h4 className="line-clamp-1 text-sm font-semibold text-primary">{product.name}</h4>
-                                <p className="mt-1 text-xs text-on-surface-variant">Đã bán <span className="font-bold text-primary">{product.quantity}</span></p>
+                                <p className="mt-1 text-xs text-on-surface-variant">Số lượng <span className="font-bold text-primary">{product.quantity}</span></p>
                               </div>
                             </div>
                             <div className="col-start-3 whitespace-nowrap text-sm font-bold text-accent-terracotta sm:col-start-auto sm:text-right">
@@ -763,6 +791,65 @@ export default function AdminDashboard() {
         </section>
 
       </div>
+      {isRevenueOrderDetailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Chi tiết đơn hàng">
+            <div className="flex items-start justify-between gap-4 border-b border-surface-beige p-6">
+              <div>
+                <h2 className="font-display-sm text-2xl font-semibold text-primary">Chi tiết đơn hàng</h2>
+                {selectedRevenueOrder && <p className="mt-1 text-sm text-on-surface-variant">#{selectedRevenueOrder.orderCode || selectedRevenueOrder.id}</p>}
+              </div>
+              <button type="button" onClick={handleCloseRevenueOrderDetail} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container hover:text-error" aria-label="Đóng chi tiết đơn hàng">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6">
+              {revenueOrderDetailLoading && (
+                <div className="flex min-h-48 items-center justify-center" aria-busy="true">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              )}
+
+              {!revenueOrderDetailLoading && revenueOrderDetailError && (
+                <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{revenueOrderDetailError}</p>
+              )}
+
+              {!revenueOrderDetailLoading && selectedRevenueOrder && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div><p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Trạng thái đơn</p><p className="mt-1 font-semibold text-primary">{statusLabels[selectedRevenueOrder.status] || selectedRevenueOrder.status || '—'}</p></div>
+                    <div><p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Thanh toán</p><p className="mt-1 font-semibold text-primary">{selectedRevenueOrder.paymentMethod || '—'} · {selectedRevenueOrder.paymentStatus || '—'}</p></div>
+                    <div><p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ngày tạo đơn</p><p className="mt-1 font-semibold text-primary">{selectedRevenueOrder.createdAt ? new Date(selectedRevenueOrder.createdAt).toLocaleString('vi-VN') : '—'}</p></div>
+                    <div><p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tổng cộng</p><p className="mt-1 font-headline-sm text-xl text-accent-terracotta">{formatPrice(selectedRevenueOrder.totalAmount)}</p></div>
+                  </div>
+
+                  <div className="border-t border-surface-beige pt-5">
+                    <h3 className="font-label-lg uppercase tracking-widest text-primary">Khách hàng và giao hàng</h3>
+                    <p className="mt-3 font-semibold text-primary">{selectedRevenueOrder.fullName || selectedRevenueOrder.user?.fullName || '—'}</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">{selectedRevenueOrder.phone || selectedRevenueOrder.user?.phone || '—'}</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">{selectedRevenueOrder.customerEmail || selectedRevenueOrder.user?.email || '—'}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-primary">{selectedRevenueOrder.address || '—'}</p>
+                  </div>
+
+                  <div className="border-t border-surface-beige pt-5">
+                    <h3 className="font-label-lg uppercase tracking-widest text-primary">Sản phẩm đã đặt</h3>
+                    <div className="mt-3 divide-y divide-surface-beige rounded-xl border border-surface-beige">
+                      {selectedRevenueOrder.orderItems?.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between gap-4 p-3 text-sm">
+                          <div className="min-w-0"><p className="truncate font-semibold text-primary">{item.productName}</p><p className="mt-1 text-on-surface-variant">Số lượng: {item.quantity}</p></div>
+                          <p className="whitespace-nowrap font-semibold text-accent-terracotta">{formatPrice(item.subtotal)}</p>
+                        </div>
+                      ))}
+                      {!selectedRevenueOrder.orderItems?.length && <p className="p-4 text-sm text-on-surface-variant">Không có sản phẩm để hiển thị.</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

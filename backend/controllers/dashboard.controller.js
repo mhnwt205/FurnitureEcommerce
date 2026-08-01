@@ -61,8 +61,7 @@ const getRevenueStatus = (query) => {
 };
 
 const createRevenueWhere = ({ fromDate, toDate, status }) => ({
-  paymentStatus: 'paid',
-  paidAt: {
+  createdAt: {
     gte: fromDate,
     lte: toDate
   },
@@ -173,7 +172,7 @@ export const getDashboardRevenueOrders = async (req, res) => {
           createdAt: true
         },
         orderBy: [
-          { paidAt: 'desc' },
+          { createdAt: 'desc' },
           { id: 'desc' }
         ],
         skip: (page - 1) * limit,
@@ -221,13 +220,13 @@ export const getDashboardRevenue = async (req, res) => {
     const { fromDate, toDate, fromDayStart, dayCount } = range;
     const revenueWhere = createRevenueWhere({ fromDate, toDate, status: statusResult.value });
 
-    const [paidOrders, topProductGroups] = await Promise.all([
+    const [revenueOrders, topProductGroups] = await Promise.all([
       prisma.order.findMany({
         where: revenueWhere,
         select: {
           id: true,
           totalAmount: true,
-          paidAt: true,
+          createdAt: true,
           status: true
         }
       }),
@@ -243,19 +242,15 @@ export const getDashboardRevenue = async (req, res) => {
       })
     ]);
 
-    const totalRevenue = roundMoney(paidOrders.reduce((sum, order) => sum + Number(order.totalAmount ?? 0), 0));
-    const paidOrdersCount = paidOrders.length;
-    const averageOrderValue = paidOrdersCount > 0 ? roundMoney(totalRevenue / paidOrdersCount) : 0;
-    const successfulOrders = paidOrders.filter((order) => ['delivered', 'completed'].includes(order.status)).length;
-    const cancelledOrders = paidOrders.filter((order) => order.status === 'cancelled').length;
+    const totalRevenue = roundMoney(revenueOrders.reduce((sum, order) => sum + Number(order.totalAmount ?? 0), 0));
+    const revenueOrdersCount = revenueOrders.length;
+    const averageOrderValue = revenueOrdersCount > 0 ? roundMoney(totalRevenue / revenueOrdersCount) : 0;
+    const successfulOrders = revenueOrders.filter((order) => ['delivered', 'completed'].includes(order.status)).length;
+    const cancelledOrders = revenueOrders.filter((order) => order.status === 'cancelled').length;
 
     const chartByDate = createEmptyChartData(fromDayStart, dayCount);
-    paidOrders.forEach((order) => {
-      if (!order.paidAt) {
-        return;
-      }
-
-      const dateKey = getUtcDateKey(order.paidAt);
+    revenueOrders.forEach((order) => {
+      const dateKey = getUtcDateKey(order.createdAt);
       const entry = chartByDate.get(dateKey);
 
       if (!entry) {
@@ -267,7 +262,7 @@ export const getDashboardRevenue = async (req, res) => {
     });
 
     const statusCounts = createEmptyStatusCounts();
-    paidOrders.forEach((order) => {
+    revenueOrders.forEach((order) => {
       if (Object.prototype.hasOwnProperty.call(statusCounts, order.status)) {
         statusCounts[order.status] += 1;
       }
@@ -324,7 +319,7 @@ export const getDashboardRevenue = async (req, res) => {
       },
       summary: {
         totalRevenue,
-        paidOrders: paidOrdersCount,
+        paidOrders: revenueOrdersCount,
         successfulOrders,
         cancelledOrders,
         averageOrderValue

@@ -35,7 +35,7 @@ const createOrder = async ({
   status = 'pending',
   paymentStatus = 'paid',
   paidAt = new Date('2026-06-15T10:00:00.000Z'),
-  createdAt = new Date('2026-01-01T09:00:00.000Z'),
+  createdAt = new Date('2026-06-15T09:00:00.000Z'),
   totalAmount = 100_000
 } = {}) => {
   const fixtureIndex = nextFixtureIndex;
@@ -144,49 +144,50 @@ test('dashboard revenue orders validates range, status, page, and limit inputs',
   }
 });
 
-test('dashboard revenue orders filters recognized revenue inclusively, maps minimal DTOs, and accepts each lifecycle status', async () => {
-  const fromBoundary = await createOrder({ name: 'Snapshot from boundary', status: 'pending', paidAt: new Date('2026-06-01T00:00:00.000Z'), createdAt: new Date('2025-01-01T00:00:00.000Z'), totalAmount: 101_000 });
-  const toBoundary = await createOrder({ name: 'Snapshot to boundary', status: 'completed', paidAt: new Date('2026-06-30T23:59:59.999Z'), totalAmount: 202_000 });
-  const samePaidAtFirst = await createOrder({ name: 'Same paid time first', status: 'confirmed', paidAt: new Date('2026-06-20T12:00:00.000Z'), totalAmount: 303_000 });
-  const samePaidAtSecond = await createOrder({ name: 'Same paid time second', status: 'confirmed', paidAt: new Date('2026-06-20T12:00:00.000Z'), totalAmount: 404_000 });
+test('dashboard revenue orders includes every created order in range, maps minimal DTOs, and accepts each lifecycle status', async () => {
+  const fromBoundary = await createOrder({ name: 'Snapshot from boundary', status: 'pending', paidAt: new Date('2025-01-01T00:00:00.000Z'), createdAt: new Date('2026-06-01T00:00:00.000Z'), totalAmount: 101_000 });
+  const toBoundary = await createOrder({ name: 'Snapshot to boundary', status: 'completed', paidAt: new Date('2025-01-01T00:00:00.000Z'), createdAt: new Date('2026-06-30T23:59:59.999Z'), totalAmount: 202_000 });
+  const sameCreatedAtFirst = await createOrder({ name: 'Same creation time first', status: 'confirmed', paidAt: new Date('2025-01-01T00:00:00.000Z'), createdAt: new Date('2026-06-20T12:00:00.000Z'), totalAmount: 303_000 });
+  const sameCreatedAtSecond = await createOrder({ name: 'Same creation time second', status: 'confirmed', paidAt: new Date('2025-01-01T00:00:00.000Z'), createdAt: new Date('2026-06-20T12:00:00.000Z'), totalAmount: 404_000 });
   await Promise.all([
     createOrder({ name: 'Preparing eligible', status: 'preparing' }),
     createOrder({ name: 'Shipping eligible', status: 'shipping' }),
     createOrder({ name: 'Delivered eligible', status: 'delivered' }),
-    createOrder({ name: 'Cancelled paid eligible', status: 'cancelled' }),
-    createOrder({ name: 'Unpaid excluded', paymentStatus: 'unpaid' }),
-    createOrder({ name: 'Failed excluded', paymentStatus: 'failed' }),
-    createOrder({ name: 'Refunded excluded', paymentStatus: 'refunded' }),
-    createOrder({ name: 'Outside paid range excluded', paidAt: new Date('2026-07-01T00:00:00.000Z'), createdAt: new Date('2026-06-15T10:00:00.000Z') })
+    createOrder({ name: 'Cancelled included', status: 'cancelled' }),
+    createOrder({ name: 'Unpaid included', paymentStatus: 'unpaid' }),
+    createOrder({ name: 'Failed included', paymentStatus: 'failed' }),
+    createOrder({ name: 'Refunded included', paymentStatus: 'refunded' }),
+    createOrder({ name: 'Outside creation range excluded', paidAt: new Date('2026-06-15T10:00:00.000Z'), createdAt: new Date('2026-07-01T00:00:00.000Z') })
   ]);
 
   const allResponse = await requestRevenueOrders({ limit: 50 });
   const allBody = await allResponse.json();
   assert.equal(allResponse.status, 200);
-  assert.equal(allBody.pagination.total, 8);
+  assert.equal(allBody.pagination.total, 11);
   assert.equal(allBody.pagination.totalPages, 1);
   assert.equal(allBody.pagination.page, 1);
   assert.equal(allBody.pagination.limit, 50);
   assert.ok(allBody.data.some((order) => order.id === fromBoundary.id));
   assert.ok(allBody.data.some((order) => order.id === toBoundary.id));
-  assert.ok(!allBody.data.some((order) => order.customerName === 'Unpaid excluded'));
-  assert.ok(!allBody.data.some((order) => order.customerName === 'Failed excluded'));
-  assert.ok(!allBody.data.some((order) => order.customerName === 'Refunded excluded'));
-  assert.ok(!allBody.data.some((order) => order.customerName === 'Outside paid range excluded'));
+  assert.ok(allBody.data.some((order) => order.customerName === 'Unpaid included'));
+  assert.ok(allBody.data.some((order) => order.customerName === 'Failed included'));
+  assert.ok(allBody.data.some((order) => order.customerName === 'Refunded included'));
+  assert.ok(allBody.data.some((order) => order.customerName === 'Cancelled included'));
+  assert.ok(!allBody.data.some((order) => order.customerName === 'Outside creation range excluded'));
 
   for (let index = 1; index < allBody.data.length; index += 1) {
     const previous = allBody.data[index - 1];
     const current = allBody.data[index];
-    const previousPaidAt = new Date(previous.paidAt).getTime();
-    const currentPaidAt = new Date(current.paidAt).getTime();
+    const previousCreatedAt = new Date(previous.createdAt).getTime();
+    const currentCreatedAt = new Date(current.createdAt).getTime();
     assert.ok(
-      previousPaidAt > currentPaidAt || (previousPaidAt === currentPaidAt && previous.id > current.id),
-      'rows must be ordered by paidAt DESC, then id DESC'
+      previousCreatedAt > currentCreatedAt || (previousCreatedAt === currentCreatedAt && previous.id > current.id),
+      'rows must be ordered by createdAt DESC, then id DESC'
     );
   }
 
   const sameTimeIndexes = allBody.data.map((order) => order.id);
-  assert.ok(sameTimeIndexes.indexOf(samePaidAtSecond.id) < sameTimeIndexes.indexOf(samePaidAtFirst.id));
+  assert.ok(sameTimeIndexes.indexOf(sameCreatedAtSecond.id) < sameTimeIndexes.indexOf(sameCreatedAtFirst.id));
   allBody.data.forEach((order) => {
     assert.deepEqual(Object.keys(order).sort(), ['createdAt', 'customerName', 'id', 'orderCode', 'paidAt', 'paymentMethod', 'status', 'totalAmount']);
     assert.equal(typeof order.totalAmount, 'number');
@@ -207,7 +208,7 @@ test('dashboard revenue orders filters recognized revenue inclusively, maps mini
   }
 });
 
-test('dashboard revenue aggregate and table use the identical paid-order dataset for every status filter', async () => {
+test('dashboard revenue aggregate and table use the identical created-order dataset for every status filter', async () => {
   const invalidStatus = await requestRevenue({ status: 'unknown' });
   assert.equal(invalidStatus.status, 400);
 
@@ -225,7 +226,7 @@ test('dashboard revenue aggregate and table use the identical paid-order dataset
     const tableSuccessfulOrders = table.data.filter((order) => ['delivered', 'completed'].includes(order.status)).length;
     const tableCancelledOrders = table.data.filter((order) => order.status === 'cancelled').length;
 
-    assert.equal(aggregate.summary.paidOrders, table.pagination.total, `paid order count for ${status}`);
+    assert.equal(aggregate.summary.paidOrders, table.pagination.total, `order count for ${status}`);
     assert.equal(aggregate.summary.totalRevenue, tableRevenue, `total revenue for ${status}`);
     assert.equal(aggregate.summary.averageOrderValue, table.pagination.total === 0 ? 0 : Number((tableRevenue / table.pagination.total).toFixed(2)), `average order value for ${status}`);
     assert.equal(aggregate.summary.successfulOrders, tableSuccessfulOrders, `successful order count for ${status}`);
@@ -237,9 +238,9 @@ test('dashboard revenue aggregate and table use the identical paid-order dataset
   }
 });
 
-test('dashboard revenue orders uses stable defaults and paginates deterministic paid results', async () => {
+test('dashboard revenue orders uses stable defaults and paginates deterministic created-order results', async () => {
   for (let index = 0; index < 5; index += 1) {
-    await createOrder({ name: `Pagination ${index}`, status: 'pending', paidAt: new Date(`2026-06-${String(10 + index).padStart(2, '0')}T09:00:00.000Z`) });
+    await createOrder({ name: `Pagination ${index}`, status: 'pending', createdAt: new Date(`2026-06-${String(10 + index).padStart(2, '0')}T09:00:00.000Z`) });
   }
 
   const defaults = await requestRevenueOrders();
@@ -247,15 +248,15 @@ test('dashboard revenue orders uses stable defaults and paginates deterministic 
   assert.equal(defaults.status, 200);
   assert.equal(defaultsBody.pagination.page, 1);
   assert.equal(defaultsBody.pagination.limit, 10);
-  assert.equal(defaultsBody.pagination.total, 13);
+  assert.equal(defaultsBody.pagination.total, 16);
   assert.equal(defaultsBody.pagination.totalPages, 2);
   assert.equal(defaultsBody.data.length, 10);
 
   const pageTwo = await requestRevenueOrders({ page: 2, limit: 10 });
   const pageTwoBody = await pageTwo.json();
   assert.equal(pageTwo.status, 200);
-  assert.equal(pageTwoBody.data.length, 3);
-  assert.equal(pageTwoBody.pagination.total, 13);
+  assert.equal(pageTwoBody.data.length, 6);
+  assert.equal(pageTwoBody.pagination.total, 16);
   assert.equal(pageTwoBody.pagination.totalPages, 2);
-  assert.equal(new Set([...defaultsBody.data, ...pageTwoBody.data].map((order) => order.id)).size, 13);
+  assert.equal(new Set([...defaultsBody.data, ...pageTwoBody.data].map((order) => order.id)).size, 16);
 });
