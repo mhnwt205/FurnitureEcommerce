@@ -10,7 +10,9 @@ const requiredConfigKeys = [
 ];
 
 const PAYMENT_HOSTS = {
-  sandbox: new Set(['sandbox.vnpayment.vn']),
+  sandbox: new Set([
+    'sandbox.vnpayment.vn',
+  ]),
   production: new Set([
     'pay.vnpay.vn',
     'www.vnpayment.vn',
@@ -27,7 +29,9 @@ export const resolveVNPayEnvironment = (
         ? 'production'
         : 'sandbox'
     ),
-  ).toLowerCase()
+  )
+    .trim()
+    .toLowerCase()
 );
 
 export const validateVNPayEnvironmentConfig = (
@@ -44,9 +48,17 @@ export const validateVNPayEnvironmentConfig = (
   }
 
   try {
-    const paymentUrl = new URL(environment.VNP_URL);
-    const returnUrl = new URL(environment.VNP_RETURNURL);
-    const frontendUrl = new URL(environment.FRONTEND_URL);
+    const paymentUrl = new URL(
+      String(environment.VNP_URL || '').trim(),
+    );
+
+    const returnUrl = new URL(
+      String(environment.VNP_RETURNURL || '').trim(),
+    );
+
+    const frontendUrl = new URL(
+      String(environment.FRONTEND_URL || '').trim(),
+    );
 
     if (
       paymentUrl.protocol !== 'https:'
@@ -93,9 +105,13 @@ const assertVNPayConfig = () => {
   });
 
   if (missing.length > 0) {
-    const error = new Error('VNPAY_CONFIG_MISSING');
+    const error = new Error(
+      'VNPAY_CONFIG_MISSING',
+    );
+
     error.code = 'VNPAY_CONFIG_MISSING';
     error.missingKeys = missing;
+
     throw error;
   }
 
@@ -107,7 +123,9 @@ const assertVNPayConfig = () => {
       'VNPAY_ENVIRONMENT_CONFIG_INVALID',
     );
 
-    error.code = 'VNPAY_ENVIRONMENT_CONFIG_INVALID';
+    error.code =
+      'VNPAY_ENVIRONMENT_CONFIG_INVALID';
+
     error.issue = environmentCheck.issue;
 
     throw error;
@@ -122,11 +140,15 @@ const normalizeIpAddress = (ipAddr) => {
   }
 
   if (value.startsWith('::ffff:')) {
-    return value.slice('::ffff:'.length);
+    return value.slice(
+      '::ffff:'.length,
+    );
   }
 
   if (value.includes(',')) {
-    return normalizeIpAddress(value.split(',')[0]);
+    return normalizeIpAddress(
+      value.split(',')[0],
+    );
   }
 
   return value;
@@ -143,8 +165,9 @@ const sortObject = (input) => {
         && value !== null
       ) {
         result[encodeURIComponent(key)] =
-          encodeURIComponent(String(value))
-            .replace(/%20/g, '+');
+          encodeURIComponent(
+            String(value),
+          ).replace(/%20/g, '+');
       }
 
       return result;
@@ -155,19 +178,27 @@ const createVNPaySecureHash = ({
   params,
   secretKey,
 }) => {
-  const sortedParams = sortObject(params);
+  const sortedParams =
+    sortObject(params);
 
-  const signData = querystring.stringify(
-    sortedParams,
-    {
-      encode: false,
-    },
-  );
+  const signData =
+    querystring.stringify(
+      sortedParams,
+      {
+        encode: false,
+      },
+    );
 
   const secureHash = crypto
-    .createHmac('sha512', secretKey)
+    .createHmac(
+      'sha512',
+      secretKey,
+    )
     .update(
-      Buffer.from(signData, 'utf-8'),
+      Buffer.from(
+        signData,
+        'utf-8',
+      ),
     )
     .digest('hex')
     .toLowerCase();
@@ -203,7 +234,8 @@ export const createVNPayUrl = (
     process.env.VNP_RETURNURL || '',
   ).trim();
 
-  const numericAmount = Number(amount);
+  const numericAmount =
+    Number(amount);
 
   if (
     !orderId
@@ -215,7 +247,8 @@ export const createVNPayUrl = (
       'VNPAY_INVALID_PAYMENT_INPUT',
     );
 
-    error.code = 'VNPAY_INVALID_PAYMENT_INPUT';
+    error.code =
+      'VNPAY_INVALID_PAYMENT_INPUT';
 
     throw error;
   }
@@ -242,22 +275,60 @@ export const createVNPayUrl = (
       numericAmount * 100,
     ),
     vnp_ReturnUrl: returnUrl,
-    vnp_IpAddr: normalizeIpAddress(ipAddr),
+    vnp_IpAddr:
+      normalizeIpAddress(ipAddr),
     vnp_CreateDate: createDate,
     vnp_ExpireDate: expireDate,
   };
 
   const {
     sortedParams,
+    signData,
     secureHash,
   } = createVNPaySecureHash({
     params: rawParams,
     secretKey,
   });
 
+  console.log(
+    '[VNPay payment URL debug]',
+    {
+      environment:
+        resolveVNPayEnvironment(),
+
+      paymentHost:
+        new URL(vnpUrl).hostname,
+
+      tmnCode,
+
+      tmnCodeLength:
+        tmnCode.length,
+
+      secretLength:
+        secretKey.length,
+
+      secretPrefix:
+        secretKey.slice(0, 2),
+
+      secretSuffix:
+        secretKey.slice(-2),
+
+      returnUrl,
+
+      parameterKeys:
+        Object.keys(sortedParams),
+
+      signData,
+
+      secureHashPrefix:
+        secureHash.slice(0, 12),
+    },
+  );
+
   const paymentParams = {
     ...sortedParams,
-    vnp_SecureHash: secureHash,
+    vnp_SecureHash:
+      secureHash,
   };
 
   const paymentQuery =
@@ -269,6 +340,36 @@ export const createVNPayUrl = (
     );
 
   vnpUrl += `?${paymentQuery}`;
+
+  console.log(
+    '[VNPay payment URL generated]',
+    {
+      environment:
+        resolveVNPayEnvironment(),
+
+      paymentHost:
+        new URL(vnpUrl).hostname,
+
+      tmnCode,
+
+      txnRef:
+        String(orderId),
+
+      amount:
+        Math.round(
+          numericAmount * 100,
+        ),
+
+      createDate,
+
+      expireDate,
+
+      returnUrl,
+
+      paymentUrlLength:
+        vnpUrl.length,
+    },
+  );
 
   return vnpUrl;
 };
@@ -292,13 +393,18 @@ export const verifyVNPaySignature = (
     process.env.VNP_HASHSECRET || '',
   ).trim();
 
+  const tmnCode = String(
+    process.env.VNP_TMNCODE || '',
+  ).trim();
+
   delete vnpParams.vnp_SecureHash;
   delete vnpParams.vnp_SecureHashType;
 
   const {
     sortedParams,
     signData,
-    secureHash: calculatedHash,
+    secureHash:
+    calculatedHash,
   } = createVNPaySecureHash({
     params: vnpParams,
     secretKey,
@@ -306,26 +412,69 @@ export const verifyVNPaySignature = (
 
   const isComparable =
     receivedHash.length > 0
-    && receivedHash.length === calculatedHash.length;
+    && receivedHash.length
+    === calculatedHash.length;
 
   const isValid = isComparable
     ? crypto.timingSafeEqual(
-      Buffer.from(receivedHash, 'utf8'),
-      Buffer.from(calculatedHash, 'utf8'),
+      Buffer.from(
+        receivedHash,
+        'utf8',
+      ),
+      Buffer.from(
+        calculatedHash,
+        'utf8',
+      ),
     )
     : false;
 
-  console.log('[VNPay signature verification]', {
-    parameterKeys: Object.keys(sortedParams),
-    signData,
-    receivedHashPrefix: receivedHash.slice(0, 12),
-    calculatedHashPrefix:
-      calculatedHash.slice(0, 12),
-    receivedHashLength: receivedHash.length,
-    calculatedHashLength:
-      calculatedHash.length,
-    matched: isValid,
-  });
+  console.log(
+    '[VNPay signature verification]',
+    {
+      environment:
+        resolveVNPayEnvironment(),
+
+      tmnCode,
+
+      tmnCodeLength:
+        tmnCode.length,
+
+      receivedTmnCode:
+        String(
+          vnpParams.vnp_TmnCode
+          || '',
+        ),
+
+      secretLength:
+        secretKey.length,
+
+      secretPrefix:
+        secretKey.slice(0, 2),
+
+      secretSuffix:
+        secretKey.slice(-2),
+
+      parameterKeys:
+        Object.keys(sortedParams),
+
+      signData,
+
+      receivedHashPrefix:
+        receivedHash.slice(0, 12),
+
+      calculatedHashPrefix:
+        calculatedHash.slice(0, 12),
+
+      receivedHashLength:
+        receivedHash.length,
+
+      calculatedHashLength:
+        calculatedHash.length,
+
+      matched:
+        isValid,
+    },
+  );
 
   return isValid;
 };
