@@ -1,6 +1,18 @@
-import prisma from '../prismaClient.js';
-import { logger } from '../utils/logger.js';
-import { attachPricingToProducts } from './promotionPricing.service.js';
+import prisma from '../../../prismaClient.js';
+import { logger } from '../../../utils/logger.js';
+import { attachPricingToProducts } from '../../promotionPricing.service.js';
+import { extractStructuredIntent } from '../intent/intent-extraction.service.js';
+import { intentToLegacy, legacyToIntent } from '../intent/intent.taxonomy.js';
+import { retrieveAdvisorCandidates } from '../candidates/retrieval.service.js';
+import { applyCandidateEligibility } from '../candidates/eligibility.service.js';
+import { classifyAdvisorConstraints } from '../intent/constraint-classification.service.js';
+import { buildComparativePolicy } from '../comparative/policy.service.js';
+import { applyComparativeEligibility } from '../comparative/eligibility.service.js';
+import { scoreComparativePreferences } from '../comparative/scoring.service.js';
+import { diversifyRecommendations } from './diversification.service.js';
+import { buildRecommendationReasons, deterministicReasonMap, validateGroundedWriterOutput } from './reason.service.js';
+import { aiTelemetry } from '../telemetry/telemetry.service.js';
+import { classifyAiTelemetryError, telemetryModel } from '../telemetry/sanitizer.service.js';
 
 const MAX_RECOMMENDATIONS = 5;
 const CATALOG_LIMIT = 50;
@@ -246,6 +258,39 @@ const extractAttributeIntent = (message) => {
 
   return attributes;
 };
+
+const toStructuredIntent = ({ budget, categorySlug, attributes }) => ({
+  intentType: categorySlug || budget.intent || hasAttributeIntent(attributes) ? 'product_recommendation' : 'unknown',
+  category: categorySlug,
+  budget: { min: budget.minPrice, max: budget.maxPrice, currency: 'VND' },
+  room: legacyToIntent.room.get(attributes.rooms[0]) || null,
+  style: legacyToIntent.style.get(attributes.styles[0]) || null,
+  colors: [...new Set(attributes.colors.map((value) => legacyToIntent.color.get(value)).filter(Boolean))],
+  materials: [...new Set(attributes.materials.map((value) => legacyToIntent.material.get(value)).filter(Boolean))],
+  size: legacyToIntent.size.get(attributes.sizes[0]) || null,
+  stockRequired: false,
+  sortPreference: null,
+  constraints: [],
+  confidence: 0,
+  missingImportantFields: [],
+  ambiguousFields: []
+});
+
+const toLegacyBudget = (budget) => ({
+  minPrice: budget.min,
+  maxPrice: budget.max,
+  targetPrice: budget.min !== null && budget.max !== null && budget.min === budget.max ? budget.min : null,
+  intent: budget.min !== null && budget.max !== null ? 'range' : budget.min !== null ? 'above' : budget.max !== null ? 'below' : null
+});
+
+const toLegacyAttributes = (intent, fallbackAttributes) => ({
+  ...fallbackAttributes,
+  colors: intent.colors.map((value) => intentToLegacy.color.get(value)).filter(Boolean),
+  materials: intent.materials.map((value) => intentToLegacy.material.get(value)).filter(Boolean),
+  rooms: intent.room ? [intentToLegacy.room.get(intent.room)].filter(Boolean) : [],
+  styles: intent.style ? [intentToLegacy.style.get(intent.style)].filter(Boolean) : [],
+  sizes: intent.size ? [intentToLegacy.size.get(intent.size)].filter(Boolean) : []
+});
 
 const hasAttributeIntent = (attributes) => Boolean(
   attributes.colors.length ||
@@ -547,7 +592,7 @@ const buildRuleBasedAnswer = ({ recommendations, budget, categorySlug, attribute
   return `Mình tìm thấy ${recommendations.length} gợi ý${categoryText}${budgetText}${attributeSuffix}. Nổi bật nhất là: ${topNames}. Các gợi ý này đều lấy từ sản phẩm đang bán trong hệ thống.`;
 };
 
-const buildCatalogForPrompt = (recommendations) => recommendations.map(item => ({
+const buildCatalogForPrompt = (recommendations, groundedFacts = new Map()) => recommendations.map(item => ({
   id: item.id,
   name: item.name,
   price: item.finalPrice ?? item.price,
@@ -557,9 +602,7 @@ const buildCatalogForPrompt = (recommendations) => recommendations.map(item => (
   discountAmount: item.discountAmount ?? 0,
   discountPercent: item.discountPercent ?? 0,
   hasPromotion: item.hasPromotion || false,
-  promotion: item.promotion || null,
-  pricingSummary: getPricingSummary(item),
-  stock: item.stock,
+  promotionActive: item.hasPromotion === true,
   category: item.category,
   averageRating: item.averageRating,
   reviewCount: item.reviewCount,
@@ -571,13 +614,7 @@ const buildCatalogForPrompt = (recommendations) => recommendations.map(item => (
   depthCm: item.depthCm,
   roomType: item.roomType,
   style: item.style,
-  shortDescription: item.attributeSnippet || [
-    item.color ? `Màu: ${item.color}` : '',
-    item.material ? `Chất liệu: ${item.material}` : '',
-    item.dimensions ? `Kích thước: ${item.dimensions}` : '',
-    item.roomType ? `Phòng: ${item.roomType}` : '',
-    item.style ? `Phong cách: ${item.style}` : ''
-  ].filter(Boolean).join('; ')
+  groundedReasons: groundedFacts.get(item.id) || { reasonCodes: [], facts: {} }
 }));
 
 const extractJsonObject = (value) => {
@@ -589,25 +626,25 @@ const extractJsonObject = (value) => {
   return trimmed.slice(start, end + 1);
 };
 
-const buildGeminiPrompt = ({ message, recommendations }) => JSON.stringify({
+const buildGeminiPrompt = ({ message, recommendations, groundedFacts = new Map() }) => JSON.stringify({
   role: 'AI Sales Advisor for FurnitureEcommerce',
   instructions: [
     'Trả lời bằng tiếng Việt có dấu.',
     'Giọng tư vấn thân thiện, ngắn gọn, hữu ích.',
     'Chỉ tư vấn dựa trên allowedProducts do backend cung cấp.',
     'Không bịa sản phẩm, giá, tồn kho, khuyến mãi, chính sách hoặc thông tin ngoài allowedProducts.',
-    'Chỉ nói màu sắc, kích thước, chất liệu, phòng phù hợp hoặc phong cách nếu field tương ứng hoặc shortDescription có dữ liệu.',
-    'Nếu thiếu dữ liệu thuộc tính, hãy nói rõ: Hiện thông tin này chưa được cập nhật đầy đủ.',
-    'Nếu allowedProducts không có sản phẩm phù hợp, hãy nói rõ và không đề xuất sản phẩm.',
+    'Không đổi product ID, thứ tự sản phẩm, giá, tồn kho hoặc khuyến mãi.',
+    'Mỗi usedReasonCodes phải là mã có trong groundedReasons của đúng sản phẩm; chỉ diễn đạt mã đã cấp.',
+    'Không đưa số liệu, HTML hoặc trường ngoài responseFormat vào reason text.',
     'Chỉ trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.',
     'Use finalPrice as the current selling price. If hasPromotion=true, mention the discounted finalPrice, originalPrice, discountAmount, discountPercent and promotion when useful.',
     'Never treat originalPrice as the current selling price when finalPrice is lower.',
   ],
   customerMessage: message,
-  allowedProducts: buildCatalogForPrompt(recommendations),
+  allowedProducts: buildCatalogForPrompt(recommendations, groundedFacts),
   responseFormat: {
     answer: 'string',
-    recommendations: [{ id: 'number', reason: 'string' }]
+    reasons: [{ productId: 'number', text: 'string', usedReasonCodes: ['string'] }]
   }
 });
 
@@ -616,47 +653,54 @@ const GEMINI_MAX_ATTEMPTS = 2;
 const waitForGeminiRetry = () => new Promise((resolve) => setTimeout(resolve, 200));
 const isTransientGeminiStatus = (status) => status === 408 || status === 429 || status >= 500;
 
-export const callGemini = async ({ message, recommendations, fetchImpl = fetch }) => {
+export const callGemini = async ({ message, recommendations, groundedFacts = new Map(), fetchImpl = fetch, telemetry = aiTelemetry, telemetryContext = {} }) => {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || recommendations.length === 0) return null;
+  if (!apiKey || recommendations.length === 0) {
+    telemetry.emit('ai_provider_fallback', { ...telemetryContext, outcome: 'provider_fallback_success', metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', errorCode: 'validation_error', fallbackUsed: true } });
+    return null;
+  }
 
   const model = encodeURIComponent(DEFAULT_MODEL);
   let lastError;
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt += 1) {
     const startedAt = process.hrtime.bigint();
+    let attemptRecorded = false;
     try {
       const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: buildGeminiPrompt({ message, recommendations }) }] }], generationConfig: { temperature: 0.4, responseMimeType: 'application/json' } })
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: buildGeminiPrompt({ message, recommendations, groundedFacts }) }] }], generationConfig: { temperature: 0.4, responseMimeType: 'application/json' } })
       });
       if (!response.ok) {
         const error = Object.assign(new Error(`Gemini request failed with status ${response.status}`), { status: response.status });
+        telemetry.emit('ai_provider_attempt', { ...telemetryContext, durationMs: Number((process.hrtime.bigint() - startedAt) / 1_000_000n), metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', attempt, httpStatus: response.status } }); attemptRecorded = true;
         if (!isTransientGeminiStatus(response.status) || attempt === GEMINI_MAX_ATTEMPTS) throw error;
         logger.warn('gemini_request_retry', { reason: `http_${response.status}` });
         await waitForGeminiRetry();
         continue;
       }
       logger.info('gemini_request_completed', { durationMs: Number((process.hrtime.bigint() - startedAt) / 1_000_000n) });
+      telemetry.emit('ai_provider_attempt', { ...telemetryContext, durationMs: Number((process.hrtime.bigint() - startedAt) / 1_000_000n), metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', attempt } }); attemptRecorded = true;
       const data = await response.json();
       const content = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
       const jsonText = extractJsonObject(content);
-      if (!jsonText) return null;
-      const parsed = JSON.parse(jsonText);
-      if (!parsed.answer || typeof parsed.answer !== 'string') return null;
-      const allowedIds = new Set(recommendations.map(item => item.id));
-      const reasonMap = new Map(Array.isArray(parsed.recommendations) ? parsed.recommendations.filter(item => allowedIds.has(item.id) && typeof item.reason === 'string').map(item => [item.id, item.reason]) : []);
-      return { answer: parsed.answer, reasonMap };
+      if (!jsonText) {
+        telemetry.emit('ai_provider_fallback', { ...telemetryContext, outcome: 'provider_fallback_success', metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', errorCode: 'provider_invalid_output', fallbackUsed: true } });
+        return null;
+      }
+      return JSON.parse(jsonText);
     } catch (error) {
       lastError = error;
       const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+      if (!attemptRecorded) telemetry.emit('ai_provider_attempt', { ...telemetryContext, durationMs: Number((process.hrtime.bigint() - startedAt) / 1_000_000n), metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', attempt, ...(Number.isInteger(error?.status) ? { httpStatus: error.status } : {}), timeout } });
       if (attempt < GEMINI_MAX_ATTEMPTS && (timeout || isTransientGeminiStatus(error?.status))) {
         logger.warn('gemini_request_retry', { reason: timeout ? 'timeout' : `http_${error.status}` });
         await waitForGeminiRetry();
         continue;
       }
       logger.warn('gemini_request_failed', { reason: timeout ? 'timeout' : 'upstream_failure' }, error);
+      telemetry.emit('ai_provider_failed', { ...telemetryContext, metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', errorCode: classifyAiTelemetryError(error), ...(Number.isInteger(error?.status) ? { httpStatus: error.status } : {}), timeout } });
       throw error;
     }
   }
@@ -684,91 +728,120 @@ const fetchProducts = (where) => prisma.product.findMany({
   ]
 });
 
-export const getAdvisorResponse = async ({ message, context = {} }) => {
-  const budget = extractBudget(message);
-  const categorySlug = extractCategorySlug(message);
-  const attributes = extractAttributeIntent(message);
-  const normalizedMessage = normalizeText(message);
-  const { where, keywords, hasAttributes } = buildProductWhere({ message, budget, categorySlug, attributes });
+export const resolveAdvisorIntent = async ({ message, context = {}, telemetry = aiTelemetry, telemetryContext = {} }) => {
+  const fallbackBudget = extractBudget(message);
+  const fallbackCategorySlug = extractCategorySlug(message);
+  const fallbackAttributes = extractAttributeIntent(message);
+  const fallbackIntent = toStructuredIntent({ budget: fallbackBudget, categorySlug: fallbackCategorySlug, attributes: fallbackAttributes });
+  const currentProductId = Number(context.currentProductId);
+  const { intent, source } = await extractStructuredIntent({
+    message,
+    currentProductId: Number.isInteger(currentProductId) && currentProductId > 0 ? currentProductId : undefined,
+    fallbackIntent, telemetry, telemetryContext
+  });
+  return { intent, source, fallbackBudget, fallbackCategorySlug, fallbackAttributes };
+};
 
-  if (!budget.intent && !categorySlug && keywords.length === 0 && !hasAttributes && !hasGeneralCatalogIntent(message)) {
-    return {
-      answer: buildRuleBasedAnswer({ recommendations: [], budget, categorySlug, attributes }),
-      recommendations: [],
-      mode: 'rule-based'
-    };
+const compareNumber = (left, right, direction = 'asc') => {
+  const a = Number.isFinite(Number(left)) ? Number(left) : 0;
+  const b = Number.isFinite(Number(right)) ? Number(right) : 0;
+  return direction === 'desc' ? b - a : a - b;
+};
+
+const compareRankedCandidates = (left, right, sortPreference = null) => {
+  const price = (direction = 'asc') => compareNumber(getEffectivePrice(left.product), getEffectivePrice(right.product), direction);
+  const score = () => compareNumber(left.score, right.score, 'desc');
+  const inStock = () => compareNumber(Number(left.product.stock) > 0, Number(right.product.stock) > 0, 'desc');
+  const rating = () => compareNumber(left.product.averageRating, right.product.averageRating, 'desc');
+  const reviewCount = () => compareNumber(left.product.reviewCount, right.product.reviewCount, 'desc');
+  const newest = () => compareNumber(new Date(left.product.createdAt || 0).getTime(), new Date(right.product.createdAt || 0).getTime(), 'desc');
+  const sequences = {
+    price_asc: [price, score, inStock, rating, reviewCount],
+    price_desc: [() => price('desc'), score, inStock, rating, reviewCount],
+    rating_desc: [rating, score, inStock, price, reviewCount],
+    newest: [newest, score, inStock, price, rating, reviewCount],
+    relevance: [score, inStock, price, rating, reviewCount]
+  };
+  for (const comparator of sequences[sortPreference] || sequences.relevance) {
+    const result = comparator();
+    if (result !== 0) return result;
+  }
+  return compareNumber(left.product.id, right.product.id, 'asc');
+};
+
+const defaultStage1Dependencies = Object.freeze({
+  findCurrentProduct: (id) => prisma.product.findFirst({ where: { id, isActive: true } }),
+  retrieveCandidates: retrieveAdvisorCandidates,
+  enrichCandidatePromotions: attachPricingToProducts,
+  applyCandidateEligibility: (input) => applyCandidateEligibility({ ...input, budgetMatches, getAttributeMatch })
+});
+
+export const prepareAdvisorCandidates = async ({ message, context = {}, resolvedIntent = null, excluded = {}, fieldMeta = {}, operations = {}, comparativeState = null, lastRecommendationContext = {}, telemetry = aiTelemetry, telemetryContext = {} }, dependencies = defaultStage1Dependencies) => {
+  const currentProductId = Number(context.currentProductId);
+  const resolution = resolvedIntent || await resolveAdvisorIntent({ message, context, telemetry, telemetryContext });
+  const { intent, source, fallbackBudget, fallbackCategorySlug, fallbackAttributes } = resolution;
+  const budget = source === 'fallback' ? fallbackBudget : toLegacyBudget(intent.budget);
+  const categorySlug = source === 'fallback' ? fallbackCategorySlug : intent.category;
+  const attributes = source === 'fallback' ? fallbackAttributes : toLegacyAttributes(intent, fallbackAttributes);
+  const classification = classifyAdvisorConstraints({ intent, fieldMeta, operations, excluded });
+  const hardAttributes = {
+    colors: classification.hard.colors.map((value) => intentToLegacy.color.get(value)).filter(Boolean),
+    materials: classification.hard.materials.map((value) => intentToLegacy.material.get(value)).filter(Boolean),
+    rooms: classification.hard.room ? [intentToLegacy.room.get(classification.hard.room)].filter(Boolean) : [],
+    styles: classification.hard.style ? [intentToLegacy.style.get(classification.hard.style)].filter(Boolean) : [],
+    sizes: classification.hard.size ? [intentToLegacy.size.get(classification.hard.size)].filter(Boolean) : [],
+    dimensions: { widthCm: null, heightCm: null, depthCm: null }
+  };
+  const hasHardAttributes = hasAttributeIntent(hardAttributes);
+  const normalizedMessage = normalizeText(message);
+  const { where, keywords } = buildProductWhere({ message, budget, categorySlug, attributes: hardAttributes });
+
+  if (!budget.intent && !categorySlug && keywords.length === 0 && !hasHardAttributes && !hasGeneralCatalogIntent(message)) {
+    return { intent, retrieval: { candidates: [], metadata: { primaryCount: 0, retrievedCount: 0, fallbackUsed: false, fallbackReason: 'none' } }, enrichment: { candidates: [] }, eligibility: { candidates: [], diagnostics: { beforeBudgetCount: 0, afterBudgetCount: 0, beforeAttributeCount: 0, afterAttributeCount: 0, beforeExclusionCount: 0, afterExclusionCount: 0, beforeStockCount: 0, afterStockCount: 0, exclusionApplied: classification.hard.exclusions.categories.length + classification.hard.exclusions.colors.length + classification.hard.exclusions.materials.length + classification.hard.exclusions.styles.length > 0, stockRequired: classification.hard.stockRequired } }, stageContext: { message, normalizedMessage, keywords, budget, categorySlug, attributes, hardAttributes, hasHardAttributes, classification, currentProduct: null, noExactAttributeMatch: false, immediateEmpty: true, telemetry, telemetryContext } };
   }
 
-  const currentProductId = Number(context.currentProductId);
   const currentProduct = Number.isInteger(currentProductId) && currentProductId > 0
-    ? await prisma.product.findFirst({ where: { id: currentProductId, isActive: true } })
+    ? await dependencies.findCurrentProduct(currentProductId)
     : null;
 
-  let products = await fetchProducts(where);
+  const retrieval = await dependencies.retrieveCandidates({ fetchProducts, primaryWhere: where, categorySlug, budget, hasAttributes: hasHardAttributes });
+  const products = retrieval.candidates;
 
-  if (products.length === 0 && categorySlug) {
-    products = await fetchProducts({
-      isActive: true,
-      category: { slug: categorySlug },
+  const enrichedProducts = await dependencies.enrichCandidatePromotions(products);
+  const eligibility = dependencies.applyCandidateEligibility({ candidates: enrichedProducts, budget, attributes: hardAttributes, hasAttributes: hasHardAttributes, excluded: classification.hard.exclusions, stockRequired: classification.hard.stockRequired, classification });
+  const comparativePolicy = buildComparativePolicy({ comparativeState: comparativeState || { type: 'none', reference: { source: 'none', productId: null, productIds: [], ordinal: null, category: null, minPrice: null, maxPrice: null, colors: [], materials: [], style: null, size: null }, confidence: 1, ambiguous: false, missingReference: false }, productPrices: lastRecommendationContext.productPrices || [], currentProduct });
+  const comparative = applyComparativeEligibility({ candidates: eligibility.candidates, policy: comparativePolicy });
+  return { intent, retrieval, enrichment: { candidates: enrichedProducts }, eligibility: { candidates: comparative.candidates, diagnostics: { ...eligibility.diagnostics, ...comparative.diagnostics } }, stageContext: { message, normalizedMessage, keywords, budget, categorySlug, attributes, hardAttributes, hasHardAttributes, classification, currentProduct, comparativePolicy, noExactAttributeMatch: eligibility.noExactAttributeMatch, telemetry, telemetryContext } };
+};
 
-    });
-  }
+const defaultStage2Dependencies = Object.freeze({
+  aggregateCandidateReviews: getReviewSummaries,
+  rankAdvisorCandidates: ({ candidates, stageContext }) => candidates.map(product => ({ product, score: scoreProduct({ product, normalizedMessage: stageContext.normalizedMessage, keywords: stageContext.keywords, budget: stageContext.budget, categorySlug: stageContext.categorySlug, currentProduct: stageContext.currentProduct, attributes: stageContext.attributes }) + scoreComparativePreferences(product, stageContext.comparativePolicy) })).sort((a, b) => compareRankedCandidates(a, b, stageContext.classification?.soft.sortPreference)),
+  selectAdvisorCandidates: (ranked) => ranked,
+  diversifyCandidates: diversifyRecommendations,
+  buildGroundedReasons: buildRecommendationReasons,
+  writeAdvisorResponse: callGemini,
+  validateWriterOutput: validateGroundedWriterOutput
+});
 
-  if (products.length === 0 && budget.intent && !categorySlug) {
-    products = await fetchProducts({
-      isActive: true,
+export const completeAdvisorRecommendation = async (prepared, dependencies = defaultStage2Dependencies) => {
+  const { message, normalizedMessage, keywords, budget, categorySlug, attributes, hardAttributes = attributes, hasHardAttributes = false, currentProduct, noExactAttributeMatch, immediateEmpty } = prepared.stageContext;
+  if (immediateEmpty) return { answer: buildRuleBasedAnswer({ recommendations: [], budget, categorySlug, attributes }), recommendations: [], mode: 'rule-based' };
+  const summaryMap = await dependencies.aggregateCandidateReviews(prepared.eligibility.candidates.map(product => product.id));
+  const candidates = prepared.eligibility.candidates.map(product => ({ ...product, averageRating: summaryMap.get(product.id)?.averageRating || 0, reviewCount: summaryMap.get(product.id)?.reviewCount || 0 }));
+  const rankedWithScore = dependencies.rankAdvisorCandidates({ candidates, stageContext: prepared.stageContext });
 
-    });
-  }
+  const selectableCandidates = dependencies.selectAdvisorCandidates(rankedWithScore);
+  const diversification = dependencies.diversifyCandidates({ rankedCandidates: selectableCandidates, limit: MAX_RECOMMENDATIONS, context: { category: categorySlug, softPreferences: prepared.stageContext.classification?.soft || {}, comparativeType: prepared.stageContext.comparativePolicy?.type || null, sortPreference: prepared.stageContext.classification?.soft.sortPreference || 'relevance' } });
+  const rankedProducts = diversification.selectedCandidates;
+  const groundedFacts = dependencies.buildGroundedReasons({ candidates: rankedProducts, stageContext: prepared.stageContext });
+  const fallbackReasons = deterministicReasonMap(groundedFacts);
 
-  if (products.length === 0 && hasAttributes) {
-    products = await fetchProducts({
-      isActive: true,
-      ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-
-    });
-  }
-
-  const summaryMap = await getReviewSummaries(products.map(product => product.id));
-  const pricedProducts = await attachPricingToProducts(products);
-
-  const enrichedProducts = pricedProducts.map(product => ({
-    ...product,
-    averageRating: summaryMap.get(product.id)?.averageRating || 0,
-    reviewCount: summaryMap.get(product.id)?.reviewCount || 0
-  }));
-
-  const budgetFilteredProducts = enrichedProducts.filter(product => budgetMatches(product, budget));
-  const productsForRanking = budget.intent ? budgetFilteredProducts : enrichedProducts;
-  const rankedWithScore = productsForRanking
-    .map(product => ({
-      product,
-      score: scoreProduct({ product, normalizedMessage, keywords, budget, categorySlug, currentProduct, attributes }),
-      attributeMatch: getAttributeMatch(product, attributes)
-    }))
-    .sort((a, b) => b.score - a.score || b.product.stock - a.product.stock || getEffectivePrice(a.product) - getEffectivePrice(b.product));
-
-  let noExactAttributeMatch = false;
-  let rankedProducts = rankedWithScore;
-  if (hasAttributes) {
-    const exactMatches = rankedWithScore.filter(item => item.attributeMatch.exact);
-    if (exactMatches.length > 0) {
-      rankedProducts = exactMatches;
-    } else if (attributes.colors.length || attributes.materials.length || attributes.rooms.length || attributes.styles.length || attributes.dimensions.widthCm || attributes.dimensions.heightCm || attributes.dimensions.depthCm) {
-      rankedProducts = [];
-      noExactAttributeMatch = true;
-    }
-  }
-
-  rankedProducts = rankedProducts
-    .slice(0, MAX_RECOMMENDATIONS)
-    .map(({ product }) => product);
-
-  let recommendations = rankedProducts.map(product => serializeRecommendation(product, buildRuleBasedReason({ product, budget, categorySlug, attributes })));
+  let recommendations = rankedProducts.map(product => serializeRecommendation(product, fallbackReasons.get(product.id) || buildRuleBasedReason({ product, budget, categorySlug, attributes })));
   recommendations = recommendations.filter(item => budgetMatches(item, budget));
 
-  if (hasAttributes && recommendations.length > 0) {
-    const exactRecommendations = recommendations.filter(item => getAttributeMatch(item, attributes).exact);
+  if (hasHardAttributes && recommendations.length > 0) {
+    const exactRecommendations = recommendations.filter(item => getAttributeMatch(item, hardAttributes).exact);
     if (exactRecommendations.length > 0) recommendations = exactRecommendations;
   }
 
@@ -776,18 +849,49 @@ export const getAdvisorResponse = async ({ message, context = {} }) => {
   let mode = 'rule-based';
 
   try {
-    const aiResult = await callGemini({ message, recommendations });
+    const aiResult = await dependencies.writeAdvisorResponse({ message, recommendations, groundedFacts, telemetry: prepared.stageContext.telemetry || aiTelemetry, telemetryContext: prepared.stageContext.telemetryContext || {} });
     if (aiResult) {
+      const validated = dependencies.validateWriterOutput(aiResult, { orderedIds: recommendations.map((item) => item.id), allowedFacts: groundedFacts });
+      if (validated) {
       mode = 'gemini';
-      answer = aiResult.answer;
+      answer = validated.answer;
       recommendations = recommendations.map(item => ({
         ...item,
-        reason: aiResult.reasonMap.get(item.id) || item.reason
+        reason: validated.reasonMap.get(item.id) || item.reason
       }));
+      } else (prepared.stageContext.telemetry || aiTelemetry).emit('ai_provider_fallback', { ...(prepared.stageContext.telemetryContext || {}), outcome: 'provider_fallback_success', metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', errorCode: 'provider_invalid_output', fallbackUsed: true, writerFallbackUsed: true } });
     }
   } catch (error) {
     console.error('AI advisor Gemini fallback:', error.message);
+    (prepared.stageContext.telemetry || aiTelemetry).emit('ai_provider_fallback', { ...(prepared.stageContext.telemetryContext || {}), outcome: 'provider_fallback_success', metadata: { provider: 'gemini', model: telemetryModel(DEFAULT_MODEL), providerOperation: 'writer', errorCode: classifyAiTelemetryError(error), fallbackUsed: true, writerFallbackUsed: true } });
   }
 
-  return { answer, recommendations, mode };
+  return { answer, recommendations, mode, rankedCandidates: rankedWithScore.map(item => item.product), selectedCandidates: rankedProducts, diversification: diversification.diagnostics, groundedFacts };
+};
+
+export const getAdvisorPipelineArtifacts = async (input) => { const prepared = await prepareAdvisorCandidates(input); const recommendation = await completeAdvisorRecommendation(prepared); return { ...prepared, recommendation }; };
+
+export const getAdvisorResponse = async (input) => {
+  const artifacts = await getAdvisorPipelineArtifacts(input);
+  return { answer: artifacts.recommendation.answer, recommendations: artifacts.recommendation.recommendations, mode: artifacts.recommendation.mode };
+};
+
+// Pure characterization seam: exposes existing deterministic helpers to the
+// node:test suite without changing the advisor request path or its output.
+export const aiAdvisorCharacterization = {
+  normalizeText,
+  extractBudget,
+  extractCategorySlug,
+  extractAttributeIntent,
+  toLegacyBudget,
+  toLegacyAttributes,
+  buildProductWhere,
+  getAttributeMatch,
+  scoreProduct,
+  compareRankedCandidates,
+  serializeRecommendation,
+  buildRuleBasedAnswer,
+  buildGeminiPrompt,
+  extractJsonObject,
+  budgetMatches
 };

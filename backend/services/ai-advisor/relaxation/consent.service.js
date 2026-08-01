@@ -1,0 +1,4 @@
+const normalize=(s='')=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase();
+const rules=[['reject',/^(khong|giu nguyen|thoi|khong thay doi|khong noi)$/],['select',/(phuong an|lua chon)\s*([1-3])/],['accept',/^(dong y|duoc|ok|ap dung di|bo dieu kien do|cho xem ca hang het)$/]];
+export const recognizeRelaxationConsent=(message,proposal)=>{const text=normalize(message);const matched=rules.find(([,r])=>r.test(text));if(!matched)return{action:'ambiguous',optionId:null};if(matched[0]==='reject')return{action:'reject',optionId:null};if(matched[0]==='select'){const n=Number(text.match(/[1-3]/)?.[0]);return{action:proposal.options[n-1]?'accept':'ambiguous',optionId:proposal.options[n-1]?.id||null};}return proposal.options.length===1?{action:'accept',optionId:proposal.options[0].id}:{action:'ambiguous',optionId:null};};
+export const relaxationConsentRules=Object.freeze(rules);

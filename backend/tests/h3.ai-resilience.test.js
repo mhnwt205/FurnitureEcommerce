@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { callGemini } from '../services/aiAdvisor.service.js';
+import { callGemini } from '../services/ai-advisor/recommendation/advisor.service.js';
 
 const recommendation = [{ id: 1, name: 'Sofa', finalPrice: 100 }];
 const success = () => ({
