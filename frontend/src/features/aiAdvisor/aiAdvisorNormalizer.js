@@ -15,7 +15,10 @@ export const normalizeAdvisorResponse = (raw = {}) => {
 export const normalizeAdvisorError = (error = {}) => {
   if (error.code === 'REQUEST_ABORTED') return { kind: 'aborted', message: 'Yêu cầu đã được hủy.' };
   if (error.code === 'REQUEST_TIMEOUT') return { kind: 'timeout', message: 'Yêu cầu mất quá lâu. Vui lòng thử lại.' };
-  if (error.status === 429) return { kind: 'rate_limit', message: 'Bạn đang gửi yêu cầu hơi nhanh. Vui lòng chờ một lát.' };
+  if (error.status === 429) {
+    const retryAfterSeconds = Number.isSafeInteger(error.retryAfterSeconds) && error.retryAfterSeconds > 0 ? Math.min(error.retryAfterSeconds, 300) : 60;
+    return { kind: 'rate_limit', code: 'RATE_LIMITED', status: 429, retryAfterSeconds, message: 'Bạn đang gửi yêu cầu hơi nhanh.' };
+  }
   if (error.status >= 400 && error.status < 500) return { kind: 'validation', message: 'Yêu cầu chưa hợp lệ. Vui lòng kiểm tra lại nội dung.' };
   if (error.status >= 500) return { kind: 'server', message: 'Dịch vụ tư vấn đang bận. Vui lòng thử lại sau.' };
   return { kind: 'network', message: 'Không thể kết nối AI tư vấn. Vui lòng thử lại.' };

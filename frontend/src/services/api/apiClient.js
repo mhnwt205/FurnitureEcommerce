@@ -16,6 +16,17 @@ const AUTH_ENDPOINTS_WITHOUT_REFRESH = [
 ];
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+export const DEFAULT_RETRY_AFTER_SECONDS = 60;
+const MAX_RETRY_AFTER_SECONDS = 300;
+
+export const parseRetryAfterSeconds = (value, now = Date.now()) => {
+  if (typeof value !== 'string' || !value.trim()) return DEFAULT_RETRY_AFTER_SECONDS;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(MAX_RETRY_AFTER_SECONDS, Math.max(1, Math.ceil(seconds)));
+  const retryAt = Date.parse(value);
+  if (!Number.isFinite(retryAt) || retryAt <= now) return DEFAULT_RETRY_AFTER_SECONDS;
+  return Math.min(MAX_RETRY_AFTER_SECONDS, Math.max(1, Math.ceil((retryAt - now) / 1000)));
+};
 
 const isFormData = (value) => typeof FormData !== 'undefined' && value instanceof FormData;
 
@@ -34,11 +45,12 @@ const parseResponseBody = async (response) => {
   }
 };
 
-const createApiError = (message, status, data, code) => {
+const createApiError = (message, status, data, code, retryAfterSeconds = null) => {
   const error = new Error(message || 'An error occurred');
   error.status = status;
   error.data = data;
   if (code) error.code = code;
+  if (status === 429) error.retryAfterSeconds = Number.isSafeInteger(retryAfterSeconds) ? retryAfterSeconds : DEFAULT_RETRY_AFTER_SECONDS;
   return error;
 };
 
@@ -166,7 +178,7 @@ const apiClient = async (endpoint, options = {}, hasRetried = false) => {
   }
 
   if (!response.ok) {
-    throw createApiError(data?.error?.message || data?.message || response.statusText || 'An error occurred', response.status, data);
+    throw createApiError(data?.error?.message || data?.message || response.statusText || 'An error occurred', response.status, data, undefined, response.status === 429 ? parseRetryAfterSeconds(response.headers.get('Retry-After')) : null);
   }
 
   return data;
