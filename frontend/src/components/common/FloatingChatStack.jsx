@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import AISalesAdvisor from '../ai/AISalesAdvisor.jsx';
 import SupportLauncher from '../support/SupportLauncher.jsx';
 
 export default function FloatingChatStack() {
@@ -16,10 +15,6 @@ export default function FloatingChatStack() {
         open={activePanel === 'support'}
         onOpenChange={setPanelOpen('support')}
         launcherRef={supportLauncherRef}
-      />
-      <AISalesAdvisor
-        open={activePanel === 'ai'}
-        onOpenChange={setPanelOpen('ai')}
       />
     </div>
   );

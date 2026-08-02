@@ -10,8 +10,6 @@
     "test": "node tests/run-tests.js",
     "test:prepare": "node tests/prepare-test-database.js",
     "test:ci": "npm run test:prepare && npm test",
-    "test:ai-eval": "node evaluation/runAiEvaluation.js",
-    "test:ai-eval:update-baseline": "node evaluation/runAiEvaluation.js --update-baseline",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:migrate:deploy": "prisma migrate deploy",

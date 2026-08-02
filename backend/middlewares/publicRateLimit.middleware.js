@@ -1,6 +1,5 @@
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { logger } from '../utils/logger.js';
-import { aiTelemetry } from '../services/ai-advisor/telemetry/telemetry.service.js';
 
 const positiveInteger = (name, fallback) => {
   const value = Number.parseInt(process.env[name] || '', 10);
@@ -27,8 +26,5 @@ const createLimiter = ({ event, maxEnv, windowEnv, limit, windowMs, keyGenerator
 });
 
 const ipKey = (req) => ipKeyGenerator(req.ip);
-const onAiAdvisorRejected = ({ requestId, retryAfterSeconds }) => aiTelemetry.emit('ai_rate_limit_rejected', { requestId, ownerType: 'guest', metadata: { retryAfterSeconds } });
-export const createAiAdvisorRateLimiter = (overrides = {}) => createLimiter({ event: 'ai_advisor', maxEnv: 'AI_ADVISOR_RATE_LIMIT_MAX', windowEnv: 'AI_ADVISOR_RATE_LIMIT_WINDOW_MS', limit: 20, windowMs: 5 * 60 * 1000, keyGenerator: ipKey, logIp: false, onRejected: onAiAdvisorRejected, ...overrides });
-export const aiAdvisorRateLimiter = createAiAdvisorRateLimiter();
 export const consultationRequestRateLimiter = createLimiter({ event: 'consultation_request', maxEnv: 'CONSULTATION_REQUEST_RATE_LIMIT_MAX', windowEnv: 'CONSULTATION_REQUEST_RATE_LIMIT_WINDOW_MS', limit: 5, windowMs: 60 * 60 * 1000, keyGenerator: ipKey });
 export const uploadRateLimiter = createLimiter({ event: 'upload', maxEnv: 'UPLOAD_RATE_LIMIT_MAX', windowEnv: 'UPLOAD_RATE_LIMIT_WINDOW_MS', limit: 30, windowMs: 15 * 60 * 1000, keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : ipKey(req) });

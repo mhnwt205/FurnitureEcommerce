@@ -17,7 +17,6 @@ import addressRoutes from './routes/address.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import reviewRoutes from './routes/review.routes.js';
-import aiAdvisorRoutes from './routes/aiAdvisor.routes.js';
 import consultationRequestRoutes from './routes/consultationRequest.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
@@ -36,7 +35,6 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js
 import { createHealthRouter } from './routes/health.routes.js';
 import { configureCloudinary } from './config/cloudinary.js';
 import { snapshotMetrics } from './utils/metrics.js';
-import { snapshotAiMetrics } from './services/ai-advisor/telemetry/metrics.service.js';
 import { reportOnlyPolicy } from './middlewares/contentSecurityPolicy.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,7 +60,7 @@ export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
     const token = process.env.METRICS_TOKEN;
     if (!token || req.get('authorization') !== `Bearer ${token}`) return res.status(404).end();
     res.set('Cache-Control', 'no-store');
-    return res.json({ ...snapshotMetrics(), ai: snapshotAiMetrics() });
+    return res.json(snapshotMetrics());
   });
 
   app.use('/api/auth', authRoutes);
@@ -78,7 +76,6 @@ export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
   app.use('/api/wishlist', wishlistRoutes);
   app.use('/api/payment', paymentRoutes);
   app.use('/api/reviews', reviewRoutes);
-  app.use('/api/ai-advisor', aiAdvisorRoutes);
   app.use('/api/consultation-requests', consultationRequestRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/promotions', promotionRoutes);

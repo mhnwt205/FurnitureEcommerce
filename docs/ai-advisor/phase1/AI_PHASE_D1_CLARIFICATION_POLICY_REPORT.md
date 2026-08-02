@@ -1,3 +1,0 @@
-# Phase D1 — Clarification Policy Foundation
-
-Phase D1 adds only deterministic, pure clarification decision modules. `decideClarification` validates strict input/output, asks category when unknown, asks budget only for a known broad category set (>20), never blocks category+budget or optional missing attributes, returns no-result refinement at zero candidates, and caps consecutive clarification at two. Templates are backend-owned, bounded to six options/300 characters, and contain no catalog or PII. No controller, session, retrieval, Gemini, Prisma, frontend, or API response was changed. D2 may integrate this policy with candidate summary and session clarification state.
