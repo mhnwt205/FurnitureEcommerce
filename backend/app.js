@@ -28,6 +28,7 @@ import voucherAssignmentRoutes from './routes/voucher-assignment.routes.js';
 import loyaltyRoutes from './routes/loyalty.routes.js';
 import { rewardCatalogRoutes, rewardRedemptionRoutes } from './routes/reward-catalog.routes.js';
 import { adminSupportConversationRoutes, supportConversationRoutes } from './routes/supportConversation.routes.js';
+import { createAiAdvisorRouter } from './routes/aiAdvisor.routes.js';
 import { isAllowedOrigin } from './utils/originPolicy.js';
 import { requestContext } from './middlewares/requestContext.middleware.js';
 import { requestLogger } from './middlewares/requestLogger.middleware.js';
@@ -40,7 +41,7 @@ import { reportOnlyPolicy } from './middlewares/contentSecurityPolicy.middleware
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
+export const createApp = ({ getIsShuttingDown = () => false, aiAdvisorRouter = createAiAdvisorRouter() } = {}) => {
   const app = express();
   const trustProxyHops = Number.parseInt(process.env.TRUST_PROXY_HOPS || '1', 10);
   if (process.env.NODE_ENV === 'production' && Number.isSafeInteger(trustProxyHops) && trustProxyHops >= 1) app.set('trust proxy', trustProxyHops);
@@ -49,7 +50,7 @@ export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
   app.use(helmet({ contentSecurityPolicy: false, hsts: process.env.NODE_ENV === 'production' ? undefined : false, crossOriginResourcePolicy: { policy: 'cross-origin' }, referrerPolicy: { policy: 'strict-origin-when-cross-origin' } }));
   app.use(reportOnlyPolicy);
   app.use(requestContext);
-  app.use(cors({ origin: (origin, callback) => !origin || isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS')), credentials: true }));
+  app.use(cors({ origin: (origin, callback) => !origin || isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS')), credentials: true, exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy'] }));
   app.use(requestLogger);
   app.use(express.json({ limit: '256kb' }));
   app.use(express.urlencoded({ extended: false, limit: '64kb', parameterLimit: 100 }));
@@ -89,6 +90,7 @@ export const createApp = ({ getIsShuttingDown = () => false } = {}) => {
   app.use('/api/reward-redemptions', rewardRedemptionRoutes);
   app.use('/api/support/conversations', supportConversationRoutes);
   app.use('/api/admin/support/conversations', adminSupportConversationRoutes);
+  app.use('/api/ai-advisor', aiAdvisorRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
