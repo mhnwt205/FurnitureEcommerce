@@ -5,30 +5,57 @@ import { getStaticFileUrl } from '../../utils/imageUtils';
 import PriceDisplay from '../common/PriceDisplay';
 import { isOutOfStock } from '../../utils/stockUtils';
 import { normalizeAdvisorError, normalizeAdvisorResponse } from '../../features/aiAdvisor/aiAdvisorNormalizer';
-import { aiAdvisorReducer, createClientMessageId, initialAdvisorState, makeUiMessage } from '../../features/aiAdvisor/aiAdvisorState';
+import { aiAdvisorReducer, createClientMessageId, initialAdvisorState, isCooldownActive, makeUiMessage, remainingCooldownSeconds } from '../../features/aiAdvisor/aiAdvisorState';
 import { clearAdvisorPersistence, loadAdvisorPersistence, saveAdvisorPersistence } from '../../features/aiAdvisor/aiAdvisorStorage';
 
 const INITIAL_MESSAGE = 'Xin chào! Mình có thể giúp bạn chọn nội thất theo nhu cầu, ngân sách hoặc không gian.';
 const MAX_MESSAGE_LENGTH = 1000;
 const greeting = () => makeUiMessage({ role: 'assistant', type: 'text', text: INITIAL_MESSAGE });
 const getCurrentProductId = (pathname) => Number(pathname.match(/^\/products\/(\d+)/)?.[1]) || undefined;
+const formatCooldown = (seconds) => seconds > 60 ? `${Math.floor(seconds / 60)} phút ${seconds % 60} giây` : `${seconds} giây`;
 
 function RecommendationCard({ product }) {
   const outOfStock = isOutOfStock(product);
-  return <article className="group rounded-[10px] border border-[#e5e5e5] bg-white p-3"><div className="flex gap-3"><div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[8px] border border-[#eeeeee] bg-[#f6f6f4]">{product.imageUrl ? <img src={getStaticFileUrl(product.imageUrl)} alt={product.name} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center material-symbols-outlined text-[#999]">chair</span>}{outOfStock && <span className="absolute left-1 top-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">Hết hàng</span>}</div><div className="min-w-0 flex-1"><p className="line-clamp-2 text-[13px] font-semibold text-[#333]">{product.name}</p><PriceDisplay {...product} size="small" showBadge showSavings className="mt-1" /><div className="mt-1 text-[11px] text-[#777]">{outOfStock ? 'Hết hàng' : `Còn ${product.stock}`}</div></div></div>{product.reason && <p className="mt-2 text-xs leading-5 text-[#777]">{product.reason}</p>}<Link to={`/products/${product.id}`} className="mt-3 inline-flex w-full justify-center rounded-[8px] border border-[#333] px-3 py-2 text-xs font-bold text-[#333] hover:bg-[#333] hover:text-white">Xem sản phẩm</Link></article>;
+  return <article className="group rounded-[10px] border border-[#e5e5e5] bg-white p-3">
+    <div className="flex gap-3">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[8px] border border-[#eeeeee] bg-[#f6f6f4]">
+        {product.imageUrl ? <img src={getStaticFileUrl(product.imageUrl)} alt={product.name} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center material-symbols-outlined text-[#999]">chair</span>}
+        {outOfStock && <span className="absolute left-1 top-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">Hết hàng</span>}
+      </div>
+      <div className="min-w-0 flex-1"><p className="line-clamp-2 text-[13px] font-semibold text-[#333]">{product.name}</p><PriceDisplay {...product} size="small" showBadge showSavings className="mt-1" /><div className="mt-1 text-[11px] text-[#777]">{outOfStock ? 'Hết hàng' : `Còn ${product.stock}`}</div></div>
+    </div>
+    {product.reason && <p className="mt-2 text-xs leading-5 text-[#777]">{product.reason}</p>}
+    <Link to={`/products/${product.id}`} className="mt-3 inline-flex w-full justify-center rounded-[8px] border border-[#333] px-3 py-2 text-xs font-bold text-[#333] hover:bg-[#333] hover:text-white">Xem sản phẩm</Link>
+  </article>;
 }
 
 export default function AISalesAdvisor({ open = false, onOpenChange, launcherRef }) {
-  const location = useLocation(); const listRef = useRef(null); const inputRef = useRef(null); const abortRef = useRef(null); const pendingRef = useRef(false); const localLauncherRef = useRef(null);
-  const [input, setInput] = useState(''); const [state, dispatch] = useReducer(aiAdvisorReducer, null, () => initialAdvisorState(loadAdvisorPersistence(), greeting()));
-  const currentProductId = useMemo(() => getCurrentProductId(location.pathname), [location.pathname]); const isOpen = Boolean(open); const activeLauncherRef = launcherRef || localLauncherRef;
+  const location = useLocation();
+  const listRef = useRef(null); const inputRef = useRef(null); const abortRef = useRef(null); const pendingRef = useRef(false); const localLauncherRef = useRef(null);
+  const [input, setInput] = useState(''); const [now, setNow] = useState(Date.now());
+  const [state, dispatch] = useReducer(aiAdvisorReducer, null, () => initialAdvisorState(loadAdvisorPersistence(), greeting()));
+  const currentProductId = useMemo(() => getCurrentProductId(location.pathname), [location.pathname]);
+  const isOpen = Boolean(open); const activeLauncherRef = launcherRef || localLauncherRef;
+  const cooldownActive = isCooldownActive(state, now); const cooldownSeconds = remainingCooldownSeconds(state, now);
   const close = () => { onOpenChange?.(false); requestAnimationFrame(() => activeLauncherRef.current?.focus()); };
+
   useEffect(() => () => abortRef.current?.abort(), []);
-  useEffect(() => { if (state.sessionId) saveAdvisorPersistence(state); else clearAdvisorPersistence(); }, [state.sessionId, state.expiresAt, state.messages]);
-  useEffect(() => { if (!listRef.current) return; const nearBottom = listRef.current.scrollHeight - listRef.current.scrollTop - listRef.current.clientHeight < 120; if (nearBottom) listRef.current.scrollTop = listRef.current.scrollHeight; }, [state.messages, state.loading]);
+  useEffect(() => { if (state.sessionId || state.cooldownUntil) saveAdvisorPersistence(state); else clearAdvisorPersistence(); }, [state.sessionId, state.expiresAt, state.messages, state.cooldownUntil]);
+  useEffect(() => {
+    if (!state.cooldownUntil) return undefined;
+    const tick = () => { const current = Date.now(); setNow(current); if (!isCooldownActive(state, current)) dispatch({ type: 'COOLDOWN_EXPIRED', now: current }); };
+    tick(); const timer = setInterval(tick, 1000); return () => clearInterval(timer);
+  }, [state.cooldownUntil]);
+  useEffect(() => {
+    if (!listRef.current) return;
+    const nearBottom = listRef.current.scrollHeight - listRef.current.scrollTop - listRef.current.clientHeight < 120;
+    if (nearBottom) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [state.messages, state.loading]);
 
   const performRequest = async ({ text, clientMessageId = createClientMessageId(), consumeMessageId = null, reset = false, retry = false } = {}) => {
-    if (state.loading || pendingRef.current) return; pendingRef.current = true; const generation = state.generation; const user = reset ? null : makeUiMessage({ role: 'user', text });
+    if (state.loading || pendingRef.current || isCooldownActive(state)) return;
+    pendingRef.current = true;
+    const generation = state.generation; const user = reset ? null : makeUiMessage({ role: 'user', text });
     if (consumeMessageId) dispatch({ type: 'OPTION_CONSUMED', messageId: consumeMessageId });
     if (reset) dispatch({ type: 'RESET_START' }); else dispatch({ type: 'SEND', message: retry ? null : user, request: { clientMessageId, text, generation } });
     const controller = new AbortController(); abortRef.current = controller;
@@ -39,12 +66,32 @@ export default function AISalesAdvisor({ open = false, onOpenChange, launcherRef
       dispatch({ type: 'SUCCESS', generation, clientMessageId, sessionId: normalized.sessionId, expiresAt: normalized.expiresAt, message: makeUiMessage({ role: 'assistant', type: normalized.type, text: normalized.questionText || normalized.text, recommendations: normalized.recommendations, options: normalized.options }) });
     } catch (error) {
       const normalized = normalizeAdvisorError(error); if (normalized.kind === 'aborted') return;
-      if (reset) dispatch({ type: 'RESET_FAILURE', error: normalized.message }); else dispatch({ type: 'FAILURE', generation, clientMessageId, error: normalized.message, message: makeUiMessage({ role: 'assistant', type: 'error', text: normalized.message, requestState: 'retryable' }) });
+      if (normalized.kind === 'rate_limit') {
+        const cooldownUntil = Date.now() + normalized.retryAfterSeconds * 1000;
+        if (reset) dispatch({ type: 'RESET_RATE_LIMITED', error: normalized.message, cooldownUntil });
+        else dispatch({ type: 'RATE_LIMITED', generation, clientMessageId, error: normalized.message, cooldownUntil });
+      }
+      else if (reset) dispatch({ type: 'RESET_FAILURE', error: normalized.message });
+      else dispatch({ type: 'FAILURE', generation, clientMessageId, error: normalized.message, message: makeUiMessage({ role: 'assistant', type: 'error', text: normalized.message, requestState: 'retryable' }) });
     } finally { pendingRef.current = false; if (abortRef.current === controller) abortRef.current = null; inputRef.current?.focus(); }
   };
-  const send = () => { const text = input.trim(); if (!text || state.loading) return; setInput(''); performRequest({ text }); };
-  const retry = () => state.request && performRequest({ text: state.request.text, clientMessageId: state.request.clientMessageId, retry: true });
-  const reset = () => performRequest({ text: 'Bắt đầu cuộc trò chuyện mới', reset: true });
+  const send = () => { const text = input.trim(); if (!text || state.loading || cooldownActive) return; setInput(''); performRequest({ text }); };
+  const retry = () => !cooldownActive && state.request && performRequest({ text: state.request.text, clientMessageId: state.request.clientMessageId, retry: true });
+  const reset = () => !cooldownActive && performRequest({ text: 'Bắt đầu cuộc trò chuyện mới', reset: true });
+  const controlsDisabled = state.loading || cooldownActive;
 
-  return <>{isOpen && <div className="flex h-[min(660px,calc(100vh-112px))] w-[calc(100vw-32px)] max-w-[400px] flex-col overflow-hidden rounded-[14px] border border-[#e5e5e5] bg-white shadow-[0_18px_42px_rgba(0,0,0,0.10)]"><div className="flex items-start justify-between gap-2 border-b border-[#eee] px-5 py-4"><div><p className="text-[15px] font-bold text-[#333]">Tư vấn nội thất</p><p className="mt-1 text-xs text-[#777]">Gợi ý theo nhu cầu và sản phẩm thật</p></div><div className="flex gap-1"><button type="button" onClick={reset} disabled={state.loading} className="rounded px-2 text-xs text-[#777] hover:bg-[#f3f3f1]" aria-label="Bắt đầu cuộc trò chuyện mới">Làm mới</button><button type="button" onClick={close} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#777] hover:bg-[#f3f3f1]" aria-label="Đóng AI tư vấn"><span className="material-symbols-outlined">close</span></button></div></div><div ref={listRef} className="flex-1 space-y-4 overflow-y-auto bg-[#fafaf8] px-4 py-4">{state.messages.map(message => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}><div className={message.role === 'user' ? 'max-w-[82%] rounded-[14px] bg-[#333] px-4 py-3 text-sm leading-6 text-white' : 'max-w-[92%] rounded-[14px] border border-[#e5e5e5] bg-white px-4 py-3 text-sm leading-6 text-[#434343]'}><p className="whitespace-pre-line">{message.text}</p>{message.recommendations?.length > 0 && <div className="mt-3 space-y-3">{message.recommendations.map(product => <RecommendationCard key={product.id} product={product} />)}</div>}{message.options?.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{message.options.map((option, index) => <button key={option.id} type="button" disabled={state.loading || message.requestState === 'consumed'} onClick={() => performRequest({ text: message.type === 'relaxation' ? `Phương án ${index + 1}` : option.value, consumeMessageId: message.id })} className="rounded-lg border border-[#bfa37c] px-3 py-2 text-xs font-semibold text-[#614b35] disabled:opacity-50">{option.label}</button>)}{message.type === 'relaxation' && <button type="button" disabled={state.loading} onClick={() => performRequest({ text: 'Giữ nguyên yêu cầu', consumeMessageId: message.id })} className="rounded-lg border border-[#aaa] px-3 py-2 text-xs text-[#555]">Giữ nguyên yêu cầu</button>}</div>}{message.type === 'no_result' && <button type="button" onClick={reset} disabled={state.loading} className="mt-3 text-xs font-semibold underline">Bắt đầu lại</button>}</div></div>)}{state.loading && <div className="flex justify-start" aria-live="polite"><div className="rounded-[14px] border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#777]">Đang xử lý yêu cầu...</div></div>}</div><form onSubmit={(event) => { event.preventDefault(); send(); }} className="border-t border-[#eee] p-4">{state.error && <div className="mb-3 rounded border border-[#f5d2d3] bg-[#fdebec] px-3 py-2 text-xs text-[#9f2f2d]" role="alert">{state.error} <button type="button" onClick={retry} className="ml-1 underline">Thử lại</button></div>}<div className="flex items-end gap-2"><textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value.slice(0, MAX_MESSAGE_LENGTH))} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} rows="2" maxLength={MAX_MESSAGE_LENGTH} disabled={state.loading} placeholder="Ví dụ: Tôi cần sofa dưới 10 triệu..." className="ui-textarea min-h-[44px] flex-1 resize-none text-sm"/><button type="submit" disabled={!input.trim() || state.loading} className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-[#333] text-white disabled:opacity-50" aria-label="Gửi tin nhắn"><span className="material-symbols-outlined">send</span></button></div></form></div>}<button ref={activeLauncherRef} type="button" onClick={() => onOpenChange?.(!isOpen)} className="flex h-12 items-center gap-2 rounded-[12px] border border-[#333] bg-[#333] px-4 text-white" aria-expanded={isOpen} aria-label="AI tư vấn nội thất"><span className="material-symbols-outlined text-[22px]">support_agent</span><span className="hidden text-sm font-bold md:inline">Tư vấn nội thất</span></button></>;
+  return <>
+    {isOpen && <div className="flex h-[min(660px,calc(100vh-112px))] w-[calc(100vw-32px)] max-w-[400px] flex-col overflow-hidden rounded-[14px] border border-[#e5e5e5] bg-white shadow-[0_18px_42px_rgba(0,0,0,0.10)]">
+      <div className="flex items-start justify-between gap-2 border-b border-[#eee] px-5 py-4"><div><p className="text-[15px] font-bold text-[#333]">Tư vấn nội thất</p><p className="mt-1 text-xs text-[#777]">Gợi ý theo nhu cầu và sản phẩm thật</p></div><div className="flex gap-1"><button type="button" onClick={reset} disabled={controlsDisabled} className="rounded px-2 text-xs text-[#777] hover:bg-[#f3f3f1]" aria-label="Bắt đầu cuộc trò chuyện mới">Làm mới</button><button type="button" onClick={close} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#777] hover:bg-[#f3f3f1]" aria-label="Đóng AI tư vấn"><span className="material-symbols-outlined">close</span></button></div></div>
+      <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto bg-[#fafaf8] px-4 py-4">
+        {state.messages.map((message) => <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}><div className={message.role === 'user' ? 'max-w-[82%] rounded-[14px] bg-[#333] px-4 py-3 text-sm leading-6 text-white' : 'max-w-[92%] rounded-[14px] border border-[#e5e5e5] bg-white px-4 py-3 text-sm leading-6 text-[#434343]'}><p className="whitespace-pre-line">{message.text}</p>{message.recommendations?.length > 0 && <div className="mt-3 space-y-3">{message.recommendations.map((product) => <RecommendationCard key={product.id} product={product} />)}</div>}{message.options?.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{message.options.map((option, index) => <button key={option.id} type="button" disabled={controlsDisabled || message.requestState === 'consumed'} onClick={() => performRequest({ text: message.type === 'relaxation' ? `Phương án ${index + 1}` : option.value, consumeMessageId: message.id })} className="rounded-lg border border-[#bfa37c] px-3 py-2 text-xs font-semibold text-[#614b35] disabled:opacity-50">{option.label}</button>)}{message.type === 'relaxation' && <button type="button" disabled={controlsDisabled} onClick={() => performRequest({ text: 'Giữ nguyên yêu cầu', consumeMessageId: message.id })} className="rounded-lg border border-[#aaa] px-3 py-2 text-xs text-[#555]">Giữ nguyên yêu cầu</button>}</div>}{message.type === 'no_result' && <button type="button" onClick={reset} disabled={controlsDisabled} className="mt-3 text-xs font-semibold underline">Bắt đầu lại</button>}</div></div>)}
+        {state.loading && <div className="flex justify-start" aria-live="polite"><div className="rounded-[14px] border border-[#e5e5e5] bg-white px-4 py-3 text-sm text-[#777]">Đang xử lý yêu cầu...</div></div>}
+      </div>
+      <form onSubmit={(event) => { event.preventDefault(); send(); }} className="border-t border-[#eee] p-4">
+        {state.error && <div className="mb-3 rounded border border-[#f5d2d3] bg-[#fdebec] px-3 py-2 text-xs text-[#9f2f2d]" role="alert">{state.error}{cooldownActive ? <span className="mt-1 block" aria-live="polite">Có thể thử lại sau {formatCooldown(cooldownSeconds)}.</span> : <button type="button" onClick={retry} className="ml-1 underline">Thử lại</button>}</div>}
+        <div className="flex items-end gap-2"><textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value.slice(0, MAX_MESSAGE_LENGTH))} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} rows="2" maxLength={MAX_MESSAGE_LENGTH} disabled={controlsDisabled} placeholder={cooldownActive ? `Có thể gửi lại sau ${formatCooldown(cooldownSeconds)}` : 'Ví dụ: Tôi cần sofa dưới 10 triệu...'} className="ui-textarea min-h-[44px] flex-1 resize-none text-sm" /><button type="submit" disabled={!input.trim() || controlsDisabled} className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-[#333] text-white disabled:opacity-50" aria-label="Gửi tin nhắn"><span className="material-symbols-outlined">send</span></button></div>
+      </form>
+    </div>}
+    <button ref={activeLauncherRef} type="button" onClick={() => onOpenChange?.(!isOpen)} className="flex h-12 items-center gap-2 rounded-[12px] border border-[#333] bg-[#333] px-4 text-white" aria-expanded={isOpen} aria-label="AI tư vấn nội thất"><span className="material-symbols-outlined text-[22px]">support_agent</span><span className="hidden text-sm font-bold md:inline">Tư vấn nội thất</span></button>
+  </>;
 }

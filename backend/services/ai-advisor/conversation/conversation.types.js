@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 export const AI_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-export const AI_SESSION_MAX_TURNS = 20;
+export const AI_SESSION_MAX_TURNS = 30;
 export const AI_SESSION_RECENT_TURNS = 4;
 export const AI_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

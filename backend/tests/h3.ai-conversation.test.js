@@ -66,6 +66,30 @@ test('expired, reset, ownership-mismatched, and turn-limit sessions rotate to a 
   assert.notEqual(rotated.sessionId, expired.sessionId);
 });
 
+test('a session retains turns 1 through 30 and rotates cleanly on turn 31', async () => {
+  assert.equal(AI_SESSION_MAX_TURNS, 30);
+  const store = new AiConversationSessionStore();
+  const resolveIntentFn = async () => resolution(intent({ category: 'sofa' }));
+  const first = await processAiConversation({ message: 'sofa', clientMessageId: 'turn-1', store, resolveIntentFn, advisorResponseFn: engine });
+  let activeSessionId = first.sessionId;
+  for (let turn = 2; turn <= 30; turn += 1) {
+    const response = await processAiConversation({ message: `turn ${turn}`, sessionId: activeSessionId, clientMessageId: `turn-${turn}`, store, resolveIntentFn, advisorResponseFn: engine });
+    assert.equal(response.sessionId, first.sessionId);
+  }
+  const previous = store.get(first.sessionId);
+  previous.comparativeState.type = 'cheaper';
+  previous.clarificationState.consecutiveCount = 2;
+  previous.relaxationState.pendingProposal = { proposalId: 'pending' };
+  const rotated = await processAiConversation({ message: 'turn 31', sessionId: activeSessionId, clientMessageId: 'turn-31', store, resolveIntentFn, advisorResponseFn: engine });
+  assert.notEqual(rotated.sessionId, first.sessionId);
+  assert.equal(rotated.session.turnCount, 1);
+  const next = store.get(rotated.sessionId);
+  assert.equal(next.comparativeState.type, 'none');
+  assert.equal(next.clarificationState.consecutiveCount, 0);
+  assert.equal(next.relaxationState.pendingProposal, null);
+  store.shutdown();
+});
+
 test('same-session concurrent requests serialize without losing turns', async () => {
   const store = new AiConversationSessionStore();
   let release;
