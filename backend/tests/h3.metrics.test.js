@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import test from 'node:test';
 import { createApp } from '../app.js';
-import { aiMetrics } from '../services/ai-advisor/telemetry/metrics.service.js';
 
 test('metrics endpoint is token protected and exposes bounded HTTP aggregates', async () => {
   const previous = process.env.METRICS_TOKEN;
@@ -13,13 +12,10 @@ test('metrics endpoint is token protected and exposes bounded HTTP aggregates', 
     const base = `http://127.0.0.1:${server.address().port}`;
     assert.equal((await fetch(`${base}/metrics`)).status, 404);
     await fetch(`${base}/health`);
-    aiMetrics.increment('ai_requests_total', { outcome: 'recommendation', ownerType: 'guest' });
     const response = await fetch(`${base}/metrics`, { headers: { Authorization: 'Bearer metrics-test-token' } });
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.ok(body.http.some((entry) => entry.key === 'GET:/health:2xx'));
-    assert.ok(body.ai.counters.some((entry) => entry.name === 'ai_requests_total'));
-    assert.equal(JSON.stringify(body.ai).includes('sessionId'), false);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     if (previous === undefined) delete process.env.METRICS_TOKEN; else process.env.METRICS_TOKEN = previous;

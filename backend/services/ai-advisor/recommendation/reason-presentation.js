@@ -1,4 +1,0 @@
-export const REASON_PRESENTATION_BY_CODE = Object.freeze({
-  category_match: 'Đúng danh mục bạn quan tâm.', budget_match: 'Phù hợp ngân sách đã chọn.', color_match: 'Khớp màu bạn ưu tiên.', material_match: 'Khớp chất liệu bạn ưu tiên.', style_match: 'Khớp phong cách bạn ưu tiên.', room_match: 'Phù hợp không gian bạn chọn.', size_match: 'Khớp kích thước bạn ưu tiên.', in_stock: 'Hiện còn hàng.', promotion_active: 'Đang có khuyến mãi.', high_review: 'Có đánh giá tốt từ khách hàng.', cheaper_than_reference: 'Có giá thấp hơn mẫu tham chiếu.', more_expensive_than_reference: 'Có giá cao hơn mẫu tham chiếu.', different_color: 'Có màu khác mẫu tham chiếu.', similar_to_previous: 'Có nét tương đồng với mẫu trước.'
-});
-export const presentGroundedReason = (reasonCodes) => (reasonCodes || []).map((code) => REASON_PRESENTATION_BY_CODE[code]).filter(Boolean).slice(0, 3).join(' ') || 'Phù hợp với yêu cầu đã chọn.';
