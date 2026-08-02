@@ -3,6 +3,7 @@ import {
   AI_ERROR_CODE,
   AiContractError,
   aiAllowedCandidateIdsSchema,
+  aiConversationIdSchema,
   aiChatRequestSchema,
   aiProviderResponseSchema
 } from './aiContracts.js';
@@ -21,6 +22,13 @@ export const parseAiChatRequest = (input) => parseContract(
   input,
   AI_ERROR_CODE.requestValidation,
   'AI chat request is invalid'
+);
+
+export const parseAiConversationId = (input) => parseContract(
+  aiConversationIdSchema,
+  input,
+  AI_ERROR_CODE.requestValidation,
+  'AI conversation ID is invalid'
 );
 
 export const parseAiProviderResponse = (input) => parseContract(

@@ -25,7 +25,13 @@ export const compareAiCandidates = (left, right, inputKeywords) => {
   return values.find(([value]) => value !== 0)?.[0] ?? 0;
 };
 
-const buildPrimaryWhere = (keywords) => ({ isActive: true, OR: keywords.flatMap((word) => [{ name: { contains: word } }, { description: { contains: word } }, { category: { is: { OR: [{ name: { contains: word } }, { slug: { contains: word } }] } } }]) });
+const PROFILE_CATEGORY = Object.freeze({ chair: 'ghế', sofa: 'sofa', table: 'bàn', bed: 'giường', cabinet: 'tủ', lamp: 'đèn' });
+const buildPrimaryWhere = (keywords, profile = {}) => {
+  const where = { isActive: true, OR: keywords.flatMap((word) => [{ name: { contains: word } }, { description: { contains: word } }, { category: { is: { OR: [{ name: { contains: word } }, { slug: { contains: word } }] } } }]) };
+  if (PROFILE_CATEGORY[profile.productType]) where.category = { is: { name: { contains: PROFILE_CATEGORY[profile.productType] } } };
+  if (Number.isInteger(profile.budgetMax) && profile.budgetMax >= 0) where.price = { lte: profile.budgetMax };
+  return where;
+};
 const addReviewSummaries = async (products, database) => {
   if (!products.length) return [];
   const summaries = await database.review.groupBy({ by: ['productId'], where: { productId: { in: products.map(({ id }) => id) }, isApproved: true }, _avg: { rating: true }, _count: { id: true } });
@@ -35,10 +41,11 @@ const addReviewSummaries = async (products, database) => {
 const defaultDependencies = Object.freeze({ prisma, attachPricingToProducts });
 
 export const retrieveAiCandidates = async (input, dependencies = defaultDependencies) => {
-  const maxCandidates = limitOf(input?.maxCandidates); const keywords = normalizeKeywords(input?.message); const database = dependencies.prisma;
-  const rawPrimary = await database.product.findMany({ where: buildPrimaryWhere(keywords), select: productSelection, take: maxCandidates, orderBy: { id: 'asc' } });
+  const maxCandidates = limitOf(input?.maxCandidates); const keywords = normalizeKeywords(input?.message); const profile = input?.profile ?? {}; const database = dependencies.prisma;
+  const primaryWhere = buildPrimaryWhere(keywords, profile);
+  const rawPrimary = await database.product.findMany({ where: primaryWhere, select: productSelection, take: maxCandidates, orderBy: { id: 'asc' } });
   const primaryCount = rawPrimary.length; const primary = uniqueProducts(rawPrimary); let products = primary; let fallbackUsed = false; let fallbackReason = AI_FALLBACK_REASON.none;
-  if (rawPrimary.length < maxCandidates) { fallbackUsed = true; fallbackReason = rawPrimary.length ? AI_FALLBACK_REASON.primaryInsufficient : AI_FALLBACK_REASON.primaryEmpty; const fallback = await database.product.findMany({ where: primary.length ? { isActive: true, id: { notIn: primary.map(({ id }) => id) } } : { isActive: true }, select: productSelection, take: maxCandidates - rawPrimary.length, orderBy: { id: 'asc' } }); products = uniqueProducts([...primary, ...fallback]).slice(0, maxCandidates); }
+  if (rawPrimary.length < maxCandidates) { fallbackUsed = true; fallbackReason = rawPrimary.length ? AI_FALLBACK_REASON.primaryInsufficient : AI_FALLBACK_REASON.primaryEmpty; const profileConstrained = Boolean(PROFILE_CATEGORY[profile.productType] || Number.isInteger(profile.budgetMax)); const fallbackWhere = profileConstrained ? primaryWhere : { isActive: true }; const fallback = await database.product.findMany({ where: primary.length ? { ...fallbackWhere, id: { notIn: primary.map(({ id }) => id) } } : fallbackWhere, select: productSelection, take: maxCandidates - rawPrimary.length, orderBy: { id: 'asc' } }); products = uniqueProducts([...primary, ...fallback]).slice(0, maxCandidates); }
   const priced = products.length ? await dependencies.attachPricingToProducts(products) : [];
   const candidates = (await addReviewSummaries(priced, database)).sort((a,b) => compareAiCandidates(a,b,keywords)).map(projectAiCandidate).slice(0,maxCandidates);
   return { candidates, metadata: { primaryCount, fallbackUsed, fallbackReason, retrievedCount: candidates.length } };

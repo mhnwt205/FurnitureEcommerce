@@ -1,10 +1,14 @@
 import { useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import AISalesAdvisor from '../ai/AISalesAdvisor.jsx';
+import { getAdvisorCurrentProductId } from '../ai/aiAdvisorUi.js';
 import SupportLauncher from '../support/SupportLauncher.jsx';
 
 export default function FloatingChatStack() {
   const [activePanel, setActivePanel] = useState(null);
   const supportLauncherRef = useRef(null);
+  const location = useLocation();
+  const currentProductId = getAdvisorCurrentProductId(location.pathname);
 
   const setPanelOpen = (panel) => (isOpen) => {
     setActivePanel(isOpen ? panel : null);
@@ -15,6 +19,7 @@ export default function FloatingChatStack() {
       <AISalesAdvisor
         open={activePanel === 'advisor'}
         onOpenChange={setPanelOpen('advisor')}
+        currentProductId={currentProductId ?? undefined}
       />
       <SupportLauncher
         open={activePanel === 'support'}

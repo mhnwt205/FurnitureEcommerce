@@ -22,6 +22,15 @@ export const AI_CONSTANTS = Object.freeze({
   maxRateLimitMax: 1_000,
   minRateLimitWindowMs: 1_000,
   maxRateLimitWindowMs: 3_600_000
+  ,defaultConversationTtlMs: 1_200_000
+  ,defaultConversationMaxEntries: 1_000
+  ,defaultConversationMaxRecentTurns: 6
+  ,defaultConversationMaxTotalChars: 1_800
+  ,defaultConversationMaxTurnChars: 600
+  ,minConversationTtlMs: 60_000
+  ,maxConversationTtlMs: 3_600_000
+  ,minConversationMaxEntries: 1
+  ,maxConversationMaxEntries: 10_000
 });
 
 export const {
@@ -46,6 +55,15 @@ export const {
   maxRateLimitMax: AI_MAX_RATE_LIMIT_MAX,
   minRateLimitWindowMs: AI_MIN_RATE_LIMIT_WINDOW_MS,
   maxRateLimitWindowMs: AI_MAX_RATE_LIMIT_WINDOW_MS
+  ,defaultConversationTtlMs: AI_DEFAULT_CONVERSATION_TTL_MS
+  ,defaultConversationMaxEntries: AI_DEFAULT_CONVERSATION_MAX_ENTRIES
+  ,defaultConversationMaxRecentTurns: AI_DEFAULT_CONVERSATION_MAX_RECENT_TURNS
+  ,defaultConversationMaxTotalChars: AI_DEFAULT_CONVERSATION_MAX_TOTAL_CHARS
+  ,defaultConversationMaxTurnChars: AI_DEFAULT_CONVERSATION_MAX_TURN_CHARS
+  ,minConversationTtlMs: AI_MIN_CONVERSATION_TTL_MS
+  ,maxConversationTtlMs: AI_MAX_CONVERSATION_TTL_MS
+  ,minConversationMaxEntries: AI_MIN_CONVERSATION_MAX_ENTRIES
+  ,maxConversationMaxEntries: AI_MAX_CONVERSATION_MAX_ENTRIES
 } = AI_CONSTANTS;
 
 export const AI_ERROR_CODE = Object.freeze({
@@ -73,6 +91,31 @@ export class AiContractError extends Error {
 }
 
 const productIdSchema = z.number().int().positive();
+export const AI_CONVERSATION_HEADER = 'X-AI-Conversation-Id';
+export const AI_CONVERSATION_ID_PATTERN = /^[a-f0-9]{32}$/i;
+const preferenceEnum = (values) => z.enum(values);
+const profileShape = {
+  productType: preferenceEnum(['chair', 'sofa', 'table', 'bed', 'cabinet', 'lamp']).nullable(),
+  room: preferenceEnum(['dining_room', 'living_room', 'bedroom', 'office', 'cafe', 'apartment']).nullable(),
+  budgetMin: z.number().int().nonnegative().nullable(),
+  budgetMax: z.number().int().nonnegative().nullable(),
+  household: z.array(preferenceEnum(['children', 'older_adults', 'pets', 'large_family'])).max(4),
+  style: preferenceEnum(['modern', 'minimalist', 'scandinavian', 'classic', 'industrial']).nullable(),
+  materials: z.array(preferenceEnum(['wood', 'metal', 'fabric', 'leather', 'rattan'])).max(5),
+  colors: z.array(preferenceEnum(['white', 'black', 'brown', 'gray', 'beige', 'natural'])).max(6)
+};
+const profileValueSchema = z.object(profileShape).strict().superRefine((profile, context) => {
+  if (profile.budgetMin !== null && profile.budgetMax !== null && profile.budgetMin > profile.budgetMax) context.addIssue({ code: 'custom', message: 'Conversation budget range is invalid' });
+});
+export const aiConversationIdSchema = z.string().max(32).regex(AI_CONVERSATION_ID_PATTERN);
+export const aiConversationProfileSchema = profileValueSchema;
+export const aiConversationPatchSchema = z.object(profileShape).partial().extend({
+  householdAdd: z.array(preferenceEnum(['children', 'older_adults', 'pets', 'large_family'])).max(4).optional(),
+  householdRemove: z.array(preferenceEnum(['children', 'older_adults', 'pets', 'large_family'])).max(4).optional(),
+  materialsRemove: z.array(preferenceEnum(['wood', 'metal', 'fabric', 'leather', 'rattan'])).max(5).optional(),
+  colorsRemove: z.array(preferenceEnum(['white', 'black', 'brown', 'gray', 'beige', 'natural'])).max(6).optional(),
+  explicitFields: z.array(z.enum(['productType', 'room', 'budgetMin', 'budgetMax', 'household', 'style', 'materials', 'colors'])).max(8).optional()
+}).strict();
 
 export const aiAllowedCandidateIdsSchema = z.array(productIdSchema).superRefine((ids, context) => {
   const uniqueIds = new Set();
@@ -99,7 +142,8 @@ const aiRecommendationSchema = z.object({
 
 export const aiProviderResponseSchema = z.object({
   answer: z.string().trim().min(1).max(AI_ANSWER_MAX_LENGTH),
-  recommendations: z.array(aiRecommendationSchema).max(AI_MAX_RECOMMENDATIONS)
+  recommendations: z.array(aiRecommendationSchema).max(AI_MAX_RECOMMENDATIONS),
+  memoryPatch: aiConversationPatchSchema.optional()
 }).strict().superRefine((result, context) => {
   const ids = new Set();
   for (const recommendation of result.recommendations) {

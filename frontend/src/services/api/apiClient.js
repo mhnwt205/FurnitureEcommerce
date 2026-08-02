@@ -133,7 +133,7 @@ const performRefresh = async ({ signal } = {}) => {
 const refreshAccessToken = () => runCoordinatedRefresh(performRefresh);
 
 const apiClient = async (endpoint, options = {}, hasRetried = false) => {
-  const { signal: callerSignal, timeoutMs, ...requestOptions } = options;
+  const { signal: callerSignal, timeoutMs, returnResponse = false, ...requestOptions } = options;
   const token = getAccessToken();
   const headers = { ...(requestOptions.headers || {}) };
 
@@ -181,7 +181,7 @@ const apiClient = async (endpoint, options = {}, hasRetried = false) => {
     throw createApiError(data?.error?.message || data?.message || response.statusText || 'An error occurred', response.status, data, undefined, response.status === 429 ? parseRetryAfterSeconds(response.headers.get('Retry-After')) : null);
   }
 
-  return data;
+  return returnResponse ? { data, headers: response.headers } : data;
 };
 
 export { API_URL, refreshAccessToken };

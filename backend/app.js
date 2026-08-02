@@ -50,7 +50,7 @@ export const createApp = ({ getIsShuttingDown = () => false, aiAdvisorRouter = c
   app.use(helmet({ contentSecurityPolicy: false, hsts: process.env.NODE_ENV === 'production' ? undefined : false, crossOriginResourcePolicy: { policy: 'cross-origin' }, referrerPolicy: { policy: 'strict-origin-when-cross-origin' } }));
   app.use(reportOnlyPolicy);
   app.use(requestContext);
-  app.use(cors({ origin: (origin, callback) => !origin || isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS')), credentials: true, exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy'] }));
+  app.use(cors({ origin: (origin, callback) => !origin || isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS')), credentials: true, exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy', 'X-AI-Conversation-Id'] }));
   app.use(requestLogger);
   app.use(express.json({ limit: '256kb' }));
   app.use(express.urlencoded({ extended: false, limit: '64kb', parameterLimit: 100 }));

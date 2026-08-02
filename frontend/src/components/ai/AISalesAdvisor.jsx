@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatters.js';
 import { getStaticFileUrl } from '../../utils/imageUtils.js';
 import { sendAiAdvisorMessage } from '../../services/api/aiAdvisorService.js';
@@ -20,13 +21,13 @@ const displayError = (error) => {
   return 'Không thể kết nối đến trợ lý AI. Vui lòng kiểm tra kết nối và thử lại.';
 };
 
-function RecommendationCard({ product }) {
+export function RecommendationCard({ product }) {
   const image = getAdvisorProductImage(product);
   const originalPriceVisible = product.price !== product.finalPrice;
 
   return (
     <article className="overflow-hidden rounded-lg border border-commerce-border bg-white">
-      <a href={getAdvisorProductHref(product)} className="grid grid-cols-[76px_1fr] gap-3 p-3 hover:bg-commerce-surface-muted">
+      <Link to={getAdvisorProductHref(product)} className="grid grid-cols-[76px_1fr] gap-3 p-3 hover:bg-commerce-surface-muted">
         <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-commerce-surface-muted text-center text-xs text-commerce-muted">
           {image ? <img src={getStaticFileUrl(image)} alt="" className="h-full w-full object-cover" loading="lazy" /> : <span className="material-symbols-outlined">image_not_supported</span>}
         </div>
@@ -41,7 +42,7 @@ function RecommendationCard({ product }) {
           <p className="mt-1 text-xs text-commerce-muted">{product.stock > 0 ? `Còn hàng: ${product.stock}` : 'Tạm hết hàng'}</p>
           {product.reviewCount > 0 ? <p className="mt-1 text-xs text-commerce-muted">★ {product.averageRating.toFixed(1)} ({product.reviewCount})</p> : null}
         </div>
-      </a>
+      </Link>
       <p className="border-t border-commerce-border px-3 py-2 text-xs leading-5 text-commerce-text">{product.reason}</p>
     </article>
   );
@@ -77,6 +78,7 @@ export default function AISalesAdvisor({ open = false, onOpenChange, currentProd
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState(null);
   const activeRequestRef = useRef(null);
+  const conversationIdRef = useRef(null);
   const mountedRef = useRef(true);
   const scrollRef = useRef(null);
   const atBottomRef = useRef(true);
@@ -123,9 +125,11 @@ export default function AISalesAdvisor({ open = false, onOpenChange, currentProd
       const response = await sendAiAdvisorMessage({
         message,
         context: Number.isInteger(currentProductId) && currentProductId > 0 ? { currentProductId } : undefined,
-        signal: controller.signal
+        signal: controller.signal,
+        conversationId: conversationIdRef.current
       });
       if (!mountedRef.current || activeRequestRef.current !== controller) return;
+      if (response.conversationId) conversationIdRef.current = response.conversationId;
       appendMessage({ id: `assistant-${Date.now()}`, role: 'assistant', text: response.answer, recommendations: response.recommendations });
     } catch (requestError) {
       if (!mountedRef.current || activeRequestRef.current !== controller || isAdvisorAbortError(requestError)) return;
@@ -147,6 +151,14 @@ export default function AISalesAdvisor({ open = false, onOpenChange, currentProd
     submitMessage(input);
   };
 
+  const startOver = () => {
+    activeRequestRef.current?.abort();
+    conversationIdRef.current = null;
+    setMessages([]);
+    setInput('');
+    setError(null);
+  };
+
   const onKeyDown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -165,7 +177,7 @@ export default function AISalesAdvisor({ open = false, onOpenChange, currentProd
 
   return (
     <section className="flex h-[min(680px,calc(100vh-2rem))] w-[min(100vw-1rem,430px)] flex-col overflow-hidden rounded-[12px] border border-commerce-border bg-white shadow-[0_18px_42px_rgba(0,0,0,0.12)]" role="dialog" aria-modal="true" aria-label="Tư vấn nội thất AI">
-      <header className="flex items-center justify-between gap-3 border-b border-commerce-border px-4 py-3"><div><h2 className="text-base font-bold text-commerce-text">Tư vấn nội thất AI</h2><p className="mt-0.5 text-xs text-commerce-muted">Gợi ý dựa trên dữ liệu sản phẩm hiện có</p></div><button type="button" onClick={close} className="flex h-10 w-10 items-center justify-center rounded-md text-commerce-muted hover:bg-commerce-surface-muted" aria-label="Đóng tư vấn AI"><span className="material-symbols-outlined">close</span></button></header>
+      <header className="flex items-center justify-between gap-3 border-b border-commerce-border px-4 py-3"><div><h2 className="text-base font-bold text-commerce-text">Tư vấn nội thất AI</h2><p className="mt-0.5 text-xs text-commerce-muted">Gợi ý dựa trên dữ liệu sản phẩm hiện có</p></div><div className="flex items-center gap-1"><button type="button" onClick={startOver} className="rounded px-2 py-1 text-xs text-commerce-muted hover:bg-commerce-surface-muted">Bắt đầu lại</button><button type="button" onClick={close} className="flex h-10 w-10 items-center justify-center rounded-md text-commerce-muted hover:bg-commerce-surface-muted" aria-label="Đóng tư vấn AI"><span className="material-symbols-outlined">close</span></button></div></header>
       <MessageList messages={messages} loading={loading} scrollRef={scrollRef} onScroll={onScroll} />
       {remainingSeconds > 0 ? <div className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="alert">Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {formatAdvisorCooldown(remainingSeconds)}.</div> : null}
       {error ? <div className="border-t border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800" role="alert"><span>{error.text}</span>{remainingSeconds === 0 ? <button type="button" onClick={() => submitMessage(error.message, { appendUser: false })} disabled={disabled} className="ml-2 font-semibold underline disabled:cursor-not-allowed disabled:opacity-50">Thử lại</button> : null}</div> : null}

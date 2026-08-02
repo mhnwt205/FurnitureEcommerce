@@ -81,7 +81,13 @@ const mapApiError = (error) => {
   return new AiAdvisorClientError({ code: 'AI_ADVISOR_NETWORK_ERROR' });
 };
 
-export const sendAiAdvisorMessage = async ({ message, context, signal }) => {
+const normalizeConversationId = (value) => typeof value === 'string' && /^[a-f0-9]{32}$/i.test(value) ? value : null;
+const readHeader = (headers, name) => {
+  if (!headers) return undefined;
+  if (typeof headers.get === 'function') return headers.get(name);
+  return headers[name] ?? headers[name.toLowerCase()];
+};
+export const sendAiAdvisorMessage = async ({ message, context, signal, conversationId }) => {
   if (typeof message !== 'string') throw new AiAdvisorClientError({ code: 'AI_ADVISOR_REQUEST_INVALID', status: 400 });
   const normalizedContext = normalizeContext(context);
   const payload = normalizedContext === undefined ? { message } : { message, context: normalizedContext };
@@ -90,9 +96,12 @@ export const sendAiAdvisorMessage = async ({ message, context, signal }) => {
     const response = await apiClient('/ai-advisor/chat', {
       method: 'POST',
       body: JSON.stringify(payload),
-      signal
+      signal,
+      headers: normalizeConversationId(conversationId) ? { 'X-AI-Conversation-Id': conversationId } : undefined,
+      returnResponse: true
     });
-    return normalizeAiAdvisorResponse(response);
+    const body = response && typeof response === 'object' && Object.hasOwn(response, 'data') ? response.data : response;
+    return { ...normalizeAiAdvisorResponse(body), conversationId: normalizeConversationId(readHeader(response?.headers, 'X-AI-Conversation-Id')) };
   } catch (error) {
     if (error instanceof AiAdvisorClientError) throw error;
     throw mapApiError(error);
