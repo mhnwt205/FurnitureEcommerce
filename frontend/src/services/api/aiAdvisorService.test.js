@@ -46,10 +46,27 @@ describe('aiAdvisorService', () => {
     expect(apiClientSpy).toHaveBeenCalledWith('/ai-advisor/chat', {
       method: 'POST',
       body: JSON.stringify({ message: '  Tim sofa  ', context: { currentProductId: 12 } }),
-      signal
+      signal,
+      headers: undefined,
+      returnResponse: true
     });
-    expect(result).toEqual({ answer: 'Day la goi y.', recommendations: [recommendation()] });
+    expect(result).toEqual({ answer: 'Day la goi y.', recommendations: [recommendation()], conversationId: null });
     expect({ message: input.message, context: input.context }).toEqual(snapshot);
+  });
+
+  it('uses only a valid opaque conversation ID in the request header and reads the next ID from headers', async () => {
+    const service = await loadService();
+    const conversationId = 'a'.repeat(32);
+    apiClientSpy.mockResolvedValue({ data: { answer: 'Day la goi y.', recommendations: [] }, headers: { 'x-ai-conversation-id': 'b'.repeat(32) } });
+
+    const result = await service.sendAiAdvisorMessage({ message: 'Sofa', conversationId });
+
+    expect(apiClientSpy).toHaveBeenCalledWith('/ai-advisor/chat', expect.objectContaining({ headers: { 'X-AI-Conversation-Id': conversationId } }));
+    expect(result.conversationId).toBe('b'.repeat(32));
+
+    apiClientSpy.mockResolvedValue({ data: { answer: 'Day la goi y.', recommendations: [] }, headers: {} });
+    await service.sendAiAdvisorMessage({ message: 'Sofa', conversationId: 'not-valid' });
+    expect(apiClientSpy).toHaveBeenLastCalledWith('/ai-advisor/chat', expect.objectContaining({ headers: undefined }));
   });
 
   it('rejects malformed or legacy success payloads instead of inventing product data', async () => {

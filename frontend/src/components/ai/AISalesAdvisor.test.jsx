@@ -5,8 +5,11 @@ import {
   formatAdvisorCooldown,
   getAdvisorProductHref,
   getAdvisorProductImage,
+  getAdvisorCurrentProductId,
   isAdvisorAbortError
 } from './aiAdvisorUi.js';
+import { Link } from 'react-router-dom';
+import { RecommendationCard } from './AISalesAdvisor.jsx';
 
 describe('AISalesAdvisor pure UI behavior', () => {
   it('keeps bounded in-memory history and does not mutate prior messages', () => {
@@ -39,5 +42,20 @@ describe('AISalesAdvisor pure UI behavior', () => {
     expect(getAdvisorProductHref({ id: 9, slug: null })).toBe('/products/9');
     expect(getAdvisorProductImage({ image: null })).toBeNull();
     expect(getAdvisorProductImage({ image: '/uploads/sofa.jpg' })).toBe('/uploads/sofa.jpg');
+  });
+
+  it('derives only a positive current product ID from the active product-detail route', () => {
+    expect(getAdvisorCurrentProductId('/products/16')).toBe(16);
+    expect(getAdvisorCurrentProductId('/products/0')).toBeNull();
+    expect(getAdvisorCurrentProductId('/products/not-a-number')).toBeNull();
+    expect(getAdvisorCurrentProductId('/products')).toBeNull();
+    expect(getAdvisorCurrentProductId('/admin/products/16')).toBeNull();
+  });
+
+  it('uses client-side router navigation for recommendation cards instead of a full-page anchor', () => {
+    const card = RecommendationCard({ product: { id: 16, name: 'Tủ', image: null, category: null, price: 1, finalPrice: 1, promotion: null, stock: 1, reviewCount: 0, reason: 'Có sẵn.' } });
+    const navigation = card.props.children[0];
+    expect(navigation.type).toBe(Link);
+    expect(navigation.props.to).toBe('/products/16');
   });
 });

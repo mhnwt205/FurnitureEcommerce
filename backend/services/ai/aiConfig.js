@@ -58,6 +58,11 @@ export const getAiConfig = (environment = process.env) => {
       max: AI_CONSTANTS.maxRateLimitWindowMs,
       issues
     }),
+    conversationTtlMs: readBoundedInteger({ environment, name: 'AI_CONVERSATION_TTL_MS', fallback: AI_CONSTANTS.defaultConversationTtlMs, min: AI_CONSTANTS.minConversationTtlMs, max: AI_CONSTANTS.maxConversationTtlMs, issues }),
+    conversationMaxEntries: readBoundedInteger({ environment, name: 'AI_CONVERSATION_MAX_ENTRIES', fallback: AI_CONSTANTS.defaultConversationMaxEntries, min: AI_CONSTANTS.minConversationMaxEntries, max: AI_CONSTANTS.maxConversationMaxEntries, issues }),
+    conversationMaxRecentTurns: readBoundedInteger({ environment, name: 'AI_CONVERSATION_MAX_RECENT_TURNS', fallback: AI_CONSTANTS.defaultConversationMaxRecentTurns, min: 1, max: 10, issues }),
+    conversationMaxTotalChars: readBoundedInteger({ environment, name: 'AI_CONVERSATION_MAX_TOTAL_CHARS', fallback: AI_CONSTANTS.defaultConversationMaxTotalChars, min: 200, max: 8_000, issues }),
+    conversationMaxTurnChars: readBoundedInteger({ environment, name: 'AI_CONVERSATION_MAX_TURN_CHARS', fallback: AI_CONSTANTS.defaultConversationMaxTurnChars, min: 100, max: 1_000, issues }),
     issues: Object.freeze(issues)
   };
   return Object.freeze(config);

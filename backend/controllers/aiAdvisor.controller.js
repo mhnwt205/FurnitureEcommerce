@@ -1,5 +1,6 @@
-import { AI_ERROR_CODE, AiContractError } from '../services/ai/aiContracts.js';
+import { AI_CONVERSATION_HEADER, AI_ERROR_CODE, AiContractError } from '../services/ai/aiContracts.js';
 import { processAiChat } from '../services/ai/aiChat.service.js';
+import { parseAiConversationId } from '../services/ai/aiValidation.js';
 import { logger } from '../utils/logger.js';
 
 const safeLog = (loggerImpl, level, event, metadata) => {
@@ -17,7 +18,9 @@ const errorCategory = (error) => {
 export const createAiAdvisorController = ({ processAiChat: process = processAiChat, loggerImpl = logger, now = Date.now } = {}) => async (req, res) => {
   const startedAt = now();
   try {
-    const result = await process(req.body);
+    const header = req.get?.(AI_CONVERSATION_HEADER) ?? req.headers?.[AI_CONVERSATION_HEADER.toLowerCase()];
+    const conversationId = header === undefined ? undefined : parseAiConversationId(header);
+    const result = await process(req.body, { conversationId });
     const { answer, recommendations } = result.response;
     safeLog(loggerImpl, 'info', 'ai_request_completed', {
       requestId: req.requestId,
@@ -27,6 +30,7 @@ export const createAiAdvisorController = ({ processAiChat: process = processAiCh
       providerFallbackUsed: result.internal?.providerFallbackUsed === true,
       providerOutcome: providerOutcome(result.internal?.source)
     });
+    if (result.internal?.conversationId) res.set(AI_CONVERSATION_HEADER, result.internal.conversationId);
     return res.status(200).json({ answer, recommendations });
   } catch (error) {
     const statusCode = error instanceof AiContractError && error.code === AI_ERROR_CODE.requestValidation ? 400 : error?.status === 503 ? 503 : 500;

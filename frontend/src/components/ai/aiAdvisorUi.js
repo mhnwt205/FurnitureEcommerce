@@ -14,3 +14,8 @@ export const formatAdvisorCooldown = (seconds) => {
 export const isAdvisorAbortError = (error) => error?.code === 'AI_ADVISOR_ABORTED' || error?.code === 'REQUEST_ABORTED' || error?.name === 'AbortError';
 export const getAdvisorProductHref = (product) => `/products/${product.id}`;
 export const getAdvisorProductImage = (product) => typeof product?.image === 'string' && product.image ? product.image : null;
+export const getAdvisorCurrentProductId = (pathname) => {
+  const match = /^\/products\/(\d+)$/.exec(pathname ?? '');
+  const id = match ? Number(match[1]) : NaN;
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
