@@ -46,6 +46,26 @@ test('uses backend fallback exactly once for provider failure without refetching
   assert.deepEqual(result.internal, { providerFallbackUsed: true, providerFailureCode: 'AI_PROVIDER_HTTP_ERROR', providerFailureStatus: 403, resolverFallbackUsed: false, staleBudgetCleared: false, source: 'fallback' });
 });
 
+test('tags nested provider telemetry with a bounded resolver or advisor role', async () => {
+  const telemetry = [];
+  const { dependencies } = makeDependencies({
+    resolveAiConversationState: async ({ onTelemetry }) => {
+      onTelemetry('provider_attempt_failed', { failureCode: 'AI_PROVIDER_TIMEOUT', durationMs: 3_000, timedOut: true, attemptCount: 1 });
+      return { ok: true, transition: { operation: 'refine', clear: [], set: {} }, provider: { attemptCount: 1 } };
+    },
+    callAiProvider: async ({ onTelemetry }) => {
+      onTelemetry('provider_attempt_failed', { failureCode: 'AI_PROVIDER_UPSTREAM_ERROR', providerFailureStatus: 503, durationMs: 7_000, timedOut: false, attemptCount: 1 });
+      return { ok: false, error: { code: 'AI_PROVIDER_UPSTREAM_ERROR', status: 503 }, provider: { attemptCount: 1, fallbackUsed: true } };
+    }
+  });
+
+  await processAiChat({ message: 'TÃ¬m sofa' }, { ...dependencies, onTelemetry: (event, metadata) => telemetry.push({ event, metadata }) });
+  assert.deepEqual(telemetry.filter(({ event }) => event === 'provider_attempt_failed'), [
+    { event: 'provider_attempt_failed', metadata: { failureCode: 'AI_PROVIDER_TIMEOUT', durationMs: 3_000, timedOut: true, attemptCount: 1, providerRole: 'state_resolver' } },
+    { event: 'provider_attempt_failed', metadata: { failureCode: 'AI_PROVIDER_UPSTREAM_ERROR', providerFailureStatus: 503, durationMs: 7_000, timedOut: false, attemptCount: 1, providerRole: 'sales_advisor' } }
+  ]);
+});
+
 test('returns deterministic no-result without prompt or provider when retrieval is empty and propagates retrieval errors', async () => {
   const empty = makeDependencies({ retrieveAiCandidates: async () => { empty.calls.retrieval += 1; return { candidates: [], metadata: { primaryCount: 0, fallbackUsed: false, fallbackReason: 'NONE', retrievedCount: 0 } }; } });
   const result = await processAiChat({ message: 'Tìm sofa' }, empty.dependencies);

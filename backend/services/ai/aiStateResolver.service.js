@@ -27,13 +27,14 @@ export const buildAiStateResolverPrompt = ({ profile, message }) => [
   'Return {"operation":"refine|replace|reset","clear":[],"set":{}} only.'
 ].join('\n');
 
-export const resolveAiConversationState = async ({ profile, message, config, callProvider = callAiProvider }) => {
+export const resolveAiConversationState = async ({ profile, message, config, callProvider = callAiProvider, onTelemetry }) => {
   let providerResult;
   try {
     providerResult = await callProvider({
       prompt: buildAiStateResolverPrompt({ profile, message }),
       config: { apiKey: config?.apiKey, model: config?.model, timeoutMs: config?.stateResolverTimeoutMs, maxAttempts: config?.stateResolverMaxAttempts, allowShortTimeout: true },
-      parseResponse: parseAiStateTransition
+      parseResponse: parseAiStateTransition,
+      onTelemetry
     });
   } catch (_error) {
     return { ok: false, error: { code: 'AI_PROVIDER_INVALID_RESPONSE', retryable: false }, provider: { attemptCount: 1, fallbackUsed: true } };
