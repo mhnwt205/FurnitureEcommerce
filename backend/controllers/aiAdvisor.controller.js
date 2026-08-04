@@ -20,7 +20,7 @@ export const createAiAdvisorController = ({ processAiChat: process = processAiCh
   try {
     const header = req.get?.(AI_CONVERSATION_HEADER) ?? req.headers?.[AI_CONVERSATION_HEADER.toLowerCase()];
     const conversationId = header === undefined ? undefined : parseAiConversationId(header);
-    const result = await process(req.body, { conversationId });
+    const result = await process(req.body, { conversationId, onTelemetry: (event, metadata) => safeLog(loggerImpl, event.includes('failed') || event.includes('timeout') ? 'warn' : 'info', event, { requestId: req.requestId, ...metadata }) });
     const { answer, recommendations } = result.response;
     safeLog(loggerImpl, 'info', 'ai_request_completed', {
       requestId: req.requestId,
@@ -28,7 +28,11 @@ export const createAiAdvisorController = ({ processAiChat: process = processAiCh
       durationMs: Math.max(0, now() - startedAt),
       recommendationCount: recommendations.length,
       providerFallbackUsed: result.internal?.providerFallbackUsed === true,
+      providerFailureCode: result.internal?.providerFailureCode,
+      providerFailureStatus: result.internal?.providerFailureStatus,
       providerOutcome: providerOutcome(result.internal?.source)
+      ,resolverFallbackUsed: result.internal?.resolverFallbackUsed === true,
+      staleBudgetCleared: result.internal?.staleBudgetCleared === true
     });
     if (result.internal?.conversationId) res.set(AI_CONVERSATION_HEADER, result.internal.conversationId);
     return res.status(200).json({ answer, recommendations });

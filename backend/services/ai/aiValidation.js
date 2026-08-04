@@ -5,7 +5,8 @@ import {
   aiAllowedCandidateIdsSchema,
   aiConversationIdSchema,
   aiChatRequestSchema,
-  aiProviderResponseSchema
+  aiProviderResponseSchema,
+  aiStateTransitionSchema
 } from './aiContracts.js';
 
 const parseContract = (schema, input, code, message) => {
@@ -29,6 +30,13 @@ export const parseAiConversationId = (input) => parseContract(
   input,
   AI_ERROR_CODE.requestValidation,
   'AI conversation ID is invalid'
+);
+
+export const parseAiStateTransition = (input) => parseContract(
+  aiStateTransitionSchema,
+  input,
+  AI_ERROR_CODE.stateTransitionInvalid,
+  'AI state transition is invalid'
 );
 
 export const parseAiProviderResponse = (input) => parseContract(

@@ -25,10 +25,15 @@ const PROVIDER_ERROR_CODE = Object.freeze({
   configInvalid: 'AI_PROVIDER_CONFIG_INVALID',
   timeout: 'AI_PROVIDER_TIMEOUT',
   network: 'AI_PROVIDER_NETWORK_ERROR',
-  http: 'AI_PROVIDER_HTTP_ERROR',
+  dns: 'AI_PROVIDER_DNS_ERROR',
+  tls: 'AI_PROVIDER_TLS_ERROR',
+  aborted: 'AI_PROVIDER_ABORTED',
+  auth: 'AI_PROVIDER_AUTH_ERROR',
+  upstream: 'AI_PROVIDER_UPSTREAM_ERROR',
+  unknown: 'AI_PROVIDER_UNKNOWN_ERROR',
   rateLimited: 'AI_PROVIDER_RATE_LIMITED',
   responseEmpty: 'AI_PROVIDER_RESPONSE_EMPTY',
-  jsonInvalid: 'AI_PROVIDER_JSON_INVALID'
+  jsonInvalid: 'AI_PROVIDER_INVALID_RESPONSE'
 });
 
 const providerFailure = ({ code, retryable, attemptCount, status }) => Object.freeze({
@@ -48,6 +53,13 @@ const providerSuccess = (data, attemptCount) => Object.freeze({
 });
 
 const isTransientStatus = (status) => status === 429 || (status >= 500 && status <= 599);
+const classifyNetworkError = (error, deadline, controller) => {
+  if (error instanceof AttemptDeadlineExceeded || deadline.timedOut) return PROVIDER_ERROR_CODE.timeout;
+  if (controller.signal.aborted) return PROVIDER_ERROR_CODE.aborted;
+  if (['ENOTFOUND', 'EAI_AGAIN'].includes(error?.code)) return PROVIDER_ERROR_CODE.dns;
+  if (typeof error?.code === 'string' && (error.code.startsWith('ERR_TLS') || ['EPROTO', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'CERT_HAS_EXPIRED'].includes(error.code))) return PROVIDER_ERROR_CODE.tls;
+  return PROVIDER_ERROR_CODE.network;
+};
 
 const stripOptionalJsonCodeFence = (text) => {
   const trimmed = text.trim();
@@ -62,7 +74,7 @@ const extractGeminiText = (body) => {
   return part?.text;
 };
 
-const validateProviderInputs = ({ prompt, allowedCandidateIds, config, fetchImpl }) => {
+const validateProviderInputs = ({ prompt, allowedCandidateIds, config, fetchImpl, parseResponse }) => {
   if (typeof prompt !== 'string' || prompt.length > AI_TOTAL_PROMPT_MAX_CHARS) {
     return PROVIDER_ERROR_CODE.configInvalid;
   }
@@ -74,18 +86,15 @@ const validateProviderInputs = ({ prompt, allowedCandidateIds, config, fetchImpl
   }
   if (
     !Number.isInteger(config.timeoutMs)
-    || config.timeoutMs < AI_MIN_TIMEOUT_MS
+    || config.timeoutMs < (config.allowShortTimeout === true ? 1_000 : AI_MIN_TIMEOUT_MS)
     || config.timeoutMs > AI_MAX_TIMEOUT_MS
     || typeof fetchImpl !== 'function'
   ) {
     return PROVIDER_ERROR_CODE.configInvalid;
   }
 
-  try {
-    validateRecommendationAllowList({ answer: 'allow-list validation', recommendations: [] }, allowedCandidateIds);
-  } catch (error) {
-    if (error instanceof AiContractError) return error.code;
-    return PROVIDER_ERROR_CODE.configInvalid;
+  if (typeof parseResponse !== 'function') {
+    try { validateRecommendationAllowList({ answer: 'allow-list validation', recommendations: [] }, allowedCandidateIds); } catch (error) { return error instanceof AiContractError ? error.code : PROVIDER_ERROR_CODE.configInvalid; }
   }
   return undefined;
 };
@@ -131,7 +140,7 @@ const isTimeout = ({ error, deadline, controller }) => (
   error instanceof AttemptDeadlineExceeded || deadline.timedOut || controller.signal.aborted
 );
 
-const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchImpl, setTimeoutImpl, clearTimeoutImpl, AbortControllerImpl }) => {
+const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchImpl, setTimeoutImpl, clearTimeoutImpl, AbortControllerImpl, parseResponse }) => {
   const controller = new AbortControllerImpl();
   const request = buildGeminiRequest({ prompt, config });
   const deadline = createAttemptDeadline({
@@ -147,7 +156,7 @@ const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchI
       response = await deadline.run(() => fetchImpl(request.url, { ...request.options, signal: controller.signal }));
     } catch (error) {
       return providerFailure({
-        code: isTimeout({ error, deadline, controller }) ? PROVIDER_ERROR_CODE.timeout : PROVIDER_ERROR_CODE.network,
+        code: classifyNetworkError(error, deadline, controller),
         retryable: true,
         attemptCount: 0
       });
@@ -160,7 +169,7 @@ const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchI
     if (!response.ok) {
       const status = Number.isInteger(response.status) ? response.status : undefined;
       return providerFailure({
-        code: status === 429 ? PROVIDER_ERROR_CODE.rateLimited : PROVIDER_ERROR_CODE.http,
+        code: status === 429 ? PROVIDER_ERROR_CODE.rateLimited : (status === 401 || status === 403 ? PROVIDER_ERROR_CODE.auth : (status >= 500 && status <= 599 ? PROVIDER_ERROR_CODE.upstream : PROVIDER_ERROR_CODE.unknown)),
         retryable: isTransientStatus(status),
         attemptCount: 0,
         status
@@ -175,7 +184,7 @@ const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchI
         return providerFailure({ code: PROVIDER_ERROR_CODE.timeout, retryable: true, attemptCount: 0 });
       }
       return providerFailure({
-        code: error instanceof SyntaxError ? PROVIDER_ERROR_CODE.jsonInvalid : PROVIDER_ERROR_CODE.network,
+        code: error instanceof SyntaxError ? PROVIDER_ERROR_CODE.jsonInvalid : classifyNetworkError(error, deadline, controller),
         retryable: !(error instanceof SyntaxError),
         attemptCount: 0
       });
@@ -194,8 +203,8 @@ const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchI
     }
 
     try {
-      const parsed = parseAiProviderResponse(parsedJson);
-      return providerSuccess(validateRecommendationAllowList(parsed, allowedCandidateIds), 0);
+      const parsed = parseResponse ? parseResponse(parsedJson) : validateRecommendationAllowList(parseAiProviderResponse(parsedJson), allowedCandidateIds);
+      return providerSuccess(parsed, 0);
     } catch (error) {
       const code = error instanceof AiContractError ? error.code : AI_ERROR_CODE.providerOutputInvalid;
       return providerFailure({ code, retryable: false, attemptCount: 0 });
@@ -213,8 +222,9 @@ export const callAiProvider = async ({
   setTimeoutImpl = globalThis.setTimeout,
   clearTimeoutImpl = globalThis.clearTimeout,
   AbortControllerImpl = globalThis.AbortController
+  ,parseResponse
 }) => {
-  const inputErrorCode = validateProviderInputs({ prompt, allowedCandidateIds, config, fetchImpl });
+  const inputErrorCode = validateProviderInputs({ prompt, allowedCandidateIds, config, fetchImpl, parseResponse });
   if (inputErrorCode) {
     return providerFailure({
       code: inputErrorCode,
@@ -223,7 +233,8 @@ export const callAiProvider = async ({
     });
   }
 
-  for (let attemptCount = 1; attemptCount <= MAX_PROVIDER_ATTEMPTS; attemptCount += 1) {
+  const maxAttempts = Number.isInteger(config.maxAttempts) && config.maxAttempts >= 1 && config.maxAttempts <= MAX_PROVIDER_ATTEMPTS ? config.maxAttempts : MAX_PROVIDER_ATTEMPTS;
+  for (let attemptCount = 1; attemptCount <= maxAttempts; attemptCount += 1) {
     const result = await callProviderAttempt({
       prompt,
       allowedCandidateIds,
@@ -232,10 +243,11 @@ export const callAiProvider = async ({
       setTimeoutImpl,
       clearTimeoutImpl,
       AbortControllerImpl
+      ,parseResponse
     });
 
     if (result.ok) return providerSuccess(result.data, attemptCount);
-    if (!result.error.retryable || attemptCount === MAX_PROVIDER_ATTEMPTS) {
+    if (!result.error.retryable || attemptCount === maxAttempts) {
       return providerFailure({
         code: result.error.code,
         retryable: result.error.retryable,
@@ -245,7 +257,7 @@ export const callAiProvider = async ({
     }
   }
 
-  return providerFailure({ code: PROVIDER_ERROR_CODE.network, retryable: true, attemptCount: MAX_PROVIDER_ATTEMPTS });
+  return providerFailure({ code: PROVIDER_ERROR_CODE.network, retryable: true, attemptCount: maxAttempts });
 };
 
 export const AI_PROVIDER_ERROR_CODE = PROVIDER_ERROR_CODE;

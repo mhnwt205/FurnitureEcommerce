@@ -174,7 +174,7 @@ test('retries exactly once for transient network and provider HTTP failures', as
     assert.equal(failed.ok, false);
     assert.equal(failed.provider.attemptCount, 2);
     assert.equal(failed.error.retryable, true);
-    assert.equal(failed.error.code, status === 429 ? 'AI_PROVIDER_RATE_LIMITED' : 'AI_PROVIDER_HTTP_ERROR');
+    assert.equal(failed.error.code, status === 429 ? 'AI_PROVIDER_RATE_LIMITED' : 'AI_PROVIDER_UPSTREAM_ERROR');
     assert.equal(JSON.stringify(failed).includes('raw provider body'), false);
   }
 });
@@ -193,7 +193,7 @@ test('does not retry non-transient HTTP responses and never exceeds two attempts
     });
     assert.equal(calls, 1);
     assert.equal(result.ok, false);
-    assert.equal(result.error.code, 'AI_PROVIDER_HTTP_ERROR');
+    assert.equal(result.error.code, [401, 403].includes(status) ? 'AI_PROVIDER_AUTH_ERROR' : 'AI_PROVIDER_UNKNOWN_ERROR');
     assert.equal(result.error.retryable, false);
     assert.equal(result.provider.attemptCount, 1);
   }
@@ -210,6 +210,26 @@ test('does not retry non-transient HTTP responses and never exceeds two attempts
   });
   assert.equal(calls, 2);
   assert.equal(result.error.code, 'AI_PROVIDER_NETWORK_ERROR');
+});
+
+test('classifies DNS and TLS transport failures without exposing error details', async () => {
+  for (const [code, expected] of [['ENOTFOUND', 'AI_PROVIDER_DNS_ERROR'], ['ERR_TLS_CERT_ALTNAME_INVALID', 'AI_PROVIDER_TLS_ERROR']]) {
+    let calls = 0;
+    const result = await callAiProvider({
+      prompt,
+      allowedCandidateIds,
+      config: { ...config, maxAttempts: 1 },
+      fetchImpl: async () => {
+        calls += 1;
+        const error = new Error('private transport detail');
+        error.code = code;
+        throw error;
+      }
+    });
+    assert.equal(calls, 1);
+    assert.equal(result.error.code, expected);
+    assert.equal(JSON.stringify(result).includes('private transport detail'), false);
+  }
 });
 
 test('aborts each timed-out attempt, clears timers, and then falls back after the second timeout', async () => {
@@ -354,7 +374,7 @@ test('retries a timed-out body once and accepts a fully read second response', a
 test('fails closed without retry for malformed, invalid, or disallowed provider output', async () => {
   const cases = [
     { body: {}, code: 'AI_PROVIDER_RESPONSE_EMPTY' },
-    { body: geminiBody('not JSON'), code: 'AI_PROVIDER_JSON_INVALID' },
+    { body: geminiBody('not JSON'), code: 'AI_PROVIDER_INVALID_RESPONSE' },
     { body: geminiBody(JSON.stringify({ answer: 'x', recommendations: [], extra: true })), code: 'AI_PROVIDER_OUTPUT_INVALID' },
     { body: geminiBody(JSON.stringify({ answer: 'x', recommendations: Array.from({ length: 6 }, (_, index) => ({ id: index + 1, reason: 'valid' })) })), code: 'AI_PROVIDER_OUTPUT_INVALID' },
     { body: geminiBody(JSON.stringify({ answer: 'x', recommendations: [{ id: 7, reason: 'a' }, { id: 7, reason: 'b' }] })), code: 'AI_PROVIDER_OUTPUT_INVALID' },
