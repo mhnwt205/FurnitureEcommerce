@@ -99,7 +99,31 @@ const validateProviderInputs = ({ prompt, allowedCandidateIds, config, fetchImpl
   return undefined;
 };
 
-const buildGeminiRequest = ({ prompt, config }) => ({
+const buildAiAdvisorResponseSchema = (allowedCandidateIds) => ({
+  type: 'object',
+  properties: {
+    answer: { type: 'string', description: 'A concise Vietnamese shopping answer.' },
+    recommendations: {
+      type: 'array',
+      maxItems: 5,
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer', enum: allowedCandidateIds },
+          reason: { type: 'string', description: 'A concise evidence-based reason.' }
+        },
+        required: ['id', 'reason'],
+        additionalProperties: false,
+        propertyOrdering: ['id', 'reason']
+      }
+    }
+  },
+  required: ['answer', 'recommendations'],
+  additionalProperties: false,
+  propertyOrdering: ['answer', 'recommendations']
+});
+
+const buildGeminiRequest = ({ prompt, config, responseSchema }) => ({
   url: `${GEMINI_GENERATE_CONTENT_URL}/${encodeURIComponent(config.model.trim())}:generateContent`,
   options: {
     method: 'POST',
@@ -109,7 +133,14 @@ const buildGeminiRequest = ({ prompt, config }) => ({
     },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' }
+      generationConfig: {
+        responseFormat: {
+          text: {
+            mimeType: 'application/json',
+            schema: responseSchema
+          }
+        }
+      }
     })
   }
 });
@@ -140,9 +171,9 @@ const isTimeout = ({ error, deadline, controller }) => (
   error instanceof AttemptDeadlineExceeded || deadline.timedOut || controller.signal.aborted
 );
 
-const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchImpl, setTimeoutImpl, clearTimeoutImpl, AbortControllerImpl, parseResponse }) => {
+const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchImpl, setTimeoutImpl, clearTimeoutImpl, AbortControllerImpl, parseResponse, responseSchema }) => {
   const controller = new AbortControllerImpl();
-  const request = buildGeminiRequest({ prompt, config });
+  const request = buildGeminiRequest({ prompt, config, responseSchema });
   const deadline = createAttemptDeadline({
     controller,
     timeoutMs: config.timeoutMs,
@@ -226,7 +257,8 @@ export const callAiProvider = async ({
   onTelemetry,
   shouldRetry,
   getRemainingMs,
-  minimumRetryRemainingMs
+  minimumRetryRemainingMs,
+  responseSchema
 }) => {
   const emit = typeof onTelemetry === 'function' ? (...args) => {
     try { onTelemetry(...args); } catch {}
@@ -241,6 +273,7 @@ export const callAiProvider = async ({
   }
 
   const maxAttempts = Number.isInteger(config.maxAttempts) && config.maxAttempts >= 1 && config.maxAttempts <= MAX_PROVIDER_ATTEMPTS ? config.maxAttempts : MAX_PROVIDER_ATTEMPTS;
+  const effectiveResponseSchema = responseSchema ?? (parseResponse ? undefined : buildAiAdvisorResponseSchema(allowedCandidateIds));
   const minimumRetryBudgetMs = Number.isInteger(minimumRetryRemainingMs) && minimumRetryRemainingMs > 0
     ? minimumRetryRemainingMs
     : (config.allowShortTimeout === true ? 1_000 : AI_MIN_TIMEOUT_MS);
@@ -257,7 +290,8 @@ export const callAiProvider = async ({
       setTimeoutImpl,
       clearTimeoutImpl,
       AbortControllerImpl
-      ,parseResponse
+      ,parseResponse,
+      responseSchema: effectiveResponseSchema
     });
 
     if (result.ok) return providerSuccess(result.data, attemptCount);

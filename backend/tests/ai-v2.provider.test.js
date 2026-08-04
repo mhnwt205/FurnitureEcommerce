@@ -52,7 +52,36 @@ test('returns validated, trimmed Gemini JSON output on the first attempt', async
       assert.equal(options.headers['Content-Type'], 'application/json');
       assert.deepEqual(JSON.parse(options.body), {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
+        generationConfig: {
+          responseFormat: {
+            text: {
+              mimeType: 'application/json',
+              schema: {
+                type: 'object',
+                properties: {
+                  answer: { type: 'string', description: 'A concise Vietnamese shopping answer.' },
+                  recommendations: {
+                    type: 'array',
+                    maxItems: 5,
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer', enum: [2, 7] },
+                        reason: { type: 'string', description: 'A concise evidence-based reason.' }
+                      },
+                      required: ['id', 'reason'],
+                      additionalProperties: false,
+                      propertyOrdering: ['id', 'reason']
+                    }
+                  }
+                },
+                required: ['answer', 'recommendations'],
+                additionalProperties: false,
+                propertyOrdering: ['answer', 'recommendations']
+              }
+            }
+          }
+        }
       });
       assert.equal(options.signal instanceof AbortSignal, true);
       return response({ body: geminiBody(`\`\`\`json\n${successText}\n\`\`\``) });
