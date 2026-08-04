@@ -53,10 +53,8 @@ test('returns validated, trimmed Gemini JSON output on the first attempt', async
       assert.deepEqual(JSON.parse(options.body), {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
-          responseFormat: {
-            text: {
-              mimeType: 'application/json',
-              schema: {
+          responseMimeType: 'application/json',
+          responseSchema: {
                 type: 'object',
                 properties: {
                   answer: { type: 'string', description: 'A concise Vietnamese shopping answer.' },
@@ -78,8 +76,6 @@ test('returns validated, trimmed Gemini JSON output on the first attempt', async
                 required: ['answer', 'recommendations'],
                 additionalProperties: false,
                 propertyOrdering: ['answer', 'recommendations']
-              }
-            }
           }
         }
       });
@@ -222,7 +218,7 @@ test('does not retry non-transient HTTP responses and never exceeds two attempts
     });
     assert.equal(calls, 1);
     assert.equal(result.ok, false);
-    assert.equal(result.error.code, [401, 403].includes(status) ? 'AI_PROVIDER_AUTH_ERROR' : 'AI_PROVIDER_UNKNOWN_ERROR');
+    assert.equal(result.error.code, status === 400 ? 'AI_PROVIDER_REQUEST_INVALID' : ([401, 403].includes(status) ? 'AI_PROVIDER_AUTH_ERROR' : 'AI_PROVIDER_UNKNOWN_ERROR'));
     assert.equal(result.error.retryable, false);
     assert.equal(result.provider.attemptCount, 1);
   }
