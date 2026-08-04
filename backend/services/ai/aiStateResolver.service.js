@@ -1,6 +1,40 @@
 import { callAiProvider } from './aiProvider.service.js';
 import { parseAiStateTransition } from './aiValidation.js';
 
+const PROFILE_FIELDS = Object.freeze(['productType', 'room', 'budgetMin', 'budgetMax', 'household', 'style', 'materials', 'colors']);
+const PRODUCT_TYPES = Object.freeze(['chair', 'sofa', 'table', 'bed', 'cabinet', 'lamp']);
+const ROOMS = Object.freeze(['dining_room', 'living_room', 'bedroom', 'office', 'cafe', 'apartment']);
+const STYLES = Object.freeze(['modern', 'minimalist', 'scandinavian', 'classic', 'industrial']);
+const MATERIALS = Object.freeze(['wood', 'metal', 'fabric', 'leather', 'rattan']);
+const COLORS = Object.freeze(['white', 'black', 'brown', 'gray', 'beige', 'natural']);
+
+const enumArraySchema = (values, maxItems) => ({ type: 'array', items: { type: 'string', enum: values }, maxItems });
+const AI_STATE_RESOLVER_RESPONSE_SCHEMA = Object.freeze({
+  type: 'object',
+  properties: {
+    operation: { type: 'string', enum: ['refine', 'replace', 'reset'] },
+    clear: enumArraySchema(PROFILE_FIELDS, PROFILE_FIELDS.length),
+    set: {
+      type: 'object',
+      properties: {
+        productType: { type: 'string', enum: PRODUCT_TYPES },
+        room: { type: 'string', enum: ROOMS },
+        budgetMin: { type: 'integer', minimum: 0 },
+        budgetMax: { type: 'integer', minimum: 0 },
+        household: enumArraySchema(['children', 'older_adults', 'pets', 'large_family'], 4),
+        style: { type: 'string', enum: STYLES },
+        materials: enumArraySchema(MATERIALS, 5),
+        colors: enumArraySchema(COLORS, 6)
+      },
+      additionalProperties: false,
+      propertyOrdering: PROFILE_FIELDS
+    }
+  },
+  required: ['operation', 'clear', 'set'],
+  additionalProperties: false,
+  propertyOrdering: ['operation', 'clear', 'set']
+});
+
 const safeProfile = (profile) => ({
   productType: profile?.productType ?? null, room: profile?.room ?? null,
   budgetMin: profile?.budgetMin ?? null, budgetMax: profile?.budgetMax ?? null,
@@ -34,6 +68,7 @@ export const resolveAiConversationState = async ({ profile, message, config, cal
       prompt: buildAiStateResolverPrompt({ profile, message }),
       config: { apiKey: config?.apiKey, model: config?.model, timeoutMs: config?.stateResolverTimeoutMs, maxAttempts: config?.stateResolverMaxAttempts, allowShortTimeout: true },
       parseResponse: parseAiStateTransition,
+      responseSchema: AI_STATE_RESOLVER_RESPONSE_SCHEMA,
       onTelemetry
     });
   } catch (_error) {

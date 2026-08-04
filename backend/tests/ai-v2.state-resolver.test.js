@@ -9,12 +9,19 @@ const gemini = (value) => ({ candidates: [{ content: { parts: [{ text: JSON.stri
 test('calls the resolver independently with a short single-attempt structured transition parser', async () => {
   const result = await resolveAiConversationState({
     profile, message: 'không tìm sofa nữa, tìm giường', config,
-    callProvider: async ({ prompt, config: providerConfig, parseResponse }) => {
+    callProvider: async ({ prompt, config: providerConfig, parseResponse, responseSchema }) => {
       assert.equal(prompt.includes('CANDIDATE'), false);
       assert.equal(prompt.includes('productId'), false);
       assert.equal(providerConfig.timeoutMs, 3_000);
       assert.equal(providerConfig.maxAttempts, 1);
       assert.equal(providerConfig.allowShortTimeout, true);
+      assert.equal(responseSchema.type, 'object');
+      assert.deepEqual(responseSchema.required, ['operation', 'clear', 'set']);
+      assert.equal(responseSchema.additionalProperties, false);
+      assert.deepEqual(responseSchema.properties.operation.enum, ['refine', 'replace', 'reset']);
+      assert.deepEqual(responseSchema.properties.clear.items.enum, ['productType', 'room', 'budgetMin', 'budgetMax', 'household', 'style', 'materials', 'colors']);
+      assert.deepEqual(responseSchema.properties.set.properties.productType.enum, ['chair', 'sofa', 'table', 'bed', 'cabinet', 'lamp']);
+      assert.equal(responseSchema.properties.set.additionalProperties, false);
       return { ok: true, data: parseResponse({ operation: 'replace', clear: ['budgetMax'], set: { productType: 'bed', room: 'bedroom' } }), provider: { attemptCount: 1 } };
     }
   });
