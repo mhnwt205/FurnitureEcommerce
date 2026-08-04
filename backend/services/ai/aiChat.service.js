@@ -102,7 +102,13 @@ export const processAiChat = async (input, options = {}) => {
     providerResult = await deadline.run(() => services.callAiProvider({
       prompt: prompt.prompt,
       allowedCandidateIds: prompt.allowedCandidateIds,
-      config: { ...config, timeoutMs: deadline.capTimeout(config.providerTimeoutMs ?? config.timeoutMs), maxAttempts: 1, allowShortTimeout: true },
+      config: { ...config, timeoutMs: deadline.capTimeout(config.providerTimeoutMs ?? config.timeoutMs), maxAttempts: 2, allowShortTimeout: true },
+      // A single immediate retry is reserved for Gemini's transient 503 only.
+      // Timeouts, DNS/TLS failures, auth failures, and rate limits keep their
+      // one-attempt policy. The shared request deadline caps the retry.
+      shouldRetry: ({ code, status }) => code === 'AI_PROVIDER_UPSTREAM_ERROR' && status === 503,
+      getRemainingMs: deadline.remainingMs,
+      minimumRetryRemainingMs: 1_000,
       onTelemetry: (event, metadata) => emit(event, { ...metadata, providerRole: 'sales_advisor' })
     }));
     emit('sales_advisor_completed', { durationMs: Math.max(0, Date.now() - advisorStartedAt) });

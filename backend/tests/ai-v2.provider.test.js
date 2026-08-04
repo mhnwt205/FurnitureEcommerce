@@ -212,6 +212,60 @@ test('does not retry non-transient HTTP responses and never exceeds two attempts
   assert.equal(result.error.code, 'AI_PROVIDER_NETWORK_ERROR');
 });
 
+test('honors an advisor retry policy that permits only one HTTP 503 retry and skips it when deadline budget is too small', async () => {
+  let timeoutCalls = 0;
+  const timeoutResult = await callAiProvider({
+    prompt,
+    allowedCandidateIds,
+    config: { ...config, maxAttempts: 2, allowShortTimeout: true },
+    shouldRetry: ({ code, status }) => code === 'AI_PROVIDER_UPSTREAM_ERROR' && status === 503,
+    fetchImpl: async () => {
+      timeoutCalls += 1;
+      const error = new Error('transport timed out');
+      error.code = 'ETIMEDOUT';
+      throw error;
+    }
+  });
+  assert.equal(timeoutCalls, 1);
+  assert.equal(timeoutResult.provider.attemptCount, 1);
+
+  let recoveredCalls = 0;
+  const recoveredResult = await callAiProvider({
+    prompt,
+    allowedCandidateIds,
+    config: { ...config, maxAttempts: 2, allowShortTimeout: true },
+    shouldRetry: ({ code, status }) => code === 'AI_PROVIDER_UPSTREAM_ERROR' && status === 503,
+    getRemainingMs: () => 5_000,
+    minimumRetryRemainingMs: 1_000,
+    fetchImpl: async () => {
+      recoveredCalls += 1;
+      return recoveredCalls === 1
+        ? response({ status: 503, body: { error: { message: 'transient upstream failure' } } })
+        : response({ body: geminiBody(successText) });
+    }
+  });
+  assert.equal(recoveredCalls, 2);
+  assert.equal(recoveredResult.ok, true);
+  assert.equal(recoveredResult.provider.attemptCount, 2);
+
+  let upstreamCalls = 0;
+  const upstreamResult = await callAiProvider({
+    prompt,
+    allowedCandidateIds,
+    config: { ...config, maxAttempts: 2, allowShortTimeout: true },
+    shouldRetry: ({ code, status }) => code === 'AI_PROVIDER_UPSTREAM_ERROR' && status === 503,
+    getRemainingMs: () => 999,
+    minimumRetryRemainingMs: 1_000,
+    fetchImpl: async () => {
+      upstreamCalls += 1;
+      return response({ status: 503, body: { error: { message: 'transient upstream failure' } } });
+    }
+  });
+  assert.equal(upstreamCalls, 1);
+  assert.equal(upstreamResult.provider.attemptCount, 1);
+  assert.equal(upstreamResult.error.status, 503);
+});
+
 test('classifies DNS and TLS transport failures without exposing error details', async () => {
   for (const [code, expected] of [['ENOTFOUND', 'AI_PROVIDER_DNS_ERROR'], ['ERR_TLS_CERT_ALTNAME_INVALID', 'AI_PROVIDER_TLS_ERROR']]) {
     let calls = 0;

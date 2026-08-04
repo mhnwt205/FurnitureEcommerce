@@ -46,6 +46,24 @@ test('uses backend fallback exactly once for provider failure without refetching
   assert.deepEqual(result.internal, { providerFallbackUsed: true, providerFailureCode: 'AI_PROVIDER_HTTP_ERROR', providerFailureStatus: 403, resolverFallbackUsed: false, staleBudgetCleared: false, source: 'fallback' });
 });
 
+test('enables one deadline-bounded retry only for a sales-advisor HTTP 503', async () => {
+  let providerOptions;
+  const { dependencies } = makeDependencies({
+    callAiProvider: async (receivedOptions) => {
+      providerOptions = receivedOptions;
+      return { ok: false, error: { code: 'AI_PROVIDER_UPSTREAM_ERROR', status: 503 }, provider: { attemptCount: 2, fallbackUsed: true } };
+    }
+  });
+
+  await processAiChat({ message: 'Tim sofa' }, dependencies);
+  assert.equal(providerOptions.config.maxAttempts, 2);
+  assert.equal(providerOptions.minimumRetryRemainingMs, 1_000);
+  assert.equal(typeof providerOptions.getRemainingMs, 'function');
+  assert.equal(providerOptions.shouldRetry({ code: 'AI_PROVIDER_UPSTREAM_ERROR', status: 503 }), true);
+  assert.equal(providerOptions.shouldRetry({ code: 'AI_PROVIDER_TIMEOUT' }), false);
+  assert.equal(providerOptions.shouldRetry({ code: 'AI_PROVIDER_UPSTREAM_ERROR', status: 500 }), false);
+});
+
 test('tags nested provider telemetry with a bounded resolver or advisor role', async () => {
   const telemetry = [];
   const { dependencies } = makeDependencies({
