@@ -53,8 +53,10 @@ test('returns validated, trimmed Gemini JSON output on the first attempt', async
       assert.deepEqual(JSON.parse(options.body), {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: {
+          responseFormat: {
+            text: {
+              mimeType: 'APPLICATION_JSON',
+              schema: {
                 type: 'object',
                 properties: {
                   answer: { type: 'string', description: 'A concise Vietnamese shopping answer.' },
@@ -76,6 +78,8 @@ test('returns validated, trimmed Gemini JSON output on the first attempt', async
                 required: ['answer', 'recommendations'],
                 additionalProperties: false,
                 propertyOrdering: ['answer', 'recommendations']
+              }
+            }
           }
         }
       });

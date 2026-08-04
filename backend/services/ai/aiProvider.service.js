@@ -135,10 +135,14 @@ const buildGeminiRequest = ({ prompt, config, responseSchema }) => ({
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        // generateContent accepts this compatibility form across the deployed
-        // Gemini model family; responseFormat was rejected by Render's model.
-        responseMimeType: 'application/json',
-        responseSchema
+        responseFormat: {
+          text: {
+            // Gemini's v1beta TextResponseFormat is a protobuf enum. The
+            // endpoint rejects the MIME string "application/json" with HTTP 400.
+            mimeType: 'APPLICATION_JSON',
+            schema: responseSchema
+          }
+        }
       }
     })
   }
