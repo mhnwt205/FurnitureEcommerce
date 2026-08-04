@@ -1,4 +1,4 @@
-const ALLOWED_FIELDS = new Set(['requestId', 'method', 'path', 'statusCode', 'durationMs', 'userId', 'ip', 'errorName', 'errorCode', 'socketId', 'signal', 'reason', 'field', 'recommendationCount', 'providerFallbackUsed', 'providerFailureCode', 'providerFailureStatus', 'providerOutcome', 'ownerType', 'retryAfterSeconds', 'transitionOperation', 'resolverFallbackUsed', 'staleBudgetCleared', 'failureCode', 'timeoutMs']);
+const ALLOWED_FIELDS = new Set(['requestId', 'method', 'path', 'statusCode', 'durationMs', 'userId', 'ip', 'errorName', 'errorCode', 'socketId', 'signal', 'reason', 'field', 'recommendationCount', 'providerFallbackUsed', 'providerFailureCode', 'providerFailureStatus', 'providerOutcome', 'ownerType', 'retryAfterSeconds', 'transitionOperation', 'resolverFallbackUsed', 'staleBudgetCleared', 'failureCode', 'timeoutMs', 'attemptCount', 'timedOut', 'providerRole']);
 
 const sanitize = (metadata = {}) => Object.fromEntries(
   Object.entries(metadata).filter(([key, value]) => ALLOWED_FIELDS.has(key) && value !== undefined && value !== null)

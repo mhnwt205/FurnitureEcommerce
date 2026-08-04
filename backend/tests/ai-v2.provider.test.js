@@ -232,6 +232,44 @@ test('classifies DNS and TLS transport failures without exposing error details',
   }
 });
 
+test('emits bounded provider-attempt telemetry without provider inputs or raw response bodies', async () => {
+  const events = [];
+  const result = await callAiProvider({
+    prompt: 'private user message must not be logged',
+    allowedCandidateIds,
+    config: { ...config, maxAttempts: 1 },
+    fetchImpl: async () => response({ status: 503, body: { error: { message: 'private provider body' } } }),
+    onTelemetry: (event, metadata) => events.push({ event, metadata })
+  });
+
+  assert.equal(result.error.code, 'AI_PROVIDER_UPSTREAM_ERROR');
+  assert.deepEqual(events[0], {
+    event: 'provider_attempt_started',
+    metadata: { attemptCount: 1, timeoutMs: 15_000 }
+  });
+  assert.equal(events[1].event, 'provider_attempt_failed');
+  assert.equal(events[1].metadata.failureCode, 'AI_PROVIDER_UPSTREAM_ERROR');
+  assert.equal(events[1].metadata.providerFailureStatus, 503);
+  assert.equal(events[1].metadata.timedOut, false);
+  assert.equal(events[1].metadata.attemptCount, 1);
+  assert.equal(Number.isFinite(events[1].metadata.durationMs), true);
+  const serialized = JSON.stringify(events);
+  assert.equal(serialized.includes('private user message'), false);
+  assert.equal(serialized.includes('private provider body'), false);
+  assert.equal(serialized.includes(config.apiKey), false);
+});
+
+test('continues the provider call when an optional telemetry callback fails', async () => {
+  const result = await callAiProvider({
+    prompt,
+    allowedCandidateIds,
+    config: { ...config, maxAttempts: 1 },
+    fetchImpl: async () => response({ body: geminiBody(successText) }),
+    onTelemetry: () => { throw new Error('telemetry must not affect AI responses'); }
+  });
+  assert.equal(result.ok, true);
+});
+
 test('aborts each timed-out attempt, clears timers, and then falls back after the second timeout', async () => {
   let calls = 0;
   const cleared = [];

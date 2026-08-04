@@ -222,8 +222,12 @@ export const callAiProvider = async ({
   setTimeoutImpl = globalThis.setTimeout,
   clearTimeoutImpl = globalThis.clearTimeout,
   AbortControllerImpl = globalThis.AbortController
-  ,parseResponse
+  ,parseResponse,
+  onTelemetry
 }) => {
+  const emit = typeof onTelemetry === 'function' ? (...args) => {
+    try { onTelemetry(...args); } catch {}
+  } : () => {};
   const inputErrorCode = validateProviderInputs({ prompt, allowedCandidateIds, config, fetchImpl, parseResponse });
   if (inputErrorCode) {
     return providerFailure({
@@ -235,6 +239,8 @@ export const callAiProvider = async ({
 
   const maxAttempts = Number.isInteger(config.maxAttempts) && config.maxAttempts >= 1 && config.maxAttempts <= MAX_PROVIDER_ATTEMPTS ? config.maxAttempts : MAX_PROVIDER_ATTEMPTS;
   for (let attemptCount = 1; attemptCount <= maxAttempts; attemptCount += 1) {
+    const startedAt = Date.now();
+    emit('provider_attempt_started', { attemptCount, timeoutMs: config.timeoutMs });
     const result = await callProviderAttempt({
       prompt,
       allowedCandidateIds,
@@ -247,6 +253,13 @@ export const callAiProvider = async ({
     });
 
     if (result.ok) return providerSuccess(result.data, attemptCount);
+    emit('provider_attempt_failed', {
+      failureCode: result.error.code,
+      providerFailureStatus: result.error.status,
+      durationMs: Math.max(0, Date.now() - startedAt),
+      timedOut: result.error.code === PROVIDER_ERROR_CODE.timeout,
+      attemptCount
+    });
     if (!result.error.retryable || attemptCount === maxAttempts) {
       return providerFailure({
         code: result.error.code,

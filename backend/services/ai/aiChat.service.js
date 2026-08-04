@@ -63,9 +63,10 @@ export const processAiChat = async (input, options = {}) => {
       profile: conversation.profile,
       message: request.message,
       config: { ...config, stateResolverTimeoutMs: deadline.capTimeout(config.stateResolverTimeoutMs ?? AI_CONSTANTS.defaultStateResolverTimeoutMs), stateResolverMaxAttempts: 1 },
-      callProvider: services.callAiProvider
+      callProvider: services.callAiProvider,
+      onTelemetry: (event, metadata) => emit(event, { ...metadata, providerRole: 'state_resolver' })
     }));
-    if (!resolverResult.ok) throw new Error('Resolver failed');
+    if (!resolverResult.ok) throw Object.assign(new Error('Resolver failed'), { code: resolverResult.error?.code });
     effectiveProfile = services.applyAiStateTransition(conversation.profile, resolverResult.transition);
     emit('state_resolver_succeeded', { durationMs: Math.max(0, Date.now() - resolverStartedAt), transitionOperation: resolverResult.transition.operation });
   } catch (_error) {
@@ -101,7 +102,8 @@ export const processAiChat = async (input, options = {}) => {
     providerResult = await deadline.run(() => services.callAiProvider({
       prompt: prompt.prompt,
       allowedCandidateIds: prompt.allowedCandidateIds,
-      config: { ...config, timeoutMs: deadline.capTimeout(config.providerTimeoutMs ?? config.timeoutMs), maxAttempts: 1, allowShortTimeout: true }
+      config: { ...config, timeoutMs: deadline.capTimeout(config.providerTimeoutMs ?? config.timeoutMs), maxAttempts: 1, allowShortTimeout: true },
+      onTelemetry: (event, metadata) => emit(event, { ...metadata, providerRole: 'sales_advisor' })
     }));
     emit('sales_advisor_completed', { durationMs: Math.max(0, Date.now() - advisorStartedAt) });
   } catch (error) {
