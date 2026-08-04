@@ -223,7 +223,10 @@ export const callAiProvider = async ({
   clearTimeoutImpl = globalThis.clearTimeout,
   AbortControllerImpl = globalThis.AbortController
   ,parseResponse,
-  onTelemetry
+  onTelemetry,
+  shouldRetry,
+  getRemainingMs,
+  minimumRetryRemainingMs
 }) => {
   const emit = typeof onTelemetry === 'function' ? (...args) => {
     try { onTelemetry(...args); } catch {}
@@ -238,13 +241,18 @@ export const callAiProvider = async ({
   }
 
   const maxAttempts = Number.isInteger(config.maxAttempts) && config.maxAttempts >= 1 && config.maxAttempts <= MAX_PROVIDER_ATTEMPTS ? config.maxAttempts : MAX_PROVIDER_ATTEMPTS;
+  const minimumRetryBudgetMs = Number.isInteger(minimumRetryRemainingMs) && minimumRetryRemainingMs > 0
+    ? minimumRetryRemainingMs
+    : (config.allowShortTimeout === true ? 1_000 : AI_MIN_TIMEOUT_MS);
+  let nextAttemptTimeoutMs = config.timeoutMs;
   for (let attemptCount = 1; attemptCount <= maxAttempts; attemptCount += 1) {
+    const attemptConfig = nextAttemptTimeoutMs === config.timeoutMs ? config : { ...config, timeoutMs: nextAttemptTimeoutMs };
     const startedAt = Date.now();
-    emit('provider_attempt_started', { attemptCount, timeoutMs: config.timeoutMs });
+    emit('provider_attempt_started', { attemptCount, timeoutMs: attemptConfig.timeoutMs });
     const result = await callProviderAttempt({
       prompt,
       allowedCandidateIds,
-      config,
+      config: attemptConfig,
       fetchImpl,
       setTimeoutImpl,
       clearTimeoutImpl,
@@ -260,13 +268,32 @@ export const callAiProvider = async ({
       timedOut: result.error.code === PROVIDER_ERROR_CODE.timeout,
       attemptCount
     });
-    if (!result.error.retryable || attemptCount === maxAttempts) {
+    const retryAllowedByPolicy = typeof shouldRetry === 'function'
+      ? (() => {
+          try { return shouldRetry(result.error) === true; } catch { return false; }
+        })()
+      : result.error.retryable;
+    if (!retryAllowedByPolicy || attemptCount === maxAttempts) {
       return providerFailure({
         code: result.error.code,
         retryable: result.error.retryable,
         attemptCount,
         status: result.error.status
       });
+    }
+
+    if (typeof getRemainingMs === 'function') {
+      let remainingMs;
+      try { remainingMs = Math.floor(getRemainingMs()); } catch { remainingMs = 0; }
+      if (!Number.isFinite(remainingMs) || remainingMs < minimumRetryBudgetMs) {
+        return providerFailure({
+          code: result.error.code,
+          retryable: result.error.retryable,
+          attemptCount,
+          status: result.error.status
+        });
+      }
+      nextAttemptTimeoutMs = Math.min(config.timeoutMs, remainingMs);
     }
   }
 
