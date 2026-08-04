@@ -28,6 +28,7 @@ const PROVIDER_ERROR_CODE = Object.freeze({
   dns: 'AI_PROVIDER_DNS_ERROR',
   tls: 'AI_PROVIDER_TLS_ERROR',
   aborted: 'AI_PROVIDER_ABORTED',
+  requestInvalid: 'AI_PROVIDER_REQUEST_INVALID',
   auth: 'AI_PROVIDER_AUTH_ERROR',
   upstream: 'AI_PROVIDER_UPSTREAM_ERROR',
   unknown: 'AI_PROVIDER_UNKNOWN_ERROR',
@@ -134,12 +135,10 @@ const buildGeminiRequest = ({ prompt, config, responseSchema }) => ({
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        responseFormat: {
-          text: {
-            mimeType: 'application/json',
-            schema: responseSchema
-          }
-        }
+        // generateContent accepts this compatibility form across the deployed
+        // Gemini model family; responseFormat was rejected by Render's model.
+        responseMimeType: 'application/json',
+        responseSchema
       }
     })
   }
@@ -200,7 +199,7 @@ const callProviderAttempt = async ({ prompt, allowedCandidateIds, config, fetchI
     if (!response.ok) {
       const status = Number.isInteger(response.status) ? response.status : undefined;
       return providerFailure({
-        code: status === 429 ? PROVIDER_ERROR_CODE.rateLimited : (status === 401 || status === 403 ? PROVIDER_ERROR_CODE.auth : (status >= 500 && status <= 599 ? PROVIDER_ERROR_CODE.upstream : PROVIDER_ERROR_CODE.unknown)),
+        code: status === 400 ? PROVIDER_ERROR_CODE.requestInvalid : (status === 429 ? PROVIDER_ERROR_CODE.rateLimited : (status === 401 || status === 403 ? PROVIDER_ERROR_CODE.auth : (status >= 500 && status <= 599 ? PROVIDER_ERROR_CODE.upstream : PROVIDER_ERROR_CODE.unknown))),
         retryable: isTransientStatus(status),
         attemptCount: 0,
         status
