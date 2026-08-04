@@ -29,7 +29,10 @@ const PROFILE_CATEGORY = Object.freeze({ chair: 'ghế', sofa: 'sofa', table: 'b
 const buildPrimaryWhere = (keywords, profile = {}) => {
   const where = { isActive: true, OR: keywords.flatMap((word) => [{ name: { contains: word } }, { description: { contains: word } }, { category: { is: { OR: [{ name: { contains: word } }, { slug: { contains: word } }] } } }]) };
   if (PROFILE_CATEGORY[profile.productType]) where.category = { is: { name: { contains: PROFILE_CATEGORY[profile.productType] } } };
-  if (Number.isInteger(profile.budgetMax) && profile.budgetMax >= 0) where.price = { lte: profile.budgetMax };
+  const price = {};
+  if (Number.isInteger(profile.budgetMin) && profile.budgetMin >= 0) price.gte = profile.budgetMin;
+  if (Number.isInteger(profile.budgetMax) && profile.budgetMax >= 0) price.lte = profile.budgetMax;
+  if (Object.keys(price).length) where.price = price;
   return where;
 };
 const addReviewSummaries = async (products, database) => {
@@ -45,7 +48,7 @@ export const retrieveAiCandidates = async (input, dependencies = defaultDependen
   const primaryWhere = buildPrimaryWhere(keywords, profile);
   const rawPrimary = await database.product.findMany({ where: primaryWhere, select: productSelection, take: maxCandidates, orderBy: { id: 'asc' } });
   const primaryCount = rawPrimary.length; const primary = uniqueProducts(rawPrimary); let products = primary; let fallbackUsed = false; let fallbackReason = AI_FALLBACK_REASON.none;
-  if (rawPrimary.length < maxCandidates) { fallbackUsed = true; fallbackReason = rawPrimary.length ? AI_FALLBACK_REASON.primaryInsufficient : AI_FALLBACK_REASON.primaryEmpty; const profileConstrained = Boolean(PROFILE_CATEGORY[profile.productType] || Number.isInteger(profile.budgetMax)); const fallbackWhere = profileConstrained ? primaryWhere : { isActive: true }; const fallback = await database.product.findMany({ where: primary.length ? { ...fallbackWhere, id: { notIn: primary.map(({ id }) => id) } } : fallbackWhere, select: productSelection, take: maxCandidates - rawPrimary.length, orderBy: { id: 'asc' } }); products = uniqueProducts([...primary, ...fallback]).slice(0, maxCandidates); }
+  if (rawPrimary.length < maxCandidates) { fallbackUsed = true; fallbackReason = rawPrimary.length ? AI_FALLBACK_REASON.primaryInsufficient : AI_FALLBACK_REASON.primaryEmpty; const profileConstrained = Boolean(PROFILE_CATEGORY[profile.productType] || Number.isInteger(profile.budgetMin) || Number.isInteger(profile.budgetMax)); const fallbackWhere = profileConstrained ? primaryWhere : { isActive: true }; const fallback = await database.product.findMany({ where: primary.length ? { ...fallbackWhere, id: { notIn: primary.map(({ id }) => id) } } : fallbackWhere, select: productSelection, take: maxCandidates - rawPrimary.length, orderBy: { id: 'asc' } }); products = uniqueProducts([...primary, ...fallback]).slice(0, maxCandidates); }
   const priced = products.length ? await dependencies.attachPricingToProducts(products) : [];
   const candidates = (await addReviewSummaries(priced, database)).sort((a,b) => compareAiCandidates(a,b,keywords)).map(projectAiCandidate).slice(0,maxCandidates);
   return { candidates, metadata: { primaryCount, fallbackUsed, fallbackReason, retrievedCount: candidates.length } };

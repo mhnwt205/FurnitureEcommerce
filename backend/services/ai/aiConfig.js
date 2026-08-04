@@ -58,6 +58,11 @@ export const getAiConfig = (environment = process.env) => {
       max: AI_CONSTANTS.maxRateLimitWindowMs,
       issues
     }),
+    providerTimeoutMs: readBoundedInteger({ environment, name: 'AI_PROVIDER_TIMEOUT_MS', fallback: AI_CONSTANTS.defaultProviderTimeoutMs, min: AI_CONSTANTS.minProviderTimeoutMs, max: AI_CONSTANTS.maxProviderTimeoutMs, issues }),
+    providerMaxAttempts: readBoundedInteger({ environment, name: 'AI_PROVIDER_MAX_ATTEMPTS', fallback: AI_CONSTANTS.defaultProviderMaxAttempts, min: 1, max: 2, issues }),
+    requestTotalTimeoutMs: readBoundedInteger({ environment, name: 'AI_REQUEST_TOTAL_TIMEOUT_MS', fallback: AI_CONSTANTS.defaultRequestTotalTimeoutMs, min: AI_CONSTANTS.minRequestTotalTimeoutMs, max: AI_CONSTANTS.maxRequestTotalTimeoutMs, issues }),
+    stateResolverTimeoutMs: readBoundedInteger({ environment, name: 'AI_STATE_RESOLVER_TIMEOUT_MS', fallback: AI_CONSTANTS.defaultStateResolverTimeoutMs, min: AI_CONSTANTS.minStateResolverTimeoutMs, max: AI_CONSTANTS.maxStateResolverTimeoutMs, issues }),
+    stateResolverMaxAttempts: readBoundedInteger({ environment, name: 'AI_STATE_RESOLVER_MAX_ATTEMPTS', fallback: AI_CONSTANTS.defaultStateResolverMaxAttempts, min: 1, max: 1, issues }),
     conversationTtlMs: readBoundedInteger({ environment, name: 'AI_CONVERSATION_TTL_MS', fallback: AI_CONSTANTS.defaultConversationTtlMs, min: AI_CONSTANTS.minConversationTtlMs, max: AI_CONSTANTS.maxConversationTtlMs, issues }),
     conversationMaxEntries: readBoundedInteger({ environment, name: 'AI_CONVERSATION_MAX_ENTRIES', fallback: AI_CONSTANTS.defaultConversationMaxEntries, min: AI_CONSTANTS.minConversationMaxEntries, max: AI_CONSTANTS.maxConversationMaxEntries, issues }),
     conversationMaxRecentTurns: readBoundedInteger({ environment, name: 'AI_CONVERSATION_MAX_RECENT_TURNS', fallback: AI_CONSTANTS.defaultConversationMaxRecentTurns, min: 1, max: 10, issues }),

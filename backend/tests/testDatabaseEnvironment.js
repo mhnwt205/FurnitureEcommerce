@@ -47,6 +47,16 @@ export const validateTestDatabaseEnvironment = (environment = process.env) => {
   }
 
   const target = parseSqlServerTarget(environment.TEST_DATABASE_URL);
+  const developmentUrl = environment.TEST_DATABASE_DEVELOPMENT_URL ?? environment.DATABASE_URL;
+  if (typeof developmentUrl === 'string' && developmentUrl.trim()) {
+    const developmentTarget = parseSqlServerTarget(developmentUrl);
+    if (
+      target.host.toLocaleLowerCase() === developmentTarget.host.toLocaleLowerCase()
+      && target.databaseName.toLocaleLowerCase() === developmentTarget.databaseName.toLocaleLowerCase()
+    ) {
+      throw new TestDatabaseEnvironmentError('TEST_DATABASE_URL must not target the same SQL Server database as DATABASE_URL');
+    }
+  }
   if (PRODUCTION_LIKE_DATABASE_NAME.test(target.databaseName)) {
     throw new TestDatabaseEnvironmentError(`TEST_DATABASE_URL targets disallowed production-like database "${target.databaseName}"`);
   }

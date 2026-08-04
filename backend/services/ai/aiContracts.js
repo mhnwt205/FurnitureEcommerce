@@ -11,6 +11,11 @@ export const AI_CONSTANTS = Object.freeze({
   knowledgeVersion: 'HK_V1',
   outputContractVersion: '1',
   defaultTimeoutMs: 18_000,
+  defaultProviderTimeoutMs: 7_000,
+  defaultProviderMaxAttempts: 1,
+  defaultRequestTotalTimeoutMs: 12_000,
+  defaultStateResolverTimeoutMs: 3_000,
+  defaultStateResolverMaxAttempts: 1,
   defaultRateLimitMax: 20,
   defaultRateLimitWindowMs: 300_000,
   messageMaxLength: 1_000,
@@ -18,6 +23,12 @@ export const AI_CONSTANTS = Object.freeze({
   reasonMaxLength: 240,
   minTimeoutMs: 15_000,
   maxTimeoutMs: 20_000,
+  minProviderTimeoutMs: 1_000,
+  maxProviderTimeoutMs: 15_000,
+  minRequestTotalTimeoutMs: 3_000,
+  maxRequestTotalTimeoutMs: 30_000,
+  minStateResolverTimeoutMs: 1_000,
+  maxStateResolverTimeoutMs: 5_000,
   minRateLimitMax: 1,
   maxRateLimitMax: 1_000,
   minRateLimitWindowMs: 1_000,
@@ -44,6 +55,11 @@ export const {
   knowledgeVersion: AI_KNOWLEDGE_VERSION,
   outputContractVersion: AI_OUTPUT_CONTRACT_VERSION,
   defaultTimeoutMs: AI_DEFAULT_TIMEOUT_MS,
+  defaultProviderTimeoutMs: AI_DEFAULT_PROVIDER_TIMEOUT_MS,
+  defaultProviderMaxAttempts: AI_DEFAULT_PROVIDER_MAX_ATTEMPTS,
+  defaultRequestTotalTimeoutMs: AI_DEFAULT_REQUEST_TOTAL_TIMEOUT_MS,
+  defaultStateResolverTimeoutMs: AI_DEFAULT_STATE_RESOLVER_TIMEOUT_MS,
+  defaultStateResolverMaxAttempts: AI_DEFAULT_STATE_RESOLVER_MAX_ATTEMPTS,
   defaultRateLimitMax: AI_DEFAULT_RATE_LIMIT_MAX,
   defaultRateLimitWindowMs: AI_DEFAULT_RATE_LIMIT_WINDOW_MS,
   messageMaxLength: AI_MESSAGE_MAX_LENGTH,
@@ -51,6 +67,12 @@ export const {
   reasonMaxLength: AI_REASON_MAX_LENGTH,
   minTimeoutMs: AI_MIN_TIMEOUT_MS,
   maxTimeoutMs: AI_MAX_TIMEOUT_MS,
+  minProviderTimeoutMs: AI_MIN_PROVIDER_TIMEOUT_MS,
+  maxProviderTimeoutMs: AI_MAX_PROVIDER_TIMEOUT_MS,
+  minRequestTotalTimeoutMs: AI_MIN_REQUEST_TOTAL_TIMEOUT_MS,
+  maxRequestTotalTimeoutMs: AI_MAX_REQUEST_TOTAL_TIMEOUT_MS,
+  minStateResolverTimeoutMs: AI_MIN_STATE_RESOLVER_TIMEOUT_MS,
+  maxStateResolverTimeoutMs: AI_MAX_STATE_RESOLVER_TIMEOUT_MS,
   minRateLimitMax: AI_MIN_RATE_LIMIT_MAX,
   maxRateLimitMax: AI_MAX_RATE_LIMIT_MAX,
   minRateLimitWindowMs: AI_MIN_RATE_LIMIT_WINDOW_MS,
@@ -72,7 +94,8 @@ export const AI_ERROR_CODE = Object.freeze({
   providerIdNotAllowed: 'AI_PROVIDER_ID_NOT_ALLOWED',
   configInvalid: 'AI_CONFIG_INVALID',
   promptBuild: 'AI_PROMPT_BUILD_ERROR',
-  responseBuild: 'AI_RESPONSE_BUILD_ERROR'
+  responseBuild: 'AI_RESPONSE_BUILD_ERROR',
+  stateTransitionInvalid: 'AI_STATE_TRANSITION_INVALID'
 });
 
 export const AI_FALLBACK_REASON = Object.freeze({
@@ -104,11 +127,33 @@ const profileShape = {
   materials: z.array(preferenceEnum(['wood', 'metal', 'fabric', 'leather', 'rattan'])).max(5),
   colors: z.array(preferenceEnum(['white', 'black', 'brown', 'gray', 'beige', 'natural'])).max(6)
 };
+const profileFieldNames = ['productType', 'room', 'budgetMin', 'budgetMax', 'household', 'style', 'materials', 'colors'];
 const profileValueSchema = z.object(profileShape).strict().superRefine((profile, context) => {
   if (profile.budgetMin !== null && profile.budgetMax !== null && profile.budgetMin > profile.budgetMax) context.addIssue({ code: 'custom', message: 'Conversation budget range is invalid' });
 });
 export const aiConversationIdSchema = z.string().max(32).regex(AI_CONVERSATION_ID_PATTERN);
 export const aiConversationProfileSchema = profileValueSchema;
+const transitionSetShape = {
+  productType: preferenceEnum(['chair', 'sofa', 'table', 'bed', 'cabinet', 'lamp']),
+  room: preferenceEnum(['dining_room', 'living_room', 'bedroom', 'office', 'cafe', 'apartment']),
+  budgetMin: z.number().int().nonnegative(),
+  budgetMax: z.number().int().nonnegative(),
+  household: z.array(preferenceEnum(['children', 'older_adults', 'pets', 'large_family'])).max(4),
+  style: preferenceEnum(['modern', 'minimalist', 'scandinavian', 'classic', 'industrial']),
+  materials: z.array(preferenceEnum(['wood', 'metal', 'fabric', 'leather', 'rattan'])).max(5),
+  colors: z.array(preferenceEnum(['white', 'black', 'brown', 'gray', 'beige', 'natural'])).max(6)
+};
+export const aiStateTransitionSchema = z.object({
+  operation: z.enum(['refine', 'replace', 'reset']),
+  clear: z.array(z.enum(profileFieldNames)).max(profileFieldNames.length),
+  set: z.object(transitionSetShape).partial().strict()
+}).strict().superRefine((transition, context) => {
+  const setKeys = Object.entries(transition.set).filter(([, value]) => value !== undefined).map(([key]) => key);
+  if (new Set(transition.clear).size !== transition.clear.length) context.addIssue({ code: 'custom', message: 'Transition clear fields must be unique' });
+  for (const field of transition.clear) if (setKeys.includes(field)) context.addIssue({ code: 'custom', message: 'Transition cannot clear and set the same field' });
+  if (transition.operation === 'reset' && (transition.clear.length || setKeys.length)) context.addIssue({ code: 'custom', message: 'Reset transition must be empty' });
+  if (transition.set.budgetMin !== undefined && transition.set.budgetMax !== undefined && transition.set.budgetMin > transition.set.budgetMax) context.addIssue({ code: 'custom', message: 'Transition budget range is invalid' });
+}).transform((transition) => ({ ...transition, set: Object.fromEntries(Object.entries(transition.set).filter(([, value]) => value !== undefined)) }));
 export const aiConversationPatchSchema = z.object(profileShape).partial().extend({
   householdAdd: z.array(preferenceEnum(['children', 'older_adults', 'pets', 'large_family'])).max(4).optional(),
   householdRemove: z.array(preferenceEnum(['children', 'older_adults', 'pets', 'large_family'])).max(4).optional(),

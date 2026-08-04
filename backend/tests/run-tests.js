@@ -6,6 +6,7 @@ import { validateTestDatabaseEnvironment } from './testDatabaseEnvironment.js';
 dotenv.config({ path: '.env.test', quiet: true });
 const suppliedTestDatabaseUrl = process.env.TEST_DATABASE_URL;
 dotenv.config({ quiet: true });
+const suppliedDevelopmentDatabaseUrl = process.env.DATABASE_URL;
 
 try {
   validateTestDatabaseEnvironment({
@@ -20,6 +21,7 @@ try {
       ...process.env,
       NODE_ENV: 'test',
       TEST_DATABASE_URL: suppliedTestDatabaseUrl,
+      TEST_DATABASE_DEVELOPMENT_URL: suppliedDevelopmentDatabaseUrl,
       DATABASE_URL: suppliedTestDatabaseUrl
     }
   });

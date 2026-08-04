@@ -10,7 +10,7 @@ const response = () => {
 test('writes bounded AI completion diagnostics without raw request or catalog data', async () => {
   const events = [];
   const controller = createAiAdvisorController({
-    processAiChat: async () => ({ response: { answer: 'private answer', recommendations: [{ id: 1 }] }, internal: { providerFallbackUsed: true, providerFailureCode: 'AI_PROVIDER_TIMEOUT', source: 'fallback' } }),
+    processAiChat: async () => ({ response: { answer: 'private answer', recommendations: [{ id: 1 }] }, internal: { providerFallbackUsed: true, providerFailureCode: 'AI_PROVIDER_HTTP_ERROR', providerFailureStatus: 403, source: 'fallback' } }),
     loggerImpl: { info: (event, metadata) => events.push({ event, metadata }) },
     now: (() => { let value = 100; return () => (value += 25); })()
   });
@@ -18,11 +18,11 @@ test('writes bounded AI completion diagnostics without raw request or catalog da
   await controller({ requestId: 'safe-request-id', body: { message: 'raw-message', prompt: 'prompt-secret', catalog: 'candidate-description' } }, res);
 
   assert.deepEqual(res.state.body, { answer: 'private answer', recommendations: [{ id: 1 }] });
-  assert.deepEqual(events, [{ event: 'ai_request_completed', metadata: { requestId: 'safe-request-id', statusCode: 200, durationMs: 25, recommendationCount: 1, providerFallbackUsed: true, providerOutcome: 'fallback' } }]);
+  assert.deepEqual(events, [{ event: 'ai_request_completed', metadata: { requestId: 'safe-request-id', statusCode: 200, durationMs: 25, recommendationCount: 1, providerFallbackUsed: true, providerFailureCode: 'AI_PROVIDER_HTTP_ERROR', providerFailureStatus: 403, providerOutcome: 'fallback', resolverFallbackUsed: false, staleBudgetCleared: false } }]);
   assert.equal(JSON.stringify(events).includes('raw-message'), false);
   assert.equal(JSON.stringify(events).includes('prompt-secret'), false);
   assert.equal(JSON.stringify(events).includes('candidate-description'), false);
-  assert.equal(JSON.stringify(events).includes('AI_PROVIDER_TIMEOUT'), false);
+  assert.equal(JSON.stringify(events).includes('AI_PROVIDER_HTTP_ERROR'), true);
 });
 
 test('keeps AI responses intact when the sanitized operational logger throws', async () => {
